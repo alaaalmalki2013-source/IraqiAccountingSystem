@@ -1922,6 +1922,11 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
     
     // **جديد:** حالة فلترة الجدول حسب حالة الفاتورة (مصفوفة الآن لدعم الاختيار المتعدد)
     const [statusFilter, setStatusFilter] = useState([]); 
+    
+    // حالة الـ autocomplete للمواد
+    const [suggestions, setSuggestions] = useState([]);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const [editingItemId, setEditingItemId] = useState(null); // لتتبع المادة قيد التعديل
 
     // دالة للحصول على حالة نموذج الفاتورة الافتراضية
     const getDefaultInvoiceForm = useCallback(() => ({
@@ -1998,32 +2003,106 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
         });
     }, [data.inventory]);
 
+    // دالة البحث الذكي في المخزون عند الكتابة في حقل الاسم
+    const handleItemNameChange = useCallback((value) => {
+        setItemForm(prev => ({ ...prev, name: value }));
+        
+        if (value.length >= 2) {
+            const searchNormalized = normalizeTextForSearch(value);
+            
+            // البحث في المخزون عن تطابقات
+            const filtered = data.inventory.filter(item => {
+                const itemNameNorm = normalizeTextForSearch(item.name);
+                const itemBarcodeNorm = item.barcode ? normalizeTextForSearch(item.barcode) : '';
+                return itemNameNorm.includes(searchNormalized) || itemBarcodeNorm.includes(searchNormalized);
+            }).slice(0, 5); // عرض أول 5 نتائج فقط
+            
+            setSuggestions(filtered);
+            setShowSuggestions(true);
+        } else {
+            setShowSuggestions(false);
+            setSuggestions([]);
+        }
+    }, [data.inventory]);
 
-    const handleAddItemToInvoice = (e) => {
-        e.preventDefault();
-        
-        if (!itemForm.name || !itemForm.price || !itemForm.count || itemForm.count <= 0 || !itemForm.category) {
-            showToast('الرجاء ملء جميع حقول المادة بشكل صحيح (الاسم، السعر، الكمية، الفئة).', 'error');
-            return;
-        }
+    // دالة اختيار اقتراح من القائمة
+    const selectSuggestion = useCallback((item) => {
+        const lastPurchase = item.purchaseHistory && item.purchaseHistory.length > 0 
+            ? item.purchaseHistory[0] 
+            : null;
+        
+        setItemForm(prev => ({
+            ...prev,
+            name: item.name,
+            barcode: item.barcode || '',
+            price: lastPurchase ? lastPurchase.price.toString() : item.price.toString(),
+            category: item.category
+        }));
+        setShowSuggestions(false);
+        setSuggestions([]);
+    }, []);
 
-        const newItem = {
-            ...itemForm,
-            id: crypto.randomUUID(),
-            price: parseFloat(itemForm.price),
-            count: parseInt(itemForm.count),
-        };
+    // دالة فتح المودال لتعديل مادة موجودة
+    const handleEditItem = useCallback((item) => {
+        setItemForm({
+            name: item.name,
+            barcode: item.barcode,
+            price: item.price.toString(),
+            count: item.count,
+            category: item.category
+        });
+        setEditingItemId(item.id);
+        setIsAddItemModalOpen(true);
+    }, []);
 
-        setInvoiceForm(prev => ({
-            ...prev,
-            items: [...prev.items, newItem]
-        }));
-        
-        // إعادة تهيئة نموذج المادة، مع الاحتفاظ بالفئة لتسهيل الإضافة المتعددة
-        setItemForm(prev => ({ ...getDefaultItemForm(), category: prev.category }));
-        setIsAddItemModalOpen(false); 
-        showToast(`تمت إضافة المادة "${newItem.name}" بنجاح.`, 'success');
-    };
+
+
+    const handleAddItemToInvoice = (e) => {
+        e.preventDefault();
+        
+        if (!itemForm.name || !itemForm.price || !itemForm.count || itemForm.count <= 0 || !itemForm.category) {
+            showToast('الرجاء ملء جميع حقول المادة بشكل صحيح (الاسم، السعر، الكمية، الفئة).', 'error');
+            return;
+        }
+
+        // التحقق من وجود مادة قيد التعديل
+        if (editingItemId) {
+            // تحديث المادة الموجودة
+            const updatedItem = {
+                ...itemForm,
+                id: editingItemId,
+                price: parseFloat(itemForm.price),
+                count: parseInt(itemForm.count),
+            };
+            
+            setInvoiceForm(prev => ({
+                ...prev,
+                items: prev.items.map(item => item.id === editingItemId ? updatedItem : item)
+            }));
+            
+            showToast(`تم تعديل المادة "${updatedItem.name}" بنجاح.`, 'success');
+        } else {
+            // إضافة مادة جديدة
+            const newItem = {
+                ...itemForm,
+                id: crypto.randomUUID(),
+                price: parseFloat(itemForm.price),
+                count: parseInt(itemForm.count),
+            };
+
+            setInvoiceForm(prev => ({
+                ...prev,
+                items: [...prev.items, newItem]
+            }));
+            
+            showToast(`تمت إضافة المادة "${newItem.name}" بنجاح.`, 'success');
+        }
+        
+        // إعادة تهيئة نموذج المادة، مع الاحتفاظ بالفئة لتسهيل الإضافة المتعددة
+        setItemForm(prev => ({ ...getDefaultItemForm(), category: prev.category }));
+        setEditingItemId(null);
+        setIsAddItemModalOpen(false); 
+    };
 
     const handleRemoveItemFromInvoice = (id) => {
         setInvoiceForm(prev => ({
@@ -2507,11 +2586,14 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                                                 <td className="px-4 py-2 whitespace-nowrap text-sm">{formatCurrencyDisplay(item.price)}</td>
                                                 <td className="px-4 py-2 whitespace-nowrap text-sm">{item.count}</td>
                                                 <td className="px-4 py-2 whitespace-nowrap text-sm font-bold text-red-700">{formatCurrencyDisplay(item.price * item.count)}</td>
-                                                <td className="px-4 py-2 whitespace-nowrap">
-                                                    <button type="button" onClick={() => handleRemoveItemFromInvoice(item.id)} className="text-red-500 hover:text-red-700">
-                                                        <X className="w-4 h-4" />
-                                                    </button>
-                                                </td>
+                                                <td className="px-4 py-2 whitespace-nowrap flex gap-2">
+                                                    <button type="button" onClick={() => handleEditItem(item)} className="text-blue-500 hover:text-blue-700" title="تعديل">
+                                                        <Edit className="w-4 h-4" />
+                                                    </button>
+                                                    <button type="button" onClick={() => handleRemoveItemFromInvoice(item.id)} className="text-red-500 hover:text-red-700" title="حذف">
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </td>
                                             </tr>
                                         ))}
                                         <tr className="bg-teal-50 font-extrabold text-lg">
@@ -2531,71 +2613,131 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                 </Modal>
             )}
 
-            {/* مودال إضافة/تعديل مادة في الفاتورة */}
-            {isAddItemModalOpen && (
-                <Modal title="إضافة مادة للفاتورة" onClose={() => setIsAddItemModalOpen(false)} size="sm">
-                    <form onSubmit={handleAddItemToInvoice} className="space-y-4">
-                        <InputField 
-                            label="اسم المادة" 
-                            value={itemForm.name} 
-                            onChange={(e) => handleItemFormChange('name', e.target.value)} 
-                            required 
-                            placeholder="مثال: شامبو، كمبيوتر..."
-                        />
-                        <div className="grid grid-cols-2 gap-4">
-                             <InputField 
-                                label="سعر الوحدة (د.ع.)" 
-                                type="number" 
-                                currency
-                                value={itemForm.price} 
-                                onChange={(e) => handleItemFormChange('price', e.target.value)} 
-                                required 
-                                placeholder="0"
-                            />
-                             <InputField 
-                                label="الكمية" 
-                                type="number" 
-                                value={itemForm.count} 
-                                onChange={(e) => handleItemFormChange('count', e.target.value)} 
-                                required 
-                                placeholder="1"
-                                min="1"
-                            />
-                        </div>
-                        <div className="flex flex-col space-y-1 text-right">
-                            <label className="text-sm font-medium text-gray-700">فئة المادة (لتصنيف المخزون)</label>
-                            <select
-                                value={itemForm.category}
-                                onChange={(e) => setItemForm(prev => ({ ...prev, category: e.target.value }))}
-                                required
-                                className="w-full p-3 border border-gray-300 rounded-xl transition duration-150 text-right focus:ring-teal-500 focus:border-teal-500"
-                            >
-                                <option value="" disabled>اختر الفئة</option>
-                                {data.settings.expenseCategories.map(cat => (
-                                    <option key={cat} value={cat}>{cat}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <InputField 
-                            label="باركود المادة" 
-                            value={itemForm.barcode} 
-                            onChange={(e) => handleItemFormChange('barcode', e.target.value)} 
-                            placeholder="اضغط على توليد باركود أو أدخله يدوياً"
-                        >
-                            <button type="button" onClick={() => setItemForm(prev => ({ ...prev, barcode: generateBarcode() }))} className="absolute left-1 top-1/2 transform -translate-y-1/2 px-3 py-1.5 text-xs bg-gray-200 hover:bg-gray-300 rounded-lg text-gray-800 font-semibold">
-                                توليد باركود
-                            </button>
-                        </InputField>
-                        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-800 text-sm font-semibold">
-                            إجمالي سعر المادة: {formatCurrencyDisplay((parseFloat(itemForm.price || 0) * parseInt(itemForm.count || 0)))}
-                        </div>
-                        <ActionButton type="submit" className="w-full bg-teal-600 hover:bg-teal-700">
-                            <Plus className="w-5 h-5 ml-2" />
-                            إضافة المادة
-                        </ActionButton>
-                    </form>
-                </Modal>
-            )}
+            {/* مودال إضافة/تعديل مادة في الفاتورة */}
+            {isAddItemModalOpen && (
+                <Modal 
+                    title={editingItemId ? "تعديل مادة في الفاتورة" : "إضافة مادة للفاتورة"} 
+                    onClose={() => {
+                        setIsAddItemModalOpen(false);
+                        setEditingItemId(null);
+                        setSuggestions([]);
+                        setShowSuggestions(false);
+                    }} 
+                    size="sm"
+                >
+                    <form onSubmit={handleAddItemToInvoice} className="space-y-4">
+                        {/* حقل اسم المادة مع autocomplete */}
+                        <div className="relative">
+                            <InputField 
+                                label="اسم المادة" 
+                                value={itemForm.name} 
+                                onChange={(e) => handleItemNameChange(e.target.value)} 
+                                required 
+                                placeholder="مثال: شامبو، كمبيوتر..."
+                            />
+                            
+                            {/* قائمة الاقتراحات */}
+                            {showSuggestions && suggestions.length > 0 && (
+                                <div className="absolute z-50 w-full mt-1 bg-white border border-teal-300 rounded-xl shadow-2xl max-h-60 overflow-y-auto">
+                                    {suggestions.map((item, index) => (
+                                        <div
+                                            key={index}
+                                            onClick={() => selectSuggestion(item)}
+                                            className="p-3 hover:bg-teal-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition"
+                                        >
+                                            <div className="flex justify-between items-center">
+                                                <div>
+                                                    <p className="text-sm font-bold text-gray-800">{item.name}</p>
+                                                    <p className="text-xs text-gray-500">الباركود: {item.barcode || 'غير محدد'}</p>
+                                                    <p className="text-xs text-gray-500">الفئة: {item.category}</p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-xs font-semibold text-teal-600">
+                                                        {formatCurrencyDisplay(item.purchaseHistory?.[0]?.price || item.price)}
+                                                    </p>
+                                                    <p className="text-xs text-gray-500">الكمية: {item.count}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            
+                            {/* رسالة "مادة جديدة" */}
+                            {showSuggestions && suggestions.length === 0 && itemForm.name.length >= 2 && (
+                                <div className="absolute z-50 w-full mt-1 bg-amber-50 border border-amber-300 rounded-xl shadow-lg p-3">
+                                    <p className="text-sm font-semibold text-amber-800 flex items-center">
+                                        <Info className="w-4 h-4 ml-2" />
+                                        مادة جديدة - لم يتم العثور عليها في المخزون
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                             <InputField 
+                                label="سعر الوحدة (د.ع.)" 
+                                type="number" 
+                                currency
+                                value={itemForm.price} 
+                                onChange={(e) => handleItemFormChange('price', e.target.value)} 
+                                required 
+                                placeholder="0"
+                            />
+                             <InputField 
+                                label="الكمية" 
+                                type="number" 
+                                value={itemForm.count} 
+                                onChange={(e) => handleItemFormChange('count', e.target.value)} 
+                                required 
+                                placeholder="1"
+                                min="1"
+                                className="text-right dir-rtl"
+                            />
+                        </div>
+                        <div className="flex flex-col space-y-1 text-right">
+                            <label className="text-sm font-medium text-gray-700">فئة المادة (لتصنيف المخزون)</label>
+                            <select
+                                value={itemForm.category}
+                                onChange={(e) => setItemForm(prev => ({ ...prev, category: e.target.value }))}
+                                required
+                                className="w-full p-3 border border-gray-300 rounded-xl transition duration-150 text-right focus:ring-teal-500 focus:border-teal-500"
+                            >
+                                <option value="" disabled>اختر الفئة</option>
+                                {data.settings.expenseCategories.map(cat => (
+                                    <option key={cat} value={cat}>{cat}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <InputField 
+                            label="باركود المادة" 
+                            value={itemForm.barcode} 
+                            onChange={(e) => handleItemFormChange('barcode', e.target.value)} 
+                            placeholder="اضغط على توليد باركود أو أدخله يدوياً"
+                        >
+                            <button type="button" onClick={() => setItemForm(prev => ({ ...prev, barcode: generateBarcode() }))} className="absolute left-1 top-1/2 transform -translate-y-1/2 px-3 py-1.5 text-xs bg-gray-200 hover:bg-gray-300 rounded-lg text-gray-800 font-semibold">
+                                توليد باركود
+                            </button>
+                        </InputField>
+                        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-800 text-sm font-semibold">
+                            إجمالي سعر المادة: {formatCurrencyDisplay((parseFloat(itemForm.price || 0) * parseInt(itemForm.count || 0)))}
+                        </div>
+                        <ActionButton type="submit" className="w-full bg-teal-600 hover:bg-teal-700">
+                            {editingItemId ? (
+                                <>
+                                    <Edit className="w-5 h-5 ml-2" />
+                                    تعديل المادة
+                                </>
+                            ) : (
+                                <>
+                                    <Plus className="w-5 h-5 ml-2" />
+                                    إضافة المادة
+                                </>
+                            )}
+                        </ActionButton>
+                    </form>
+                </Modal>
+            )}
 
             {/* مودال تفاصيل الفاتورة المعلقة */}
             {isDetailsModalOpen && currentInvoice && (
