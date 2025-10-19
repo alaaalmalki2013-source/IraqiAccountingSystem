@@ -1344,7 +1344,7 @@ const DataPageComponent = React.memo(({ 
                                 (field.key === 'amount' || field.key === 'description' || field.key === 'category');
                             
                             // Check if field is category selection for expense/revenue
-                            if (field.type === 'select' && categories) {
+                            if (field.type === 'select' && categories && field.key !== 'employeeName') {
                                 return (
                                     <div key={field.key} className="flex flex-col space-y-1 text-right">
                                         <label className="text-sm font-medium text-gray-700">{field.label}</label>
