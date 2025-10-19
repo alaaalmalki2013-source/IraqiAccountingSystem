@@ -1,0 +1,3883 @@
+// @ts-nocheck
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import {
+    Home,
+    DollarSign,
+    Users,
+    Settings,
+    Plus,
+    X,
+    Edit,
+    Trash2,
+    Briefcase,
+    List,
+    RotateCcw,
+    TrendingUp,
+    TrendingDown,
+    Save,
+    CalendarCheck,
+    Phone,
+    UserPlus,
+    Coins,
+    Filter,
+    Calculator,
+    Gift,
+    ExternalLink,
+    Building,
+    User,
+    Printer,
+    Search,
+    CheckCircle,
+    AlertTriangle,
+    Download,
+    Package,
+    ClipboardCheck,
+    Truck,
+    Menu, 
+    LogOut,
+    Info,
+    Eye,
+    EyeOff
+} from 'lucide-react';
+
+// =================================================================
+// 1. الثوابت والدوال المساعدة (UTILITIES & CONSTANTS)
+// =================================================================
+
+const STORAGE_KEY = 'IRAQI_ACCOUNTING_DATA_V3_LOCAL';
+
+// **تعديل:** إضافة ألوان مخصصة للفئات
+const CUSTOM_CATEGORY_COLORS = {
+    // المصروفات
+    'الإيجارات': { bg: 'bg-yellow-100', text: 'text-yellow-800', border: 'border-yellow-600' },
+    'مواد أولية': { bg: 'bg-red-100', text: 'text-red-800', border: 'border-red-600' },
+    'صيانة': { bg: 'bg-purple-100', text: 'text-purple-800', border: 'border-purple-600' },
+    // الإيرادات
+    'الصالون': { bg: 'bg-teal-100', text: 'text-teal-800', border: 'border-teal-600' },
+};
+
+
+// الصلاحيات الأساسية التي يمكن للمستخدم تعديلها
+const BASE_PERMISSIONS = {
+    dashboard: { view: true },
+    revenues: { view: true, add: true, edit: true, delete: true }, // جعل الصلاحيات الافتراضية كاملة
+    expenses: { view: true, add: true, edit: true, delete: true },
+    advances: { view: true, add: true, edit: true, delete: true },
+    suspended: { view: true, add: true, edit: true, delete: true },
+    employees: { view: true, add: true, edit: true, delete: true },
+    inventoryEntry: { view: true, approve: true, credit: true, cancel: true }, // صلاحيات خاصة للإدخال المخزني
+    inventory: { view: true },
+    settings: { view: true }
+};
+
+const defaultSettings = {
+    revenueCategories: ['الصالون'],
+    expenseCategories: ['الإيجارات', 'مواد أولية', 'صيانة'],
+    departments: ['الإدارة', 'المبيعات', 'المحاسبة'],
+    jobTitles: ['مدير الادراة والحسابات', 'موظف مبيعات'],
+    vendors: ['السامر', 'الجودة'],
+    representatives: [{ name: 'عبد الله', vendor: 'السامر' }],
+    companyName: 'نظام الحسابات',
+    companyLogoUrl: 'https://placehold.co/100x40/0d9488/ffffff?text=LOGO',
+    // **تم إلغاء نظام المستخدمين/المصادقة مؤقتاً**
+    users: [
+        { 
+            id: 'admin_1', 
+            username: 'المدير العام', 
+            email: 'admin@system.com',
+            password: 'password', 
+            permissions: BASE_PERMISSIONS
+        }
+    ]
+};
+
+const defaultDataStructure = {
+    revenues: [],
+    expenses: [],
+    employees: [
+        // موظف افتراضي للتست
+        { id: 'emp_101', name: 'أحمد علي (للاختبار)', phone: '07701234567', salary: 600000, department: 'المحاسبة', jobTitle: 'مدير الادراة والحسابات', absenceDays: 0, docUrl: '', dateOfBirth: '1990-01-01' },
+    ],
+    advances: [],
+    suspended: [],
+    inventory: [
+        { id: '1', name: 'مادة تنظيف', barcode: '123456789012', price: 5000, count: 20, category: 'مواد أولية', purchaseHistory: [{ date: '2024-10-01T10:00', price: 3000, count: 20, vendor: 'السامر' }] },
+        { id: '2', name: 'قلم حبر', barcode: '100000000001', price: 1000, count: 100, category: 'لوازم مكتبية', purchaseHistory: [{ date: '2024-01-01T10:00', price: 500, count: 100, vendor: 'الجودة' }] },
+    ],
+    pendingInvoices: [], 
+    inventoryDispatches: [
+         // سجل صرف تجريبي فارغ
+    ], 
+    settings: defaultSettings
+};
+
+// توليد رقم فاتورة عشوائي
+const generateInvoiceNumber = () => Math.floor(100000000 + Math.random() * 900000000).toString();
+
+// توليد باركود عشوائي
+const generateBarcode = () => Math.floor(100000000000 + Math.random() * 9000000000000).toString();
+
+/**
+ * تحويل الأرقام العربية إلى إنجليزية وتوحيد الفاصل العشري
+ */
+const convertArabicToEnglish = (input) => {
+    if (typeof input !== 'string') return input;
+    
+    // 1. إزالة فواصل الآلاف
+    let cleanedInput = input.replace(/,/g, '');
+    
+    // 2. توحيد الفاصلة العشرية العربية إلى نقطة
+    cleanedInput = cleanedInput.replace(/٫/g, '.');
+
+    // 3. توحيد الأحرف العربية المتشابهة لضمان دقة البحث
+    let normalizedArabic = cleanedInput
+        .replace(/أ|إ|آ/g, 'ا') // توحيد الهمزات
+        .replace(/ى/g, 'ي')     // توحيد الألف المقصورة
+        .replace(/ة/g, 'ت')     // توحيد التاء المربوطة
+        .replace(/[٠-٩]/g, (d) => (d.charCodeAt(0) - 1632).toString()); // تحويل الأرقام
+    
+    // 4. إزالة أي أحرف غير الأرقام والحروف العربية المتبقية والنقطة
+    const englishNumbers = normalizedArabic.replace(/[^0-9ا-ي. ]/g, ''); 
+    
+    // 5. ضمان وجود نقطة عشرية واحدة فقط (للاستخدام النقدي فقط)
+    const parts = englishNumbers.split('.');
+    if (parts.length > 2) {
+        return parts[0] + '.' + parts.slice(1).join('');
+    }
+    
+    return englishNumbers;
+};
+
+/**
+ * دالة فلترة قوية تعتمد على تحويل النص للمقارنة الدقيقة (شاملة)
+ */
+const normalizeTextForSearch = (text, isNumeric = false) => {
+    if (!text) return '';
+    const normalized = convertArabicToEnglish(text);
+
+    if (isNumeric) {
+        // إذا كان البحث عن قيمة رقمية، نأخذ الأرقام والنقاط فقط
+        return normalized.replace(/[^0-9.]/g, '').toLowerCase();
+    }
+    // للبحث النصي (الأسماء، الأوصاف)، نستخدم النص الموحد بالكامل
+    return normalized.toLowerCase();
+};
+
+
+// تنسيق عرض العملة
+const formatCurrencyDisplay = (amount) => (parseFloat(amount) || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' د.ع.';
+
+// دالة مساعدة لتاريخ ووقت افتراضي
+const getDefaultDateTime = () => {
+    const now = new Date();
+    const offset = now.getTimezoneOffset() * 60000; // تحويل الفارق بالدقائق إلى مللي ثانية
+    const localISO = new Date(now.getTime() - offset).toISOString().slice(0, 16);
+    return localISO;
+};
+
+/**
+ * دالة لتمييز النص في الجدول بشكل ذكي (مُحسّن للدقة)
+ */
+const highlightText = (text, search) => {
+    if (!search || !text) return text;
+    
+    const textStr = text.toString();
+    const searchStr = search.toString();
+    
+    // استخدام normalizeTextForSearch للنصوص (غير الرقمية)
+    const searchLower = normalizeTextForSearch(searchStr, false);
+    const textLower = normalizeTextForSearch(textStr, false);
+    
+    // **تحسين البحث:** البحث عن التطابق في النص الموحد (المعالج)
+    const normalizedSearch = searchLower.trim();
+    
+    if (textLower.includes(normalizedSearch) && normalizedSearch.length > 0) {
+        // إذا وجد تطابق في النص الموحد، نستخدم بحث regex في النص الأصلي
+        
+        // إنشاء تعبير نمطي يتجاهل الحركات ويفضل التطابق العربي
+        const regexPattern = normalizedSearch.split('').map(char => {
+            if (/[0-9.]/.test(char)) return char; // الأرقام كما هي
+            // توحيد الحروف المتشابهة في البحث للـ Regex
+            if (char === 'ا') return '[أإآا]';
+            if (char === 'ي') return '[ىي]';
+            if (char === 'ت') return '[تة]'; 
+            return char;
+        }).join('.*?'); // السماح بأي أحرف بين كل حرفين من البحث (للتطابق الجزئي المرن)
+        
+        const safeRegex = new RegExp(regexPattern, 'gi');
+        
+        const parts = [];
+        let lastIndex = 0;
+        let match;
+        
+        while ((match = safeRegex.exec(textStr)) !== null) {
+            if (match.index > lastIndex) {
+                parts.push(textStr.substring(lastIndex, match.index));
+            }
+            parts.push(
+                <span key={match.index} className="bg-amber-300 text-gray-900 rounded-sm font-semibold p-[1px]">
+                    {match[0]}
+                </span>
+            );
+            lastIndex = safeRegex.lastIndex;
+        }
+        
+        if (lastIndex < textStr.length) {
+            parts.push(textStr.substring(lastIndex));
+        }
+        
+        return <span>{parts}</span>;
+    }
+    
+    // إذا كان البحث رقمي صرف، نطبق التمييز العادي
+    const numericSearchLower = normalizeTextForSearch(searchStr, true);
+    if (numericSearchLower.length > 0 && normalizeTextForSearch(textStr, true).includes(numericSearchLower)) {
+        return (
+            <span>
+                {textStr.split(searchStr).map((part, index) => (
+                    <React.Fragment key={index}>
+                        {part}
+                        {index < textStr.split(searchStr).length - 1 && (
+                            <span className="bg-amber-300 text-gray-900 rounded-sm font-semibold p-[1px]">{searchStr}</span>
+                        )}
+                    </React.Fragment>
+                ))}
+            </span>
+        );
+    }
+
+
+    return text;
+};
+
+// دالة التصدير إلى CSV
+const exportToCsv = (reportData, filename) => {
+    if (reportData.length === 0) return;
+
+    const headers = Object.keys(reportData[0]);
+    
+    const csvContent = [
+        headers.join(';'),
+        ...reportData.map(row => 
+            headers.map(header => {
+                let value = row[header] || '';
+                // إزالة الفواصل والنقاط التي قد تفسد ملف CSV، لكن ترك الفاصلة العشرية إذا كانت ضرورية.
+                value = String(value).replace(/;/g, '').replace(/\n/g, ' '); 
+                return `"${value}"`; 
+            }).join(';')
+        )
+    ].join('\n');
+
+    const BOM = new Uint8Array([0xEF, 0xBB, 0xBF]);
+    const blob = new Blob([BOM, csvContent], { type: 'text/csv;charset=utf-8;' });
+    
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `${filename}_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
+// للحصول على تاريخ بداية ونهاية الشهر الحالي بصيغة YYYY-MM-DD
+const getCurrentMonthRange = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    
+    const start = new Date(year, month, 1);
+    const end = new Date(year, month + 1, 0);
+
+    const formatDate = (date) => date.toISOString().slice(0, 10);
+    
+    return {
+        start: formatDate(start),
+        end: formatDate(end)
+    };
+};
+
+// =================================================================
+// 2. المكونات الأساسية (UI PRIMITIVES)
+// =================================================================
+
+// مكون التنبيه المنبثق
+const NotificationToast = React.memo(({ message, type, onClose }) => {
+    const isSuccess = type === 'success';
+    const bgColor = isSuccess ? 'bg-green-500' : (type === 'error' ? 'bg-red-500' : 'bg-amber-500');
+    const Icon = isSuccess ? CheckCircle : AlertTriangle;
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            onClose();
+        }, 3000); 
+        return () => clearTimeout(timer);
+    }, [onClose]);
+
+    return (
+        <div className={`fixed top-4 right-4 z-[100] p-4 rounded-xl shadow-2xl text-white flex items-center space-x-3 space-x-reverse transition-transform duration-300 transform translate-x-0 ${bgColor}`}>
+            <Icon className="w-6 h-6" />
+            <span className="font-semibold">{message}</span>
+            <button onClick={onClose} className="p-1 rounded-full hover:bg-black hover:bg-opacity-10 transition">
+                <X className="w-4 h-4" />
+            </button>
+        </div>
+    );
+});
+
+// حقل إدخال موحد
+const InputField = React.memo(({ label, type = 'text', value, onChange, placeholder, required = false, currency = false, children, inputKey = label, readOnly = false, textarea = false, onBlur, className = '' }) => ( 
+    <div className="flex flex-col space-y-1 text-right">
+        <label className="text-sm font-medium text-gray-700">{label}</label>
+        <div className="relative">
+            {textarea ? (
+                <textarea
+                    value={value}
+                    onChange={onChange}
+                    onBlur={onBlur} 
+                    placeholder={placeholder}
+                    required={required}
+                    onInvalid={(e) => e.target.setCustomValidity(required ? 'هذا الحقل إجباري، يرجى ملئه.' : '')}
+                    onInput={(e) => e.target.setCustomValidity('')}
+                    readOnly={readOnly}
+                    key={inputKey} 
+                    rows="4"
+                    className={`w-full p-3 border border-gray-300 rounded-xl transition duration-150 ${readOnly ? 'bg-gray-100' : 'bg-white focus:ring-teal-500 focus:border-teal-500'} ${className}`}
+                />
+            ) : (
+                <input
+                    type={type === 'number' && !currency ? 'tel' : type} // استخدام tel للأرقام لتحسين تجربة الجوال، و التعامل مع نوع text للحقول النقدية في الأغلب
+                    value={value}
+                    onChange={(e) => {
+                        if (currency || type === 'number') {
+                            // **الحل الجذري للأرقام العربية في جميع أماكن المبالغ:**
+                            let newValue = e.target.value;
+                            // 1. تحويل الأرقام العربية إلى إنجليزية
+                            newValue = convertArabicToEnglish(newValue);
+                            // 2. إزالة أي رموز غير الأرقام والنقطة لضمان النظافة
+                            newValue = newValue.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'); 
+                            onChange({ target: { value: newValue } });
+                        } else {
+                            onChange(e);
+                        }
+                    }}
+                    onBlur={onBlur} 
+                    placeholder={placeholder}
+                    required={required}
+                    onInvalid={(e) => e.target.setCustomValidity(required ? 'هذا الحقل إجباري، يرجى ملئه.' : '')}
+                    onInput={(e) => e.target.setCustomValidity('')}
+                    readOnly={readOnly}
+                    key={inputKey} 
+                    className={`w-full p-3 border border-gray-300 rounded-xl transition duration-150 ${currency ? 'pr-14 text-right dir-ltr' : ''} ${readOnly ? 'bg-gray-100' : 'bg-white focus:ring-teal-500 focus:border-teal-500'} ${className}`}
+                />
+            )}
+            
+            {currency && <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-sm text-gray-500 font-bold">د.ع.</span>}
+            {children} 
+        </div>
+    </div>
+));
+
+// زر الإجراءات
+const ActionButton = ({ onClick, children, className = 'bg-teal-600 hover:bg-teal-700', type = 'button', disabled = false }) => ( 
+    <button
+        onClick={onClick}
+        type={type}
+        disabled={disabled}
+        className={`px-6 py-3 text-white rounded-xl shadow-lg transition duration-200 flex items-center justify-center space-x-2 space-x-reverse font-semibold ${className} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+    >
+        {children}
+    </button>
+);
+
+// نافذة المودال
+const Modal = ({ title, children, onClose, size = 'lg', isPrintModal = false }) => (
+    <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
+        <div className={`bg-white rounded-3xl shadow-2xl w-full max-h-[90vh] overflow-y-auto transform transition-all duration-300 scale-100 
+            ${size === 'lg' ? 'max-w-md md:max-w-xl' : size === 'xl' ? 'max-w-3xl' : 'max-w-4xl'} 
+            ${isPrintModal ? 'bg-white/90 backdrop-filter backdrop-blur-sm' : ''}
+        `} onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center p-4 border-b border-teal-100 bg-teal-50 rounded-t-3xl">
+                <h3 className="text-xl font-bold text-gray-800 flex-grow text-center">{title}</h3> 
+                <button onClick={onClose} className="text-gray-600 hover:text-gray-800 transition p-1 bg-white rounded-full">
+                    <X className="w-6 h-6" />
+                </button>
+            </div>
+            <div className="p-6">
+                {children}
+            </div>
+        </div>
+    </div>
+);
+
+// مكون طباعة الفاتورة الفردية
+const PrintInvoice = React.memo(({ item, onClose, companyName, companyLogoUrl, employees }) => {
+    const [paperSize, setPaperSize] = useState('80mm');
+
+    // تنسيق التاريخ ليكون رقمياً فقط
+    const formatDate = (dateString) => {
+        const date = new Date(dateString);
+        // تنسيق الوقت HH:MM AM/PM والتاريخ MM/DD/YYYY
+        return date.toLocaleString('en-US', { 
+            year: 'numeric', 
+            month: 'numeric', 
+            day: 'numeric', 
+            hour: '2-digit', 
+            minute: '2-digit', 
+            hour12: true 
+        });
+    }
+    // **تعديل:** إزالة الكسور العشرية
+    const formatCurrency = (amount) => (parseFloat(amount) || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' د.ع.';
+
+    // ضمان عمل زر الطباعة (HandlePrint)
+    const handlePrint = () => {
+        const printContent = document.getElementById('print-invoice-content');
+        if (printContent) {
+            const originalContents = document.body.innerHTML;
+            document.body.innerHTML = printContent.innerHTML;
+            
+            const printStyle = document.createElement('style');
+            if (paperSize === '80mm') {
+                printStyle.innerHTML = `
+                    @page { size: 80mm auto; margin: 0; } 
+                    body { width: 80mm; font-family: 'Arial', sans-serif; }
+                    .invoice-container { padding: 5px; }
+                    .invoice-details td, .invoice-details th { padding: 3px; font-size: 10px; }
+                    .description-cell { white-space: normal !important; word-break: break-word; }
+                `;
+            } else { // A4
+                printStyle.innerHTML = `
+                    @page { size: A4; margin: 15mm; }
+                    body { font-family: 'Arial', sans-serif; }
+                    .invoice-container { padding: 20px; }
+                    .invoice-details td, .invoice-details th { border: 1px solid #ddd; padding: 10px; }
+                    .header-a4 { border-bottom: 2px solid #333; }
+                    .description-cell { white-space: normal !important; word-break: break-word; }
+                    .print-date-right { text-align: left !important; } 
+                    .print-date-center { text-align: center !important; } 
+                    .no-print-footer { display: none !important; } 
+                `;
+            }
+            document.head.appendChild(printStyle);
+            
+            window.print();
+            
+            // استعادة المحتوى الأصلي بعد الطباعة
+            setTimeout(() => {
+                document.head.removeChild(printStyle);
+                document.body.innerHTML = originalContents; 
+                onClose(); // إغلاق المودال
+            }, 100); 
+        }
+    };
+    
+    const isExpense = item.collectionName === 'expenses';
+    const isAdvance = item.collectionName === 'advances';
+
+    const employee = isAdvance ? employees.find(e => e.id === item.employeeId) : null;
+
+    const invoiceStyle = paperSize === '80mm' ? { maxWidth: '80mm', margin: '0 auto', fontSize: '11px', lineHeight: '1.4' } : { maxWidth: '100%', fontSize: '12pt', lineHeight: '1.5' };
+
+    return (
+        <Modal title="معاينة سند الصرف" onClose={onClose} size={paperSize === 'A4' ? 'xl' : 'sm'} isPrintModal={true}>
+            <div className="flex justify-between items-center mb-4 print:hidden">
+                <div className="flex items-center space-x-2 space-x-reverse">
+                    <label className="text-sm font-medium text-gray-700">قياس الورق:</label>
+                    <select
+                        value={paperSize}
+                        onChange={(e) => setPaperSize(e.target.value)}
+                        className="p-2 border border-gray-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 transition"
+                    >
+                        <option value="80mm">80 ملم (طابعة حرارية)</option>
+                        <option value="A4">A4 (ورق عادي)</option>
+                    </select>
+                </div>
+                <ActionButton onClick={handlePrint} className="bg-green-600 hover:bg-green-700">
+                    <Printer className="w-5 h-5 ml-2" />
+                    إرسال أمر الطباعة
+                </ActionButton>
+            </div>
+            
+            <div id="print-invoice-content" className="p-4 print:p-0 print:block" style={invoiceStyle}>
+                <div className="invoice-container">
+                    {/* رأس السند (العنوان، الشعار، التاريخ/الفاتورة) */}
+                    <div style={{ paddingBottom: '10px', marginBottom: '15px', borderBottom: paperSize === 'A4' ? '2px solid #1f2937' : '1px dashed #333' }}>
+                        
+                        {/* المنطقة العلوية (الشعار والعنوان) */}
+                        <div style={{ textAlign: 'center' }}>
+                            {companyLogoUrl && <img src={companyLogoUrl} alt="Logo" style={{ maxHeight: paperSize === 'A4' ? '60px' : '40px', margin: '0 auto' }} onError={(e) => { e.target.style.display = 'none'; }} />}
+                            <h4 style={{ margin: '3px 0', fontSize: paperSize === 'A4' ? '24px' : '15px', fontWeight: 'bold', color: '#1f2937' }}>{companyName}</h4>
+                            <p style={{ fontSize: paperSize === 'A4' ? '14px' : '10px', margin: '0' }}>{isExpense ? 'سند صرف نقدي' : 'سند سلفة'}</p>
+                        </div>
+                        
+                        {/* التاريخ والفاتورة (متغير حسب A4 أو 80mm) */}
+                        <div style={{ 
+                            marginTop: '10px',
+                            textAlign: paperSize === '80mm' ? 'center' : 'right', // A4 لليمين
+                            direction: 'ltr' // تنسيق التاريخ ليكون من اليسار لليمين 
+                        }} className={paperSize === 'A4' ? 'print-date-right' : 'print-date-center'}>
+                            <p style={{ fontSize: paperSize === 'A4' ? '12px' : '10px', margin: '0' }}>
+                                رقم الفاتورة: <span style={{ fontWeight: 'bold' }}>{item.invoiceNumber}</span>
+                            </p>
+                            <p style={{ fontSize: paperSize === 'A4' ? '12px' : '10px', margin: '0' }}>
+                                التاريخ والوقت: <span style={{ fontWeight: 'bold' }}>{formatDate(item.date)}</span>
+                            </p>
+                        </div>
+                    </div>
+                    
+                    {/* تفاصيل الصرف/السلفة (الجهة المعنية) */}
+                    <table className="invoice-details" style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '15px' }}>
+                        <tbody>
+                            {isExpense && <tr><td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'right' }}>فئة الصرف</td><td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'right' }}>{item.category}</td></tr>}
+                            {isExpense && <tr><td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'right' }}>المورد</td><td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'right' }}>{item.vendor || 'N/A'}</td></tr>}
+                            {isExpense && <tr><td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'right' }}>المندوب</td><td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'right' }}>{item.representative || 'N/A'}</td></tr>}
+                            {(isAdvance || isExpense) && employee && <tr><td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'right' }}>الموظف المعني</td><td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'right' }}>{employee.name}</td></tr>}
+                            {isAdvance && <tr><td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'right' }}>الجهة المستلمة</td><td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'right' }}>{employee ? employee.name : item.employeeName}</td></tr>}
+                        </tbody>
+                    </table>
+
+                    {/* حقل الوصف (تم تعديل العنوان) */}
+                    <div style={{ marginBottom: '15px', border: '1px solid #ccc', borderRadius: '8px', padding: '10px' }}>
+                        {/* التعديل 3: تغيير "الوصف المفصل" إلى "وذلك عن" */}
+                        <p style={{ margin: '0', fontWeight: 'bold', fontSize: paperSize === 'A4' ? '14px' : '11px', color: '#333' }}>وذلك عن:</p>
+                        {/* **إصلاح الخطأ:** تغيير خاصية CSS من hyphenated (word-break) إلى CamelCase (wordBreak) */}
+                        <p className="description-cell" style={{ margin: '5px 0 0 0', fontSize: paperSize === 'A4' ? '14px' : '10px', whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                            {item.description || item.notes || 'لا يوجد وصف/ملاحظات.'}
+                        </p>
+                    </div>
+
+                    {/* التعديل 2: القيمة الإجمالية في النهاية */}
+                    <table className="invoice-details" style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '30px' }}>
+                        <tbody>
+                            <tr style={{ backgroundColor: paperSize === 'A4' ? '#f3f4f6' : 'transparent', fontWeight: 'bold' }}>
+                                <td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'right', width: '35%', color: '#1f2937' }}>القيمة الإجمالية</td>
+                                <td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'right', fontSize: '18px', color: '#B45309' }}>{formatCurrency(item.amount)}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    
+                    {/* التوقيعات */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: paperSize === 'A4' ? '80px' : '30px' }}>
+                        <div style={{ textAlign: 'center', fontSize: '12px', width: '45%', borderTop: paperSize === 'A4' ? '1px solid #ccc' : 'none', paddingTop: paperSize === 'A4' ? '10px' : '0' }}>
+                            <div style={{ height: paperSize === 'A4' ? '30px' : '20px', borderBottom: '1px solid #000', margin: '5px 0' }}></div>
+                            توقيع المستلم
+                        </div>
+                        <div style={{ textAlign: 'center', fontSize: '12px', width: '45%', borderTop: paperSize === 'A4' ? '1px solid #ccc' : 'none', paddingTop: paperSize === 'A4' ? '10px' : '0' }}>
+                            <div style={{ height: paperSize === 'A4' ? '30px' : '20px', borderBottom: '1px solid #000', margin: '5px 0' }}></div>
+                            توقيع المحاسب/المدير
+                        </div>
+                    </div>
+
+                    {/* التعديل 5: إزالة الرسالة السفلية من A4 */}
+                </div>
+            </div>
+            
+            <div className="print:hidden space-y-4">
+            </div>
+        </Modal>
+    );
+});
+
+// مكون طباعة التقرير الجماعي
+const PrintReportModal = React.memo(({ reportData, title, onClose, companyName, companyLogoUrl }) => {
+    
+    // **تعديل:** إزالة الكسور العشرية
+    const formatCurrency = (amount) => (parseFloat(amount) || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' د.ع.';
+    const formatDate = (dateString) => new Date(dateString).toLocaleDateString('en-US');
+    
+    const handlePrint = () => {
+        const printContent = document.getElementById('print-report-content');
+        if (printContent) {
+            const originalContents = document.body.innerHTML;
+            
+            // إنشاء نافذة طباعة جديدة
+            const printWindow = window.open('', '', 'height=600,width=800');
+            if (printWindow) {
+                // إعداد محتوى الطباعة
+                printWindow.document.write('<html><head><title>Print Report</title>');
+                printWindow.document.write('<style>');
+                printWindow.document.write(`
+                    body { font-family: 'Cairo', sans-serif; margin: 0; padding: 0; direction: rtl; }
+                    @page { size: A4 landscape; margin: 15mm; }
+                    .report-table { width: 100%; border-collapse: collapse; }
+                    .report-table th, .report-table td { border: 1px solid #ddd; padding: 6px; font-size: 8pt; text-align: right; }
+                    .report-table th { background-color: #f2f2f2; }
+                    .report-header { border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 20px; text-align: center; }
+                `);
+                printWindow.document.write('</style></head><body>');
+                printWindow.document.write(printContent.innerHTML);
+                printWindow.document.write('</body></html>');
+                printWindow.document.close();
+                
+                printWindow.print();
+                printWindow.close();
+            } else {
+                 // لا نستخدم alert()
+            }
+        }
+        onClose(); // إغلاق المودال الأصلي بعد إرسال أمر الطباعة
+    };
+    
+    const totalAmount = reportData.reduce((sum, item) => {
+        const amountString = item['المبلغ (د.ع.)'] ? item['المبلغ (د.ع.)'].replace(' د.ع.', '').replace(/,/g, '') : '0';
+        return sum + parseFloat(convertArabicToEnglish(amountString) || 0);
+    }, 0);
+
+    const headers = reportData.length > 0 ? Object.keys(reportData[0]) : [];
+
+    return (
+        <Modal title={`معاينة تقرير ${title}`} onClose={onClose} size="xl" isPrintModal={true}>
+            <div className="space-y-4 print:hidden">
+                <div className="flex justify-center">
+                    <ActionButton onClick={handlePrint} className="bg-blue-600 hover:bg-blue-700">
+                        <Printer className="w-5 h-5 ml-2" />
+                        طباعة التقرير (A4 أفقي)
+                    </ActionButton>
+                </div>
+            </div>
+            
+            {/* تم نقل المحتوى ليتم عرضه مباشرة في المودال وليس فقط للطباعة */}
+            <div id="print-report-content" className="p-0 max-w-full mx-auto" style={{ fontSize: '10pt', fontFamily: 'sans-serif' }}>
+                
+                {/* تم تعديل الـ CSS ليتناسب مع العرض داخل المودال */}
+                <style>{`
+                    .report-table th, .report-table td { border: 1px solid #ddd; padding: 6px; font-size: 10pt; }
+                    .report-table th { background-color: #f2f2f2; }
+                `}</style>
+                
+                <div className="report-header text-center mb-5">
+                    {companyLogoUrl && <img src={companyLogoUrl} alt="Logo" style={{ maxHeight: '60px', margin: '0 auto 10px' }} onError={(e) => { e.target.style.display = 'none'; }} />}
+                    <h1 className="text-2xl font-bold">{companyName}</h1>
+                    <h2 className="text-xl font-semibold mt-1">تقرير {title} المفصل</h2>
+                    <p className="text-sm">تاريخ التقرير: {formatDate(new Date())}</p>
+                </div>
+
+                <div className="mb-4">
+                    <p className="text-base font-bold">إجمالي المبلغ في التقرير: {formatCurrency(totalAmount)}</p>
+                    <p className="text-sm">عدد السجلات: {reportData.length}</p>
+                </div>
+
+                <div className="overflow-x-auto">
+                    <table className="report-table w-full border-collapse">
+                        <thead>
+                            <tr>
+                                {headers.map((header, index) => (
+                                    <th key={index} className="text-right" style={{ width: header.includes('الوصف') ? '20%' : 'auto' }}>{header}</th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {reportData.map((row, rowIndex) => (
+                                <tr key={rowIndex}>
+                                    {headers.map((header, colIndex) => (
+                                        <td key={colIndex} className="px-6 py-4 text-right whitespace-normal" style={{ fontSize: '9pt' }}>
+                                            {row[header]}
+                                        </td>
+                                    ))}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+                <p className="text-center text-xs mt-10">--- نهاية التقرير ---</p>
+            </div>
+        </Modal>
+    );
+});
+
+/**
+ * 3.1. Dashboard Component
+ */
+const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
+    const { revenues, expenses, suspended, advances, employees } = data;
+
+    // استخدام useMemo لضمان عدم إعادة الحساب إلا عند الضرورة
+    const summaryData = useMemo(() => {
+        const totalRevenues = revenues.reduce((sum, item) => sum + item.amount, 0);
+        const totalExpenses = expenses.reduce((sum, item) => sum + item.amount, 0);
+        const totalAdvances = advances.reduce((sum, item) => sum + item.amount, 0);
+        const totalSuspended = suspended.reduce((sum, item) => sum + item.amount, 0);
+        const totalSalaries = employees.reduce((sum, emp) => sum + parseFloat(emp.salary || 0), 0);
+        
+        // حساب الصندوق: الإيرادات - (المصروفات + السلف + المعلقة)
+        const totalCashFund = totalRevenues - (totalExpenses + totalAdvances + totalSuspended);
+
+        // تجميع الإيرادات حسب الفئة
+        const revenueByCategory = revenues.reduce((acc, item) => {
+            acc[item.category] = (acc[item.category] || 0) + item.amount;
+            return acc;
+        }, {});
+        
+        // تجميع الصرفيات حسب الفئة
+        const expenseByCategory = expenses.reduce((acc, item) => {
+            acc[item.category] = (acc[item.category] || 0) + item.amount;
+            return acc;
+        }, {});
+
+
+        return {
+            totalRevenues,
+            totalExpenses,
+            totalAdvances,
+            totalSuspended,
+            totalSalaries,
+            totalCashFund,
+            revenueByCategory,
+            expenseByCategory
+        };
+    }, [revenues, expenses, suspended, advances, employees]);
+
+    const primaryCards = [
+        { title: 'رصيد الصندوق الحالي', value: formatCurrencyDisplay(summaryData.totalCashFund), icon: DollarSign, color: summaryData.totalCashFund >= 0 ? 'text-teal-600' : 'text-pink-600', bg: 'bg-teal-100' },
+        { title: 'الإيرادات الإجمالية', value: formatCurrencyDisplay(summaryData.totalRevenues), icon: TrendingUp, color: 'text-green-600', bg: 'bg-green-100' },
+        { title: 'الصرفيات الإجمالية', value: formatCurrencyDisplay(summaryData.totalExpenses), icon: TrendingDown, color: 'text-red-600', bg: 'bg-red-100' },
+    ];
+    
+    const secondaryCards = [
+        { title: 'مجموع السلف', value: formatCurrencyDisplay(summaryData.totalAdvances), icon: Coins, color: 'text-indigo-600', bg: 'bg-indigo-100' },
+        { title: 'مجموع المبالغ المعلقة', value: formatCurrencyDisplay(summaryData.totalSuspended), icon: RotateCcw, color: 'text-amber-600', bg: 'bg-amber-100' }, 
+        { title: 'إجمالي رواتب الموظفين', value: formatCurrencyDisplay(summaryData.totalSalaries), icon: Users, color: 'text-purple-600', bg: 'bg-purple-100' },
+    ];
+
+
+    return (
+        <div className="space-y-8 p-6 bg-white rounded-3xl shadow-2xl">
+            <h2 className="text-4xl font-extrabold text-gray-800 border-b-2 border-teal-500 pb-3">الرئيسية </h2>
+
+            {upcomingBirthdays.length > 0 && (
+                <div className="bg-pink-100 border-l-4 border-pink-500 p-4 rounded-xl shadow-md">
+                    <h3 className="text-2xl font-bold text-pink-800 flex items-center mb-2">
+                        <Gift className="w-6 h-6 ml-2" />
+                        تذكير أعياد الميلاد القادمة!
+                    </h3>
+                    <ul className="list-disc list-inside space-y-1 text-gray-700">
+                        {upcomingBirthdays.map((b, index) => (
+                            <li key={index} className="font-semibold">
+                                الموظف **{b.name}** عيد ميلاده في **{b.date}**.
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+            
+            <h3 className="text-2xl font-bold text-gray-800 border-b border-gray-300 pb-2">الملخص المالي الرئيسي</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {primaryCards.map((card, index) => (
+                    <div key={index} className="p-6 rounded-2xl shadow-lg transition transform hover:scale-[1.03] border-l-4 border-teal-500 bg-gray-50">
+                        <div className="flex items-center justify-between">
+                            <div className="space-y-1">
+                                <p className="text-lg font-semibold text-gray-600">{card.title}</p>
+                                <p className={`text-3xl font-extrabold ${card.color}`}>{card.value}</p>
+                            </div>
+                            <div className={`p-4 rounded-full ${card.bg}`}>
+                                <card.icon className={`w-8 h-8 ${card.color}`} />
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {secondaryCards.map((card, index) => (
+                    <div key={index} className="p-6 rounded-2xl shadow-lg transition transform hover:scale-[1.03] border-l-4 border-teal-500 bg-gray-50">
+                        <div className="flex items-center justify-between">
+                            <div className="space-y-1">
+                                <p className="text-lg font-semibold text-gray-600">{card.title}</p>
+                                <p className={`text-3xl font-extrabold ${card.color}`}>{card.value}</p>
+                            </div>
+                            <div className={`p-4 rounded-full ${card.bg}`}>
+                                <card.icon className={`w-8 h-8 ${card.color}`} />
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            <h3 className="text-2xl font-bold text-gray-800 border-b border-gray-300 pb-2 pt-4">إحصائيات حسب الفئة</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* كروت الإيرادات حسب الفئة */}
+                <div className="p-4 rounded-2xl shadow-lg bg-green-50 border-l-4 border-green-600">
+                    <h4 className="text-xl font-bold text-green-800 mb-3 flex items-center">
+                        <TrendingUp className="w-5 h-5 ml-2" />
+                        إجمالي الإيرادات لكل فئة
+                    </h4>
+                    <ul className="space-y-2">
+                        {Object.keys(summaryData.revenueByCategory).map(category => (
+                            <li key={category} className="flex justify-between items-center p-2 bg-white rounded-lg shadow-sm">
+                                <span className="text-gray-700 font-medium">{category}</span>
+                                <span className="font-bold text-green-600">{formatCurrencyDisplay(summaryData.revenueByCategory[category])}</span>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+
+                {/* كروت الصرفيات حسب الفئة */}
+                <div className="p-4 rounded-2xl shadow-lg bg-red-50 border-l-4 border-red-600">
+                    <h4 className="text-xl font-bold text-red-800 mb-3 flex items-center">
+                        <TrendingDown className="w-5 h-5 ml-2" />
+                        إجمالي الصرفيات لكل فئة
+                    </h4>
+                    <ul className="space-y-2">
+                        {Object.keys(summaryData.expenseByCategory).map(category => (
+                            <li key={category} className="flex justify-between items-center p-2 bg-white rounded-lg shadow-sm">
+                                <span className="text-gray-700 font-medium">{category}</span>
+                                <span className="font-bold text-red-600">{formatCurrencyDisplay(summaryData.expenseByCategory[category])}</span>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    );
+});
+
+
+/**
+ * 3.2. DataPage Component (لإدارة الإيرادات، الصرفيات، السلف، المعلقة)
+ */
+const DataPageComponent = React.memo(({ 
+    type, title, collectionName, fields, categories, data, 
+    handleDataAction, handleDelete, setPrintItem, setPrintReportData, 
+    setIsReportModalOpen, showToast, initialExpenseState, handleRefresh // <--- Added handleRefresh
+}) => {
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [currentItem, setCurrentItem] = useState(null);
+    
+    const initialRange = useMemo(() => getCurrentMonthRange(), []);
+    const [filterDateFrom, setFilterDateFrom] = useState(initialRange.start);
+    const [filterDateTo, setFilterDateTo] = useState(initialRange.end);
+    const [filterCategory, setFilterCategory] = useState('الكل');
+    const [globalSearch, setGlobalSearch] = useState('');
+    
+    // دالة تهيئة النماذج لتبسيط useEffect
+    const getInitialFormState = useCallback((item = null, initialDispatch = null) => {
+        const defaultForm = fields.reduce((acc, field) => ({ ...acc, [field.key]: field.defaultValue || '' }), {});
+        
+        let baseState = item ? item : {
+            ...defaultForm,
+            date: getDefaultDateTime(),
+            employeeId: collectionName === 'advances' ? data.employees[0]?.id || '' : ''
+        };
+
+        if (initialDispatch && collectionName === 'expenses' && !item) {
+            baseState = {
+                ...baseState,
+                amount: initialDispatch.amount.toString(),
+                category: initialDispatch.category, 
+                description: initialDispatch.description,
+                vendor: initialDispatch.vendor,
+                representative: initialDispatch.representative,
+                invoiceImageUrl: initialDispatch.invoiceImageUrl,
+                inventoryItems: initialDispatch.inventoryItems, 
+            };
+        }
+
+        return baseState;
+    }, [fields, collectionName, data.employees]);
+
+    const [formState, setFormState] = useState(() => getInitialFormState(currentItem, initialExpenseState));
+    const [selectedVendor, setSelectedVendor] = useState(collectionName === 'expenses' && formState.vendor ? formState.vendor : '');
+
+    // إعادة تهيئة FormState عند تغيير currentItem أو initialExpenseState
+    useEffect(() => {
+        setFormState(getInitialFormState(currentItem, initialExpenseState));
+        if (collectionName === 'expenses') {
+            setSelectedVendor(currentItem?.vendor || initialExpenseState?.vendor || '');
+        }
+    }, [currentItem, initialExpenseState, getInitialFormState, collectionName]);
+
+    // 2. Auto-open modal only for dispatched expenses
+    useEffect(() => {
+        if (initialExpenseState && collectionName === 'expenses' && !currentItem) {
+             // تأخير طفيف لضمان تحديث حالة formState
+             setTimeout(() => openModal(null), 50); 
+        }
+    }, [initialExpenseState]); // Added initialExpenseState to dependency array
+    
+    // **جديد:** كروت الفئات
+    const categoryTotals = useMemo(() => {
+        const totals = data[collectionName].reduce((acc, item) => {
+            const category = item.category || 'غير مصنف';
+            acc[category] = (acc[category] || 0) + item.amount;
+            return acc;
+        }, {});
+        // تحويل الكائن إلى مصفوفة لسهولة العرض
+        return Object.keys(totals).map(category => ({
+            category,
+            total: totals[category],
+            // تحديد اللون بناءً على نوع الصفحة
+            color: type === 'revenue' ? 'green' : 'red'
+        }));
+    }, [data, collectionName, type]);
+    
+    const [activeCategories, setActiveCategories] = useState([]);
+    
+    const handleCategoryCardClick = (category) => {
+        setActiveCategories(prev => {
+            if (prev.includes(category)) {
+                return prev.filter(cat => cat !== category);
+            } else {
+                return [...prev, category];
+            }
+        });
+    };
+    
+    // دالة مساعدة لتحديد حالة الفلتر النشطة
+    const isFilterActive = (category) => {
+        return activeCategories.includes(category);
+    };
+
+
+    // فلترة البيانات
+    const filteredList = useMemo(() => {
+        let list = data[collectionName].slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+        
+        if (collectionName !== 'suspended') {
+            if (filterDateFrom) list = list.filter(item => item.date.slice(0, 10) >= filterDateFrom);
+            if (filterDateTo) list = list.filter(item => item.date.slice(0, 10) <= filterDateTo);
+            
+            // فلترة القوائم حسب الفئة المحددة (إذا لم يتم استخدام كروت الفلترة)
+            if (activeCategories.length > 0) {
+                 list = list.filter(item => activeCategories.includes(item.category || 'غير مصنف'));
+            } else if (filterCategory && filterCategory !== 'الكل') {
+                list = list.filter(item => item.category === filterCategory);
+            }
+        }
+        
+        if (globalSearch) {
+            const searchLower = normalizeTextForSearch(globalSearch); 
+            const searchNumeric = normalizeTextForSearch(globalSearch, true); 
+            
+            list = list.filter(item => {
+                // البحث النصي
+                const matchesInvoice = item.invoiceNumber && normalizeTextForSearch(item.invoiceNumber).includes(searchLower);
+                const matchesCategory = item.category && normalizeTextForSearch(item.category).includes(searchLower);
+                const matchesDescription = item.description && normalizeTextForSearch(item.description).includes(searchLower);
+                const matchesNotes = item.notes && normalizeTextForSearch(item.notes).includes(searchLower);
+                const matchesRecipient = item.recipientName && normalizeTextForSearch(item.recipientName).includes(searchLower);
+                const matchesVendor = item.vendor && normalizeTextForSearch(item.vendor).includes(searchLower);
+                const matchesRep = item.representative && normalizeTextForSearch(item.representative).includes(searchLower);
+                const matchesEmployee = item.employeeId && data.employees.find(e => e.id === item.employeeId)?.name && normalizeTextForSearch(data.employees.find(e => e.id === item.employeeId).name).includes(searchLower);
+                
+                // البحث الرقمي (للمبالغ)
+                const matchesAmount = item.amount && normalizeTextForSearch(item.amount.toString(), true).includes(searchNumeric);
+
+
+                return matchesInvoice || matchesCategory || matchesDescription || matchesRecipient || matchesAmount || matchesVendor || matchesRep || matchesNotes || matchesEmployee;
+            });
+        }
+        return list;
+    }, [data, collectionName, filterDateFrom, filterDateTo, filterCategory, globalSearch, activeCategories]);
+
+    const totalFilteredAmount = useMemo(() => {
+        return filteredList.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0);
+    }, [filteredList]);
+
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        
+        let itemToSave = collectionName === 'expenses' ? {
+            ...formState,
+            vendor: selectedVendor,
+            // Pass inventory items only if present (i.e., this came from dispatch flow)
+            inventoryItems: formState.inventoryItems || [],
+        } : formState;
+        
+        // تحقق إضافي لحقول المصروفات
+        if (collectionName === 'expenses' && (!itemToSave.vendor || !itemToSave.representative)) {
+            showToast('يجب اختيار المورد والمندوب للمصروف.', 'error');
+            return;
+        }
+
+        handleDataAction(collectionName, itemToSave, !currentItem);
+        setIsModalOpen(false);
+        setCurrentItem(null);
+    };
+
+    const openModal = (item = null) => {
+        setCurrentItem(item); // Triggers re-run of useEffect above to set formState
+        setIsModalOpen(true);
+    };
+    
+    const handlePrint = (item) => {
+        setPrintItem({ 
+            ...item, 
+            collectionName, 
+            employeeName: item.employeeId ? data.employees.find(e => e.id === item.employeeId)?.name : null
+        });
+    };
+    
+    const handlePrintAll = () => {
+        if (filteredList.length === 0) {
+             showToast('لا توجد بيانات لطباعة التقرير.', "error");
+             return;
+        }
+        const exportContent = filteredList.map(item => {
+            const baseItem = {
+                'التاريخ والوقت': new Date(item.date).toLocaleString('en-US'),
+                'رقم الفاتورة': item.invoiceNumber || 'N/A',
+                'المبلغ (د.ع.)': formatCurrencyDisplay(item.amount || 0),
+                'الجهة المعنية': item.category || (item.employeeId ? data.employees.find(e => e.id === item.employeeId)?.name : item.recipientName) || 'N/A',
+                'الوصف/ملاحظات': item.description || item.notes || 'N/A',
+            };
+            if (collectionName === 'expenses') {
+                return {
+                    ...baseItem,
+                    'المورد والمندوب': `${item.vendor || 'N/A'} (${item.representative || 'N/A'})`,
+                };
+            }
+            return baseItem;
+        });
+        
+        setPrintReportData(exportContent);
+        setIsReportModalOpen(true);
+    };
+
+    const handleExportAll = () => {
+        if (filteredList.length === 0) {
+             showToast('لا توجد بيانات للتصدير.', "error");
+             return;
+        }
+        
+        const exportContent = filteredList.map(item => {
+            const baseItem = {
+                'التاريخ والوقت': new Date(item.date).toLocaleString('en-US'),
+                'رقم الفاتورة': item.invoiceNumber || 'N/A',
+                'المبلغ (د.ع.)': parseFloat(item.amount || 0), // يتم التصدير كرقم ليسهل الحساب
+                'الجهة المعنية': item.category || (item.employeeId ? data.employees.find(e => e.id === item.employeeId)?.name : item.recipientName) || 'N/A',
+                'الوصف/ملاحظات': item.description || item.notes || 'N/A',
+            };
+
+            if (collectionName === 'expenses') {
+                return {
+                    ...baseItem,
+                    'المورد': item.vendor || 'N/A',
+                    'المندوب': item.representative || 'N/A',
+                };
+            } else {
+                 return baseItem;
+            }
+        });
+
+        exportToCsv(exportContent, `${title}_تقرير`);
+        showToast('تم تصدير البيانات إلى Excel بنجاح!', "success");
+    };
+
+    const filteredReps = data.settings.representatives.filter(rep => rep.vendor === selectedVendor);
+
+
+    return (
+        <div className="p-6 space-y-6 bg-white rounded-3xl app-main-content">
+            <h2 className="text-4xl font-extrabold text-gray-800 border-b-2 border-teal-500 pb-3">{title}</h2>
+
+            <div className="flex justify-between items-center">
+                 <ActionButton onClick={() => openModal()} className="bg-green-600 hover:bg-green-700" disabled={!!initialExpenseState && collectionName === 'expenses' && isModalOpen}>
+                    <Plus className="w-5 h-5 ml-2" />
+                    {type === 'suspended' ? 'إضافة مبلغ معلق' : type === 'revenue' ? 'إضافة إيراد' : type === 'expense' ? 'إضافة مصروف' : 'إضافة سلفة'}
+                    {!!initialExpenseState && collectionName === 'expenses' && ' (معلومات من المخزن)'}
+                </ActionButton>
+                
+                <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 shadow-lg transition duration-200">
+                    <RotateCcw className="w-6 h-6" />
+                </button>
+            </div>
+            
+            {/* **جديد:** كروت الفئات (Multiple Select) */}
+            {categoryTotals.length > 0 && (
+                <div className="p-4 rounded-xl shadow-lg border border-gray-200 bg-white">
+                    <h3 className="text-lg font-bold text-gray-700 mb-3 flex items-center">
+                        <Filter className="w-5 h-5 ml-2" />
+                        فلترة حسب فئة {type === 'revenue' ? 'الإيراد' : 'الصرف'}
+                    </h3>
+                    <div className="flex flex-wrap gap-3">
+                        {categoryTotals.map(cat => {
+                            const customColor = CUSTOM_CATEGORY_COLORS[cat.category] || (cat.color === 'green' ? { bg: 'bg-green-50', text: 'text-green-800', border: 'border-green-500' } : { bg: 'bg-red-50', text: 'text-red-800', border: 'border-red-500' });
+                            return (
+                                <div 
+                                    key={cat.category}
+                                    onClick={() => handleCategoryCardClick(cat.category)}
+                                    className={`p-3 rounded-xl shadow-md border-t-4 cursor-pointer transition transform hover:scale-[1.03] min-w-[120px] text-center
+                                        ${isFilterActive(cat.category) 
+                                            ? `${customColor.bg.replace('-50', '-200').replace('-100', '-200')} ${customColor.border.replace('border-', 'ring-4 ring-opacity-60 ring-')} ${customColor.text.replace('-800', '-900')}`
+                                            : `${customColor.bg} ${customColor.text} ${customColor.border}`
+                                        }
+                                    `}
+                                    style={{ 
+                                        '--ring-current': customColor.border.replace('border-', '') // لتحديد لون الـ ring
+                                    }}
+                                >
+                                    <p className="text-sm font-semibold">{cat.category}</p>
+                                    <p className="text-xl font-extrabold">{formatCurrencyDisplay(cat.total)}</p>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
+
+            <div className="bg-white p-6 rounded-xl shadow-lg border border-teal-100">
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 items-center">
+                    <div className="col-span-1 text-xl font-bold p-4 rounded-xl bg-teal-50 text-teal-800 flex flex-col items-center justify-center shadow-md border-t-4 border-teal-600">
+                        <Calculator className="w-6 h-6 mb-1" />
+                        <span className="text-sm font-semibold text-gray-700">المجموع المفلتر:</span>
+                        <span className="font-extrabold text-2xl mt-1">
+                            {formatCurrencyDisplay(totalFilteredAmount)}
+                        </span>
+                    </div>
+
+                    <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-xl bg-gray-50 shadow-inner">
+                        <h3 className="md:col-span-3 w-full text-lg font-semibold text-gray-700 flex items-center border-b pb-2 mb-2"><Filter className="w-5 h-5 ml-2" /> فلاتر الجدول</h3>
+                        
+                        {(type === 'expense' || type === 'suspended' || type === 'revenue' || type === 'advance') && (
+                            <div className="md:col-span-3 flex flex-col space-y-1 relative">
+                                <label className="text-sm font-medium text-gray-600">البحث الشامل</label>
+                                <input
+                                    type="text"
+                                    value={globalSearch}
+                                    onChange={(e) => setGlobalSearch(e.target.value)}
+                                    placeholder="اكتب كلمة أو مبلغ للبحث السلس..."
+                                    className="p-3 border border-gray-300 rounded-xl pr-10 focus:ring-amber-500 focus:border-amber-500"
+                                />
+                                <Search className="w-5 h-5 absolute right-3 top-1/2 transform translate-y-1/2 text-gray-400 mt-2" />
+                            </div>
+                        )}
+
+                        {collectionName !== 'suspended' && (
+                            <>
+                                <div className="flex flex-col space-y-1">
+                                    <label className="text-sm font-medium text-gray-600">التاريخ من</label>
+                                    <input
+                                        type="date"
+                                        value={filterDateFrom}
+                                        onChange={(e) => setFilterDateFrom(e.target.value)}
+                                        className="p-3 border border-gray-300 rounded-xl focus:ring-teal-500 focus:border-teal-500"
+                                    />
+                                </div>
+
+                                <div className="flex flex-col space-y-1">
+                                    <label className="text-sm font-medium text-gray-600">التاريخ إلى</label>
+                                    <input
+                                        type="date"
+                                        value={filterDateTo}
+                                        onChange={(e) => setFilterDateTo(e.target.value)}
+                                        className="p-3 border border-gray-300 rounded-xl focus:ring-teal-500 focus:border-teal-500"
+                                    />
+                                </div>
+
+                                {/* تم إخفاء قائمة الفئة التقليدية لتشجيع استخدام الكروت */
+                                 categories && categories.length > 0 && collectionName !== 'advances' && (
+                                    <div className="flex flex-col space-y-1 hidden"> 
+                                        <label className="text-sm font-medium text-gray-600">الفئة</label>
+                                        <select
+                                            value={filterCategory}
+                                            onChange={(e) => setFilterCategory(e.target.value)}
+                                            className="p-3 border border-gray-300 rounded-xl focus:ring-teal-500 focus:border-teal-500"
+                                        >
+                                            <option value="الكل">الكل</option>
+                                            {categories.map(cat => (
+                                                <option key={cat} value={cat}>{cat}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
+                            </>
+                        )}
+                    </div>
+                </div>
+            </div>
+            
+             <div className="flex space-x-2 space-x-reverse">
+                 <button onClick={handlePrintAll} className="p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
+                     <Printer className="w-6 h-6" />
+                 </button>
+                 <button onClick={handleExportAll} className="p-3 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg transition duration-200">
+                     <Download className="w-6 h-6" />
+                 </button>
+             </div>
+
+
+            <div className="bg-white p-6 rounded-xl shadow-lg overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50 rounded-t-xl">
+                        <tr>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">التاريخ والوقت</th>
+                            {fields.map(field => (
+                                <th key={field.key} className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">{field.label}</th>
+                            ))}
+                            {collectionName === 'expenses' && <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">المورد والمندوب</th>}
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">رقم الفاتورة</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                        {filteredList.length === 0 ? (
+                            <tr><td colSpan={fields.length + (collectionName === 'expenses' ? 4 : 3)} className="px-6 py-4 text-center text-sm text-gray-500">لا توجد سجلات متاحة تتوافق مع الفلاتر.</td></tr>
+                        ) : (
+                            filteredList.map(item => (
+                                <tr key={item.id} className="hover:bg-gray-50 transition duration-150">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{new Date(item.date).toLocaleString('en-US')}</td>
+                                    {fields.map(field => {
+                                        const itemValue = item[field.key] || '';
+
+                                        if (field.key === 'employeeName' && item.employeeId) {
+                                            const employee = data.employees.find(e => e.id === item.employeeId);
+                                            return (
+                                                <td key={field.key} className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                                    {highlightText(employee?.name || 'موظف محذوف', globalSearch)}
+                                                </td>
+                                            );
+                                        }
+                                        
+                                        if (field.key === 'amount') {
+                                            return (
+                                                <td key={field.key} className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                                    <span className="font-semibold text-gray-700">{highlightText(formatCurrencyDisplay(itemValue), globalSearch)}</span>
+                                                </td>
+                                            );
+                                        }
+
+                                        return (
+                                            <td key={field.key} className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                                {highlightText(itemValue, globalSearch)}
+                                            </td>
+                                        );
+                                    })}
+                                    
+                                    {collectionName === 'expenses' && (
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                            {item.vendor && <span className="font-semibold">{highlightText(item.vendor, globalSearch)}</span>}
+                                            {item.vendor && item.representative && <span className="text-gray-400"> (</span>}
+                                            {item.representative && <span className="text-sm italic">{highlightText(item.representative, globalSearch)}</span>}
+                                            {item.vendor && item.representative && <span className="text-gray-400">)</span>}
+                                            {!item.vendor && <span className="text-gray-400">N/A</span>}
+                                        </td>
+                                    )}
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-mono">{highlightText(item.invoiceNumber || 'N/A', globalSearch)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                        <div className="flex space-x-3 space-x-reverse">
+                                            {(type === 'expense' || type === 'advance') && (
+                                                <button onClick={() => handlePrint(item)} className="text-gray-600 hover:text-gray-900">
+                                                    <Printer className="w-5 h-5" />
+                                                </button>
+                                            )}
+                                            <button onClick={() => openModal(item)} className="text-indigo-600 hover:text-indigo-900">
+                                                <Edit className="w-5 h-5" />
+                                            </button>
+                                            <button onClick={() => handleDelete(collectionName, item.id)} className="text-red-600 hover:text-red-900">
+                                                <Trash2 className="w-5 h-5" />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
+                </table>
+            </div>
+
+            {isModalOpen && (
+                <Modal title={currentItem ? 'تعديل السجل' : 'إضافة سجل جديد'} onClose={() => setIsModalOpen(false)}>
+                    <form onSubmit={handleSubmit} className="space-y-5">
+                        <InputField
+                            label="تاريخ ووقت العملية"
+                            type="datetime-local"
+                            value={formState.date || getDefaultDateTime()}
+                            onChange={(e) => setFormState({ ...formState, date: e.target.value })}
+                            required
+                            readOnly={!!initialExpenseState && collectionName === 'expenses' && !currentItem}
+                        />
+                        
+                        {collectionName === 'expenses' && (
+                            <>
+                                <div className="flex flex-col space-y-1 text-right">
+                                    <label className="text-sm font-medium text-gray-700">الشركة الموردة</label>
+                                    <select
+                                        value={selectedVendor}
+                                        onChange={(e) => {
+                                            const newVendor = e.target.value;
+                                            setSelectedVendor(newVendor);
+                                            // إعادة تعيين المندوب عند تغيير الشركة
+                                            const defaultRep = data.settings.representatives.find(r => r.vendor === newVendor)?.name || '';
+                                            setFormState(prev => ({ ...prev, representative: defaultRep })); 
+                                        }}
+                                        required
+                                        className={`w-full p-3 border border-gray-300 rounded-xl transition duration-150 text-right ${!!initialExpenseState && !currentItem ? 'bg-gray-100' : 'focus:ring-teal-500 focus:border-teal-500'}`}
+                                        disabled={!!initialExpenseState && !currentItem}
+                                    >
+                                        <option value="" disabled>-- اختر الشركة --</option>
+                                        {data.settings.vendors.map(vendor => (
+                                            <option key={vendor} value={vendor}>{vendor}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                
+                                <div className="flex flex-col space-y-1 text-right">
+                                    <label className="text-sm font-medium text-gray-700">المندوب المسؤول</label>
+                                    <select
+                                        value={formState.representative || ''}
+                                        onChange={(e) => setFormState({ ...formState, representative: e.target.value })}
+                                        required
+                                        disabled={!selectedVendor || (!!initialExpenseState && !currentItem)}
+                                        className={`w-full p-3 border border-gray-300 rounded-xl transition duration-150 text-right ${!!initialExpenseState && !currentItem ? 'bg-gray-100' : 'focus:ring-teal-500 focus:border-teal-500'}`}
+                                    >
+                                        <option value="" disabled>-- اختر المندوب --</option>
+                                        {filteredReps.map(rep => (
+                                            <option key={rep.name} value={rep.name}>{rep.name}</option>
+                                        ))}
+                                    </select>
+                                    {!selectedVendor && <p className="text-xs text-red-500 mt-1">يجب اختيار الشركة أولاً.</p>}
+                                </div>
+                            </>
+                        )}
+                        
+                        {fields.map(field => {
+                            const isAutoFilled = collectionName === 'expenses' && initialExpenseState && !currentItem &&
+                                (field.key === 'amount' || field.key === 'description' || field.key === 'category');
+                            
+                            // Check if field is category selection for expense/revenue
+                            if (field.type === 'select' && categories) {
+                                return (
+                                    <div key={field.key} className="flex flex-col space-y-1 text-right">
+                                        <label className="text-sm font-medium text-gray-700">{field.label}</label>
+                                        <select
+                                            value={formState[field.key] || ''}
+                                            onChange={(e) => setFormState({ ...formState, [field.key]: e.target.value })}
+                                            required={field.required}
+                                            onInvalid={(e) => e.target.setCustomValidity(field.required ? 'هذا الحقل إجباري، يرجى اختياره.' : '')}
+                                            onInput={(e) => e.target.setCustomValidity('')}
+                                            className={`w-full p-3 border border-gray-300 rounded-xl transition duration-150 text-right ${isAutoFilled ? 'bg-gray-100' : 'focus:ring-teal-500 focus:border-teal-500'}`}
+                                            disabled={isAutoFilled}
+                                        >
+                                            <option value="" disabled>اختر فئة</option>
+                                            {categories.map(cat => (
+                                                <option key={cat} value={cat}>{cat}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                );
+                            }
+                            if (field.key === 'employeeName') {
+                                return (
+                                    <div key={field.key} className="flex flex-col space-y-1 text-right">
+                                        <label className="text-sm font-medium text-gray-700">{field.label}</label>
+                                        <select
+                                            value={formState.employeeId || ''} 
+                                            onChange={(e) => {
+                                                setFormState({
+                                                    ...formState,
+                                                    employeeId: e.target.value,
+                                                });
+                                            }}
+                                            required
+                                            onInvalid={(e) => e.target.setCustomValidity('هذا الحقل إجباري، يرجى اختيار موظف.')}
+                                            onInput={(e) => e.target.setCustomValidity('')}
+                                            className="w-full p-3 border border-gray-300 rounded-xl focus:ring-teal-500 focus:border-teal-500 transition duration-150 text-right"
+                                        >
+                                            <option value="" disabled>اختر الموظف</option>
+                                            {data.employees.map(emp => (
+                                                <option key={emp.id} value={emp.id}>{emp.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                );
+                            }
+
+                            return (
+                                <InputField
+                                    key={field.key}
+                                    label={field.label}
+                                    type={field.type}
+                                    value={formState[field.key] || ''}
+                                    onChange={(e) => {
+                                        let newValue = e.target.value;
+                                        // Auto-conversion for number/currency fields
+                                        if (field.currency || field.type === 'number') {
+                                            newValue = convertArabicToEnglish(newValue);
+                                            newValue = newValue.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+                                        }
+                                        setFormState({ ...formState, [field.key]: newValue });
+                                    }}
+                                    required={field.required || (type === 'expense' && field.key === 'description')}
+                                    currency={field.currency}
+                                    textarea={field.type === 'textarea'}
+                                    readOnly={isAutoFilled}
+                                />
+                            );
+                        })}
+                        
+                        {initialExpenseState && collectionName === 'expenses' && !currentItem && (
+                            <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-xl text-indigo-800 font-semibold text-center">
+                                تم تعبئة جميع الحقول تلقائياً من فاتورة الإدخال. يرجى الضغط على **إضافة** للتأكيد وإتمام الصرف.
+                            </div>
+                        )}
+
+                        <ActionButton type="submit" className="w-full bg-teal-600 hover:bg-teal-700">
+                            <Save className="w-5 h-5 ml-2" />
+                            {currentItem ? 'حفظ التعديلات' : 'إضافة'}
+                        </ActionButton>
+                    </form>
+                </Modal>
+            )}
+        </div>
+    );
+});
+
+
+/**
+ * 3.3. EmployeePage Component
+ */
+const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete, setPrintReportData, setIsReportModalOpen, showToast, handleRefresh }) => {
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+    const [currentEmployee, setCurrentEmployee] = useState(null);
+    const [formState, setFormState] = useState({});
+    const [globalSearch, setGlobalSearch] = useState(''); 
+
+    const calculateNetSalary = (employee) => {
+        const salary = parseFloat(employee.salary || 0);
+        // التأكد من أن أيام الغياب ليست سالبة
+        const absenceDays = Math.max(0, parseInt(employee.absenceDays || 0)); 
+        const dailyRate = salary / 30; 
+        const deduction = dailyRate * absenceDays;
+        return salary - deduction;
+    };
+    
+    const formatDOB = (dateString) => {
+        if (!dateString) return 'غير محدد';
+        return new Date(dateString).toLocaleDateString('ar-IQ');
+    };
+
+    const filteredList = useMemo(() => {
+        let list = data.employees.slice().sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+        
+        if (globalSearch) {
+            const searchLower = normalizeTextForSearch(globalSearch); 
+            const searchNumeric = normalizeTextForSearch(globalSearch, true); 
+            
+            list = list.filter(item => {
+                const matchesName = item.name && normalizeTextForSearch(item.name).includes(searchLower);
+                const matchesSalary = item.salary && normalizeTextForSearch(item.salary.toString(), true).includes(searchNumeric);
+                const matchesDept = item.department && normalizeTextForSearch(item.department).includes(searchLower);
+                const matchesJob = item.jobTitle && normalizeTextForSearch(item.jobTitle).includes(searchLower);
+                
+                return matchesName || matchesSalary || matchesDept || matchesJob;
+            });
+        }
+        return list;
+    }, [data.employees, globalSearch]);
+
+    useEffect(() => {
+        if (currentEmployee) {
+            setFormState(currentEmployee);
+        } else {
+            setFormState({ 
+                name: '', phone: '', salary: '', 
+                department: data.settings.departments[0] || '', 
+                jobTitle: data.settings.jobTitles[0] || '', 
+                absenceDays: 0, docUrl: '', dateOfBirth: '', id: null 
+            });
+        }
+    }, [currentEmployee, data.settings.departments, data.settings.jobTitles]);
+
+    const openModal = (employee = null) => {
+        setCurrentEmployee(employee);
+        setIsModalOpen(true);
+    };
+
+    const openDetailsModal = (employee) => {
+        setCurrentEmployee(employee);
+        setIsDetailsModalOpen(true);
+        // تعيين حالة النموذج عند فتح التفاصيل لتمكين تعديل أيام الغياب فوراً
+        setFormState(employee); 
+    };
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        
+        const processedSalary = convertArabicToEnglish(formState.salary);
+        
+        handleDataAction('employees', { 
+            ...formState, 
+            salary: parseFloat(processedSalary || 0),
+            // ضمان حفظ أيام الغياب المحدثة من نافذة التفاصيل
+            absenceDays: parseInt(formState.absenceDays || 0), 
+        }, !currentEmployee);
+        setIsModalOpen(false);
+        setCurrentEmployee(null); 
+    };
+
+    const handlePrintAll = () => {
+             if (filteredList.length === 0) {
+                 showToast('لا توجد بيانات لطباعة التقرير.', "error");
+                 return;
+             }
+            
+        const reportContent = filteredList.map(item => ({
+            'الاسم': item.name,
+            'تاريخ الميلاد': formatDOB(item.dateOfBirth),
+            'القسم': item.department,
+            'المنصب': item.jobTitle,
+            'الراتب الأساسي (د.ع.)': formatCurrencyDisplay(item.salary),
+            'صافي الراتب': calculateNetSalary(item).toLocaleString('en-US'),
+            'رقم الهاتف': item.phone || 'N/A',
+        }));
+        
+        setPrintReportData(reportContent);
+        setIsReportModalOpen(true);
+    };
+    
+    const handleExportAll = () => {
+        if (filteredList.length === 0) {
+             showToast('لا توجد بيانات للتصدير.', "error");
+             return;
+           }
+            
+        const exportContent = filteredList.map(item => ({
+            'الاسم': item.name,
+            'تاريخ الميلاد': formatDOB(item.dateOfBirth),
+            'القسم': item.department,
+            'المنصب': item.jobTitle,
+            'الراتب': parseFloat(item.salary || 0),
+            'صافي الراتب': calculateNetSalary(item),
+            'رقم الهاتف': item.phone || 'N/A',
+            'رابط المستندات': item.docUrl || 'N/A',
+        }));
+
+        exportToCsv(exportContent, `تقرير_الموظفين`);
+        showToast('تم تصدير البيانات إلى Excel بنجاح!', "success");
+    };
+
+
+    return (
+        <div className="p-6 space-y-6 bg-white rounded-3xl shadow-2xl">
+            <h2 className="text-4xl font-extrabold text-gray-800 border-b-2 border-teal-500 pb-3">إدارة الموظفين </h2>
+            
+            <div className="bg-white p-4 rounded-xl shadow-lg border border-teal-100 relative">
+                 <label className="text-sm font-medium text-gray-600 block mb-1">البحث الشامل</label>
+                <input
+                    type="text"
+                    value={globalSearch}
+                    onChange={(e) => setGlobalSearch(e.target.value)}
+                    placeholder="ابحث بالاسم، المنصب، الراتب..."
+                    className="w-full p-3 border border-gray-300 rounded-xl pr-10 focus:ring-amber-500 focus:border-amber-500"
+                />
+                <Search className="w-5 h-5 absolute right-3 top-1/2 transform translate-y-1/2 text-gray-400 mt-2" />
+            </div>
+
+
+            <div className="flex justify-between items-center">
+                <ActionButton onClick={() => openModal()} className="bg-green-600 hover:bg-green-700">
+                    <UserPlus className="w-5 h-5 ml-2" />
+                    إضافة موظف جديد
+                </ActionButton>
+                   <div className="flex space-x-2 space-x-reverse">
+                       <button onClick={handlePrintAll} className="p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
+                           <Printer className="w-6 h-6" />
+                       </button>
+                       <button onClick={handleExportAll} className="p-3 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg transition duration-200">
+                           <Download className="w-6 h-6" />
+                       </button>
+                       <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 shadow-lg transition duration-200">
+                            <RotateCcw className="w-6 h-6" />
+                        </button>
+                   </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-xl shadow-lg overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                        <tr>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">اسم الموظف</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">تاريخ الميلاد</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">القسم</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">الراتب الأساسي (د.ع.)</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">صافي الراتب المتوقع</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                        {filteredList.length === 0 ? (
+                            <tr><td colSpan="6" className="px-6 py-4 text-center text-sm text-gray-500">لا يوجد موظفين مسجلين.</td></tr>
+                        ) : (
+                            filteredList.map(emp => (
+                                <tr key={emp.id} className="hover:bg-gray-50 transition duration-150">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600 cursor-pointer" onClick={() => openDetailsModal(emp)}>{highlightText(emp.name, globalSearch)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{highlightText(formatDOB(emp.dateOfBirth), globalSearch)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{highlightText(emp.department, globalSearch)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{highlightText(formatCurrencyDisplay(emp.salary), globalSearch)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-green-600">{highlightText(formatCurrencyDisplay(calculateNetSalary(emp)), globalSearch)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                        <div className="flex space-x-3 space-x-reverse">
+                                            <button onClick={() => openModal(emp)} className="text-indigo-600 hover:text-indigo-900">
+                                                <Edit className="w-5 h-5" />
+                                            </button>
+                                            <button onClick={() => handleDelete('employees', emp.id)} className="text-red-600 hover:text-red-900">
+                                                <Trash2 className="w-5 h-5" />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
+                </table>
+            </div>
+
+            {isModalOpen && (
+                <Modal title={currentEmployee ? 'تعديل بيانات الموظف' : 'إضافة موظف'} onClose={() => setIsModalOpen(false)}>
+                    <form onSubmit={handleSubmit} className="space-y-5">
+                        <InputField label="اسم الموظف" value={formState.name || ''} onChange={(e) => setFormState({ ...formState, name: e.target.value })} required />
+                        
+                        <InputField 
+                            label="تاريخ الميلاد" 
+                            type="date" 
+                            value={formState.dateOfBirth || ''} 
+                            onChange={(e) => setFormState({ ...formState, dateOfBirth: e.target.value })} 
+                            required
+                        />
+                        
+                        <div className="flex flex-col space-y-1 text-right">
+                            <label className="text-sm font-medium text-gray-700">القسم</label>
+                            <select
+                                value={formState.department || ''}
+                                onChange={(e) => setFormState({ ...formState, department: e.target.value })}
+                                required
+                                onInvalid={(e) => e.target.setCustomValidity('هذا الحقل إجباري، يرجى اختياره.')}
+                                onInput={(e) => e.target.setCustomValidity('')}
+                                className="w-full p-3 border border-gray-300 rounded-xl focus:ring-teal-500 focus:border-teal-500 transition duration-150 text-right"
+                            >
+                                <option value="" disabled>اختر قسم</option>
+                                {data.settings.departments.map(dept => (
+                                    <option key={dept} value={dept}>{dept}</option>
+                                ))}
+                            </select>
+                        </div>
+                        
+                        <div className="flex flex-col space-y-1 text-right">
+                            <label className="text-sm font-medium text-gray-700">المنصب/العمل</label>
+                            <select
+                                value={formState.jobTitle || ''}
+                                onChange={(e) => setFormState({ ...formState, jobTitle: e.target.value })}
+                                required
+                                onInvalid={(e) => e.target.setCustomValidity('هذا الحقل إجباري، يرجى اختياره.')}
+                                onInput={(e) => e.target.setCustomValidity('')}
+                                className="w-full p-3 border border-gray-300 rounded-xl focus:ring-teal-500 focus:border-teal-500 transition duration-150 text-right"
+                            >
+                                <option value="" disabled>اختر منصب</option>
+                                {data.settings.jobTitles.map(title => (
+                                    <option key={title} value={title}>{title}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <InputField label="رقم الهاتف" type="tel" value={formState.phone || ''} onChange={(e) => setFormState({ ...formState, phone: e.target.value })} />
+                        
+                        <InputField 
+                            label="الراتب الشهري" 
+                            type="number" 
+                            value={formState.salary || ''} 
+                            onChange={(e) => {
+                                const newValue = convertArabicToEnglish(e.target.value);
+                                setFormState({ ...formState, salary: newValue });
+                            }} 
+                            required 
+                            currency 
+                        />
+                        
+                        <InputField 
+                            label="رابط المستندات الشخصية (صورة/PDF)" 
+                            type="url" 
+                            placeholder="http://example.com/file.pdf"
+                            value={formState.docUrl || ''} 
+                            onChange={(e) => setFormState({ ...formState, docUrl: e.target.value })} 
+                        />
+                        
+                        <ActionButton type="submit" className="w-full bg-teal-600 hover:bg-teal-700">
+                            <Save className="w-5 h-5 ml-2" />
+                            {currentEmployee ? 'حفظ التعديلات' : 'إضافة موظف'}
+                        </ActionButton>
+                    </form>
+                </Modal>
+            )}
+
+            {isDetailsModalOpen && currentEmployee && (
+                <Modal title={`تفاصيل الموظف: ${currentEmployee.name}`} onClose={() => setIsDetailsModalOpen(false)} size="sm">
+                    <div className="space-y-4 p-4 bg-gray-50 rounded-xl">
+                        <h4 className="text-xl font-bold text-gray-800 border-b pb-2 mb-4">معلومات أساسية</h4>
+                        <p className="flex items-center text-lg"><CalendarCheck className="w-5 h-5 ml-2 text-indigo-500" /> **تاريخ الميلاد:** {formatDOB(currentEmployee.dateOfBirth)}</p>
+                        <p className="flex items-center text-lg"><Briefcase className="w-5 h-5 ml-2 text-indigo-500" /> **القسم:** {currentEmployee.department}</p>
+                        <p className="flex items-center text-lg"><List className="w-5 h-5 ml-2 text-indigo-500" /> **المنصب:** {currentEmployee.jobTitle}</p>
+                        <p className="flex items-center text-lg"><Phone className="w-5 h-5 ml-2 text-indigo-500" /> **الهاتف:** {currentEmployee.phone || 'غير متوفر'}</p>
+                        
+                        {currentEmployee.docUrl && (
+                            <a href={currentEmployee.docUrl} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center p-3 text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition space-x-2 space-x-reverse font-semibold mt-4">
+                                <ExternalLink className="w-5 h-5 ml-2" />
+                                عرض المستندات الشخصية
+                            </a>
+                        )}
+
+                        <hr className="my-4"/>
+
+                        <h4 className="text-xl font-bold text-gray-800 border-b pb-2 mb-4">احتساب الراتب (للمراجعة)</h4>
+                        
+                        <InputField
+                            label="أيام الغياب لهذا الشهر (للاحتساب)"
+                            type="number"
+                            value={formState.absenceDays || 0}
+                            onChange={(e) => {
+                                const val = Math.max(0, parseInt(convertArabicToEnglish(e.target.value)) || 0); // منع السالب
+                                setFormState(prev => ({ ...prev, absenceDays: val }));
+                            }}
+                            onBlur={() => {
+                                // حفظ التعديل مباشرة على الموظف عند الخروج من الحقل
+                                handleSubmit({ preventDefault: () => {} });
+                            }}
+                            required
+                            className="text-right"
+                        />
+
+                        <div className="mt-4 p-4 bg-white rounded-xl shadow-inner border border-green-200 space-y-2">
+                            <p className="font-medium text-gray-700">الراتب الأساسي: <span className="font-bold">{formatCurrencyDisplay(currentEmployee.salary)}</span></p>
+                            <p className="font-medium text-gray-700">خصم الغياب ({formState.absenceDays || 0} أيام): <span className="font-bold text-red-600">{formatCurrencyDisplay((parseFloat(currentEmployee.salary || 0) / 30 * (formState.absenceDays || 0)))}</span></p>
+                            <hr/>
+                            <p className="font-extrabold text-2xl mt-2">صافي الراتب المتوقع: <span className="text-green-600">{formatCurrencyDisplay(calculateNetSalary({ ...currentEmployee, absenceDays: formState.absenceDays }))}</span></p>
+                        </div>
+                        
+                    </div>
+                </Modal>
+            )}
+        </div>
+    );
+});
+
+
+/**
+ * 3.4. InventoryPage Component (عرض المخزون فقط)
+ */
+const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh }) => {
+    const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+    const [currentItem, setCurrentItem] = useState(null);
+    const [globalSearch, setGlobalSearch] = useState('');
+
+    const filteredList = useMemo(() => {
+        let list = data.inventory.slice().sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+        
+        if (globalSearch) {
+            const searchLower = normalizeTextForSearch(globalSearch); 
+            const searchNumeric = normalizeTextForSearch(globalSearch, true);
+            
+            list = list.filter(item => {
+                const matchesName = item.name && normalizeTextForSearch(item.name).includes(searchLower);
+                const matchesBarcode = item.barcode && normalizeTextForSearch(item.barcode).includes(searchLower);
+                const matchesCategory = item.category && normalizeTextForSearch(item.category).includes(searchLower);
+                const matchesPrice = item.price && normalizeTextForSearch(item.price.toString(), true).includes(searchNumeric);
+
+                
+                return matchesName || matchesBarcode || matchesCategory || matchesPrice;
+            });
+        }
+        return list;
+    }, [data.inventory, globalSearch]);
+
+    const openDetailsModal = (item) => {
+        setCurrentItem(item);
+        setIsDetailsModalOpen(true);
+    };
+
+    const formatPurchaseHistory = (history) => (
+        <div className="space-y-3 max-h-48 overflow-y-auto mt-2 p-3 bg-white rounded-lg border">
+            {history.length === 0 ? (
+                <p className="text-gray-500 italic">لا يوجد سجل مشتريات لهذه المادة.</p>
+            ) : (
+                <table className="min-w-full text-sm">
+                    <thead>
+                        <tr className="bg-gray-100">
+                            <th className="px-2 py-1 text-right font-bold text-gray-700">تاريخ الشراء</th>
+                            <th className="px-2 py-1 text-right font-bold text-gray-700">السعر</th>
+                            <th className="px-2 py-1 text-right font-bold text-gray-700">الكمية</th>
+                            <th className="px-2 py-1 text-right font-bold text-gray-700">المورد</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {history.sort((a, b) => new Date(b.date) - new Date(a.date)).map((record, index) => (
+                            <tr key={index} className="border-t hover:bg-indigo-50">
+                                <td className="px-2 py-1">{new Date(record.date).toLocaleString('en-US', {dateStyle: 'short', timeStyle: 'short'})}</td>
+                                <td className="px-2 py-1 font-semibold">{formatCurrencyDisplay(record.price)}</td>
+                                <td className="px-2 py-1">{record.count}</td>
+                                <td className="px-2 py-1">{record.vendor}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            )}
+        </div>
+    );
+    
+    return (
+        <div className="p-6 space-y-6 bg-white rounded-3xl shadow-2xl">
+            <h2 className="text-4xl font-extrabold text-gray-800 border-b-2 border-teal-500 pb-3">المخزن (المواد المتوفرة) </h2>
+
+            {/* البحث الشامل */}
+            <div className="bg-white p-4 rounded-xl shadow-lg border border-teal-100 relative">
+                 <label className="text-sm font-medium text-gray-600 block mb-1">البحث الشامل</label>
+                <input
+                    type="text"
+                    value={globalSearch}
+                    onChange={(e) => setGlobalSearch(e.target.value)}
+                    placeholder="ابحث باسم المادة، الباركود، الفئة..."
+                    className="w-full p-3 border border-gray-300 rounded-xl pr-10 focus:ring-amber-500 focus:border-amber-500"
+                />
+                <Search className="w-5 h-5 absolute right-3 top-1/2 transform translate-y-1/2 text-gray-400 mt-2" />
+            </div>
+            
+            <div className="flex justify-end">
+                <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 shadow-lg transition duration-200">
+                    <RotateCcw className="w-6 h-6" />
+                </button>
+            </div>
+            
+            <div className="bg-white p-6 rounded-xl shadow-lg overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                        <tr>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">اسم المادة</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">الفئة</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">الباركود</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">سعر القطعة (د.ع.)</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">العدد في المخزن</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                        {filteredList.length === 0 ? (
+                            <tr><td colSpan="6" className="px-6 py-4 text-center text-sm text-gray-500">لا توجد مواد مضافة في المخزن.</td></tr>
+                        ) : (
+                            filteredList.map(item => (
+                                <tr key={item.id} className="hover:bg-gray-50 transition duration-150">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600 cursor-pointer" onClick={() => openDetailsModal(item)}>{highlightText(item.name, globalSearch)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{highlightText(item.category, globalSearch)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{highlightText(item.barcode || 'N/A', globalSearch)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatCurrencyDisplay(item.price)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-bold">{item.count}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                        <div className="flex space-x-3 space-x-reverse">
+                                            {/* لا يمكن التعديل أو الحذف من هنا، فقط من صفحة الادخال المخزني */}
+                                            <button onClick={() => openDetailsModal(item)} className="text-teal-600 hover:text-teal-900">
+                                                <List className="w-5 h-5" />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
+                </table>
+            </div>
+            
+            {isDetailsModalOpen && currentItem && (
+                <Modal title={`تفاصيل المادة: ${currentItem.name}`} onClose={() => setIsDetailsModalOpen(false)} size="xl">
+                    <div className="space-y-4 p-4 bg-gray-50 rounded-xl">
+                        <h4 className="text-xl font-bold text-gray-800 border-b pb-2 mb-4">معلومات المادة</h4>
+                        
+                        {currentItem.invoiceImageUrl && (
+                            <div className="text-center mb-4">
+                                <h5 className="text-sm font-semibold text-gray-600 mb-1">صورة الفاتورة/المستند:</h5>
+                                <img src={currentItem.invoiceImageUrl} alt="Invoice Document" className="w-full h-auto object-contain rounded-lg shadow-md border border-gray-300" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/400x200/cccccc/333333?text=No+Image+Available"; }}/>
+                            </div>
+                        )}
+
+                        <p className="flex items-center text-lg"><List className="w-5 h-5 ml-2 text-indigo-500" /> **الفئة:** {currentItem.category}</p>
+                        <p className="flex items-center text-lg"><List className="w-5 h-5 ml-2 text-indigo-500" /> **الباركود:** {currentItem.barcode || 'N/A'}</p>
+                        <p className="flex items-center text-lg"><Coins className="w-5 h-5 ml-2 text-indigo-500" /> **سعر الوحدة الحالي:** {formatCurrencyDisplay(currentItem.price)}</p>
+                        <p className="flex items-center text-lg"><Package className="w-5 h-5 ml-2 text-indigo-500" /> **الكمية في المخزن:** <span className="font-bold text-teal-600">{currentItem.count}</span></p>
+                        
+                        <h4 className="text-xl font-bold text-gray-800 border-b pb-2 pt-4 mb-2 flex items-center"><CalendarCheck className="w-5 h-5 ml-2 text-teal-600" /> سجل الشراء (تاريخ وسعر التكلفة)</h4>
+                        {formatPurchaseHistory(currentItem.purchaseHistory || [])}
+
+                    </div>
+                </Modal>
+            )}
+        </div>
+    );
+});
+
+
+/**
+ * 3.5. InventoryEntryComponent (الادخال المخزني)
+ */
+const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDelete, setCurrentPage, showToast, setInitialExpenseState, handleRefresh }) => {
+    const [isNewInvoiceModalOpen, setIsNewInvoiceModalOpen] = useState(false);
+    const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+    const [isCancelModalOpen, setIsCancelModalOpen] = useState(false); 
+    const [cancellationReason, setCancellationReason] = useState(''); 
+    const [currentInvoice, setCurrentInvoice] = useState(null);
+    const [globalSearch, setGlobalSearch] = useState(''); 
+    const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false); 
+    
+    // **جديد:** حالة فلترة الجدول حسب حالة الفاتورة (مصفوفة الآن لدعم الاختيار المتعدد)
+    const [statusFilter, setStatusFilter] = useState([]); 
+
+    // دالة للحصول على حالة نموذج الفاتورة الافتراضية
+    const getDefaultInvoiceForm = useCallback(() => ({
+        vendor: data.settings.vendors[0] || '',
+        representative: data.settings.representatives.find(r => r.vendor === (data.settings.vendors[0] || ''))?.name || '',
+        invoiceNumber: '', // رقم فاتورة المورد
+        invoiceImageUrl: '',
+        expenseCategory: data.settings.expenseCategories.find(c => c.includes('مواد')) || data.settings.expenseCategories[0] || '',
+        items: [], // المواد المضافة للفاتورة
+        status: 'Pending', 
+        totalAmount: 0,
+        date: getDefaultDateTime(),
+        id: null
+    }), [data.settings.vendors, data.settings.representatives, data.settings.expenseCategories]);
+    
+    // دالة للحصول على حالة نموذج المادة الافتراضية
+    const getDefaultItemForm = useCallback(() => ({ 
+        name: '', 
+        barcode: '', 
+        price: '', 
+        count: 1, 
+        category: data.settings.expenseCategories.find(c => c.includes('مواد')) || data.settings.expenseCategories[0] || '' 
+    }), [data.settings.expenseCategories]);
+
+    const [invoiceForm, setInvoiceForm] = useState(getDefaultInvoiceForm);
+    const [itemForm, setItemForm] = useState(getDefaultItemForm);
+    
+    
+    // فلترة المندوبين حسب الشركة المختارة
+    const filteredReps = useMemo(() => {
+        return data.settings.representatives.filter(rep => rep.vendor === invoiceForm.vendor);
+    }, [data.settings.representatives, invoiceForm.vendor]);
+    
+    // حساب الإجمالي
+    const calculateTotal = useCallback(() => {
+        return invoiceForm.items.reduce((sum, item) => sum + (parseFloat(item.price || 0) * parseInt(item.count || 0)), 0);
+    }, [invoiceForm.items]);
+
+    useEffect(() => {
+        setInvoiceForm(prev => ({ ...prev, totalAmount: calculateTotal() }));
+    }, [calculateTotal]);
+
+    const handleItemFormChange = useCallback((key, value) => {
+        const inventory = data.inventory;
+        const normalizedValue = value.toLowerCase().trim();
+
+        setItemForm(prev => {
+            let newState = { ...prev, [key]: value };
+
+            if (key === 'name') {
+                const foundItem = inventory.find(i => i.name.toLowerCase().trim() === normalizedValue);
+                if (foundItem) {
+                    newState.barcode = foundItem.barcode || ''; // لا تولد تلقائيا
+                    newState.category = foundItem.category; 
+                } else {
+                    newState.barcode = ''; // لا تولد تلقائيا
+                }
+            } else if (key === 'barcode') {
+                 const foundItem = inventory.find(i => i.barcode === value);
+                 if (foundItem) {
+                    newState.name = foundItem.name;
+                    newState.category = foundItem.category;
+                 }
+            }
+            // يجب أن يتم تصفية الأرقام
+            if (key === 'price' || key === 'count') {
+                let cleanValue = convertArabicToEnglish(value);
+                // **الإصلاح 4:** تحديث طريقة التحويل
+                cleanValue = cleanValue.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'); 
+                newState[key] = cleanValue;
+            }
+            
+            return newState;
+        });
+    }, [data.inventory]);
+
+
+    const handleAddItemToInvoice = (e) => {
+        e.preventDefault();
+        
+        if (!itemForm.name || !itemForm.price || !itemForm.count || itemForm.count <= 0 || !itemForm.category) {
+            showToast('الرجاء ملء جميع حقول المادة بشكل صحيح (الاسم، السعر، الكمية، الفئة).', 'error');
+            return;
+        }
+
+        const newItem = {
+            ...itemForm,
+            id: crypto.randomUUID(),
+            price: parseFloat(itemForm.price),
+            count: parseInt(itemForm.count),
+        };
+
+        setInvoiceForm(prev => ({
+            ...prev,
+            items: [...prev.items, newItem]
+        }));
+        
+        // إعادة تهيئة نموذج المادة، مع الاحتفاظ بالفئة لتسهيل الإضافة المتعددة
+        setItemForm(prev => ({ ...getDefaultItemForm(), category: prev.category }));
+        setIsAddItemModalOpen(false); 
+        showToast(`تمت إضافة المادة "${newItem.name}" بنجاح.`, 'success');
+    };
+
+    const handleRemoveItemFromInvoice = (id) => {
+        setInvoiceForm(prev => ({
+            ...prev,
+            items: prev.items.filter(item => item.id !== id)
+        }));
+        showToast('تم حذف المادة بنجاح.', 'warning');
+    };
+
+    // حفظ الفاتورة كمسودة/معلقة
+    const handleCreateInvoice = (e) => {
+        e.preventDefault();
+        
+        if (invoiceForm.items.length === 0) {
+            showToast('يجب إضافة مواد إلى الفاتورة أولاً.', 'error');
+            return;
+        }
+        if (!invoiceForm.vendor || !invoiceForm.representative || !invoiceForm.invoiceNumber) {
+            showToast('الرجاء ملء تفاصيل الفاتورة (المورد، المندوب، رقم فاتورة المورد).', 'error');
+            return;
+        }
+
+        const invoiceToSave = {
+            ...invoiceForm,
+            id: invoiceForm.id || crypto.randomUUID(),
+            date: getDefaultDateTime(),
+            totalAmount: calculateTotal(),
+            status: 'Pending',
+        };
+
+        handleDataAction('pendingInvoices', invoiceToSave, !invoiceForm.id);
+        
+        // إعادة تعيين النموذج بعد الحفظ
+        setInvoiceForm(getDefaultInvoiceForm());
+        setIsNewInvoiceModalOpen(false);
+        showToast(`تم حفظ الفاتورة #${invoiceToSave.invoiceNumber} ليتم مراجعتها بنجاح.`, 'success'); // **تعديل نص الرسالة**
+    };
+    
+    // فتح نموذج التفاصيل
+    const openDetailsModal = (invoice) => {
+        setCurrentInvoice(invoice);
+        setIsDetailsModalOpen(true);
+    };
+    
+    // فلترة الفواتير المعلقة (شاملة فلتر الحالة)
+    const filteredInvoices = useMemo(() => {
+        let list = data.pendingInvoices.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+        
+        // الفلترة حسب البحث الشامل
+        if (globalSearch) {
+            const searchLower = normalizeTextForSearch(globalSearch); 
+            const searchNumeric = normalizeTextForSearch(globalSearch, true); 
+            
+            list = list.filter(inv => {
+                const matchesInvoiceNum = inv.invoiceNumber && normalizeTextForSearch(inv.invoiceNumber).includes(searchLower);
+                const matchesVendor = inv.vendor && normalizeTextForSearch(inv.vendor).includes(searchLower);
+                const matchesRep = inv.representative && normalizeTextForSearch(inv.representative).includes(searchLower);
+                const matchesItem = inv.items.some(item => normalizeTextForSearch(item.name).includes(searchLower));
+                
+                // البحث الرقمي عن المبلغ
+                const matchesAmount = inv.totalAmount && normalizeTextForSearch(inv.totalAmount.toString(), true).includes(searchNumeric);
+                
+                return matchesInvoiceNum || matchesVendor || matchesRep || matchesItem || matchesAmount;
+            });
+        }
+        
+        // الفلترة حسب حالة الكارت المختار (دعم الاختيار المتعدد)
+        if (statusFilter.length > 0) {
+             list = list.filter(inv => statusFilter.includes(inv.status));
+        }
+        
+        return list;
+    }, [data.pendingInvoices, globalSearch, statusFilter]); // الاعتماد على statusFilter
+
+    // الإجراء النهائي: الموافقة على الفاتورة (تسجيلها كمصروف وتحديث المخزون)
+    const handleApproveInvoice = (invoice, isCreditApproval = false) => {
+        // 1. تحديث المخزون
+        let updatedInventory = [...data.inventory];
+
+        invoice.items.forEach(item => {
+            const existingItemIndex = updatedInventory.findIndex(i => i.name === item.name);
+            
+            // بيانات سجل الشراء الجديد
+            const purchaseRecord = {
+                date: invoice.date,
+                price: item.price,
+                count: item.count,
+                vendor: invoice.vendor
+            };
+
+            if (existingItemIndex !== -1) {
+                // تحديث كمية وسجل الشراء لمادة موجودة
+                updatedInventory[existingItemIndex] = {
+                    ...updatedInventory[existingItemIndex],
+                    count: updatedInventory[existingItemIndex].count + item.count,
+                    price: item.price, // تحديث السعر الحالي للمادة
+                    purchaseHistory: [purchaseRecord, ...updatedInventory[existingItemIndex].purchaseHistory],
+                };
+            } else {
+                // إضافة مادة جديدة للمخزون
+                updatedInventory.push({
+                    id: crypto.randomUUID(),
+                    name: item.name,
+                    barcode: item.barcode || generateBarcode(),
+                    price: item.price,
+                    count: item.count,
+                    category: item.category,
+                    purchaseHistory: [purchaseRecord],
+                    invoiceImageUrl: invoice.invoiceImageUrl,
+                });
+            }
+        });
+        
+        // 2. تحديث حالة الفاتورة
+        let updatedInvoice;
+        if (isCreditApproval) {
+            // اعتماد آجل (تحديث المخزون فقط، تغيير الحالة لـ CreditApproved)
+            updatedInvoice = { ...invoice, status: 'CreditApproved' };
+            handleDataAction('pendingInvoices', updatedInvoice, false); 
+            handleDataAction('inventory', updatedInventory, true, true);
+            setIsDetailsModalOpen(false);
+            setStatusFilter(prev => Array.isArray(prev) ? [...prev.filter(s => s !== 'Pending'), 'CreditApproved'] : ['CreditApproved']); // تحديث الفلتر فورا
+            showToast(`تم اعتماد الفاتورة #${invoice.invoiceNumber} كـ **آجل** وإضافة المواد للمخزون.`, 'success');
+            return;
+        }
+        
+        // 3. تسجيلها كمصروف وتغيير حالتها إلى "مصروفة" (كاش أو صرف الآجل)
+        const expenseRecord = {
+            id: crypto.randomUUID(),
+            date: invoice.date,
+            invoiceNumber: invoice.invoiceNumber, // رقم فاتورة المورد
+            amount: invoice.totalAmount,
+            category: invoice.expenseCategory,
+            description: `فاتورة شراء مواد من ${invoice.vendor} (المواد: ${invoice.items.map(i => i.name).join(', ')})`,
+            vendor: invoice.vendor,
+            representative: invoice.representative,
+            notes: invoice.notes || '',
+            invoiceImageUrl: invoice.invoiceImageUrl || '',
+            inventoryItems: invoice.items,
+        };
+        
+        // 4. إرسال بيانات المصروف إلى صفحة المصروفات وفتح المودال هناك
+        setInitialExpenseState(expenseRecord);
+        setCurrentPage('expenses'); // توجيه المستخدم لصفحة المصروفات
+
+        // 5. تغيير حالة الفاتورة في pendingInvoices إلى "مصروفة"
+        updatedInvoice = { ...invoice, status: 'Dispatched' };
+        handleDataAction('pendingInvoices', updatedInvoice, false); 
+        
+        // إذا كان الصرف آجل (لم يحدث المخزون بعد)، نحدث المخزون الآن.
+        if (invoice.status === 'Pending' || invoice.status === 'CreditApproved') {
+            // إذا كانت pending، يتم تحديث المخزون هنا. إذا كانت CreditApproved فالمخزون محدث مسبقًا.
+            if (invoice.status === 'Pending') {
+                 handleDataAction('inventory', updatedInventory, true, true);
+            }
+        }
+
+        setIsDetailsModalOpen(false);
+        setStatusFilter(prev => Array.isArray(prev) ? [...prev.filter(s => s !== 'Pending' && s !== 'CreditApproved'), 'Dispatched'] : ['Dispatched']); // تحديث الفلتر فورا
+        showToast(`تم تحويل الفاتورة #${invoice.invoiceNumber} إلى **مصروف (كاش)** بنجاح. سيتم فتح صفحة المصروفات لتأكيد الصرف.`, 'success');
+    };
+    
+    // إلغاء الفاتورة المعلقة
+    const handleCancelInvoice = (invoice) => {
+        if (!cancellationReason.trim()) {
+            showToast('الرجاء كتابة سبب إلغاء الفاتورة.', 'error');
+            return;
+        }
+        
+        // تغيير حالة الفاتورة في pendingInvoices إلى "ملغاة" (بدلاً من الحذف الكامل)
+        const cancelledInvoice = {
+             ...invoice,
+             status: 'Cancelled',
+             cancellationDate: getDefaultDateTime(),
+             cancellationReason: cancellationReason,
+        };
+        
+        // إذا كانت الفاتورة معتمدة آجل، يجب خصم المواد من المخزون
+        if (invoice.status === 'CreditApproved') {
+            let updatedInventory = [...data.inventory];
+            invoice.items.forEach(item => {
+                 const existingItemIndex = updatedInventory.findIndex(i => i.name === item.name);
+                 if (existingItemIndex !== -1) {
+                    updatedInventory[existingItemIndex] = {
+                        ...updatedInventory[existingItemIndex],
+                        count: updatedInventory[existingItemIndex].count - item.count,
+                    };
+                }
+            });
+            handleDataAction('inventory', updatedInventory, true, true);
+        }
+
+        handleDataAction('pendingInvoices', cancelledInvoice, false); // تعديل السجل بدلاً من حذفه
+        setIsCancelModalOpen(false);
+        setCurrentInvoice(null); 
+        setCancellationReason('');
+        
+        // **الإصلاح الجذري 1:** تحديث الفلتر مباشرة بعد الإلغاء
+        setStatusFilter(prev => Array.isArray(prev) ? [...prev.filter(s => s !== invoice.status), 'Cancelled'] : ['Cancelled']);
+        setGlobalSearch(''); 
+        
+        showToast(`تم إلغاء الفاتورة #${invoice.invoiceNumber}. السبب: ${cancellationReason}. ${invoice.status === 'CreditApproved' ? 'وتم خصم المواد من المخزون.' : ''}`, 'error');
+    };
+
+    // فلترة العرض في الجدول الرئيسي لـ InventoryEntry
+    const displayInvoices = useMemo(() => {
+        // عرض جميع الفواتير المفلترة بغض النظر عن حالتها
+        return filteredInvoices.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+    }, [data.pendingInvoices, globalSearch, statusFilter]); // الاعتماد على globalSearch لضمان تحديث الفلترة
+    
+    // حساب الإحصائيات الجديدة
+    const allInvoices = data.pendingInvoices;
+    const stats = useMemo(() => {
+        const initial = { pending: 0, dispatchedCash: 0, dispatchedCredit: 0, cancelled: 0 };
+        
+        const counts = allInvoices.reduce((acc, invoice) => {
+            if (invoice.status === 'Pending') acc.pending += invoice.totalAmount;
+            else if (invoice.status === 'Dispatched') acc.dispatchedCash += invoice.totalAmount;
+            else if (invoice.status === 'CreditApproved') acc.dispatchedCredit += invoice.totalAmount;
+            else if (invoice.status === 'Cancelled') acc.cancelled += invoice.totalAmount;
+            return acc;
+        }, initial);
+        
+        return {
+            pendingCount: allInvoices.filter(inv => inv.status === 'Pending').length,
+            cashCount: allInvoices.filter(inv => inv.status === 'Dispatched').length,
+            creditCount: allInvoices.filter(inv => inv.status === 'CreditApproved').length,
+            cancelledCount: allInvoices.filter(inv => inv.status === 'Cancelled').length,
+            totalPending: counts.pending,
+            totalCash: counts.dispatchedCash,
+            totalCredit: counts.dispatchedCredit,
+            totalCancelled: counts.cancelled,
+        };
+    }, [allInvoices]);
+    
+    const handleFilterClick = (status) => {
+         setStatusFilter(prev => {
+            if (prev.length === 0) {
+                return [status]; // تفعيل الفلتر الفردي
+            } else if (prev.includes(status)) {
+                // إلغاء الفلتر إذا كان نشطاً
+                return prev.filter(cat => cat !== status); // إلغاء الفلتر
+            } else {
+                // إضافة فلتر جديد
+                return [...prev, status]; 
+            }
+        });
+    };
+    
+    // دالة مساعدة لتحديد حالة الفلتر النشطة
+    const isFilterActive = (status) => {
+        return statusFilter.includes(status);
+    };
+
+    return (
+        <div className="p-6 space-y-6 bg-white rounded-3xl shadow-2xl">
+            <h2 className="text-4xl font-extrabold text-gray-800 border-b-2 border-teal-500 pb-3">إدارة الإدخال المخزني </h2>
+
+            <div className="flex justify-between items-center flex-wrap gap-4">
+                 <ActionButton onClick={() => setIsNewInvoiceModalOpen(true)} className="bg-indigo-600 hover:bg-indigo-700">
+                    <ClipboardCheck className="w-5 h-5 ml-2" />
+                    إدخال فاتورة مشتريات جديدة
+                </ActionButton>
+                
+                <div className="flex flex-wrap gap-3">
+                    {/* الإحصائيات المحدثة */}
+                    <div 
+                        onClick={() => handleFilterClick('Pending')}
+                        className={`text-xl font-bold p-4 rounded-xl shadow-md border-t-4 cursor-pointer transition transform hover:scale-[1.03] min-w-[150px] flex flex-col items-center justify-center 
+                        ${isFilterActive('Pending') ? 'bg-yellow-200 border-yellow-800 ring-4 ring-yellow-400' : 'bg-yellow-50 text-yellow-800 border-yellow-600'}`}
+                    >
+                        <span className="text-sm font-semibold text-gray-700 ml-1">معلقة:</span>
+                        <span className="font-extrabold text-2xl">{stats.pendingCount}</span>
+                        <span className="text-xs text-gray-600">{formatCurrencyDisplay(stats.totalPending)}</span>
+                    </div>
+                    <div 
+                        onClick={() => handleFilterClick('Dispatched')}
+                        className={`text-xl font-bold p-4 rounded-xl shadow-md border-t-4 cursor-pointer transition transform hover:scale-[1.03] min-w-[150px] flex flex-col items-center justify-center 
+                         ${isFilterActive('Dispatched') ? 'bg-green-200 border-green-800 ring-4 ring-green-400' : 'bg-green-50 text-green-800 border-green-600'}`}
+                    >
+                         <span className="text-sm font-semibold text-gray-700 ml-1">معتمدة كاش:</span>
+                        <span className="font-extrabold text-2xl">{stats.cashCount}</span>
+                         <span className="text-xs text-gray-600">{formatCurrencyDisplay(stats.totalCash)}</span>
+                    </div>
+                    <div 
+                        onClick={() => handleFilterClick('CreditApproved')}
+                        className={`text-xl font-bold p-4 rounded-xl shadow-md border-t-4 cursor-pointer transition transform hover:scale-[1.03] min-w-[150px] flex flex-col items-center justify-center 
+                         ${isFilterActive('CreditApproved') ? 'bg-blue-200 border-blue-800 ring-4 ring-blue-400' : 'bg-blue-50 text-blue-800 border-blue-600'}`}
+                    >
+                         <span className="text-sm font-semibold text-gray-700 ml-1">معتمدة آجل:</span>
+                        <span className="font-extrabold text-2xl">{stats.creditCount}</span>
+                         <span className="text-xs text-gray-600">{formatCurrencyDisplay(stats.totalCredit)}</span>
+                    </div>
+                    <div 
+                        onClick={() => handleFilterClick('Cancelled')}
+                        className={`text-xl font-bold p-4 rounded-xl shadow-md border-t-4 cursor-pointer transition transform hover:scale-[1.03] min-w-[150px] flex flex-col items-center justify-center 
+                         ${isFilterActive('Cancelled') ? 'bg-red-200 border-red-800 ring-4 ring-red-400' : 'bg-red-50 text-red-800 border-red-600'}`}
+                    >
+                        <span className="text-sm font-semibold text-gray-700 ml-1">ملغاة:</span>
+                        <span className="font-extrabold text-2xl">{stats.cancelledCount}</span>
+                        <span className="text-xs text-gray-600">{formatCurrencyDisplay(stats.totalCancelled)}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div className="bg-white p-4 rounded-xl shadow-lg border border-teal-100 relative">
+                 <label className="text-sm font-medium text-gray-600 block mb-1">البحث في الفواتير المعلقة</label>
+                <input
+                    type="text"
+                    value={globalSearch}
+                    onChange={(e) => setGlobalSearch(e.target.value)}
+                    placeholder="ابحث برقم الفاتورة، المورد، المندوب، أو اسم مادة..."
+                    className="w-full p-3 border border-gray-300 rounded-xl pr-10 focus:ring-amber-500 focus:border-amber-500"
+                />
+                <Search className="w-5 h-5 absolute right-3 top-1/2 transform translate-y-1/2 text-gray-400 mt-2" />
+            </div>
+            
+            <div className="flex justify-end">
+                <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 shadow-lg transition duration-200">
+                    <RotateCcw className="w-6 h-6" />
+                </button>
+            </div>
+
+
+            <div className="bg-white p-6 rounded-xl shadow-lg overflow-x-auto">
+                <h3 className="text-xl font-bold text-gray-800 border-b pb-2 mb-4">سجل فواتير المشتريات (كل الحالات)</h3>
+                <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                        <tr>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">رقم فاتورة المورد</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">تاريخ الإدخال</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">المورد والمندوب</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">عدد المواد</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">الإجمالي (د.ع.)</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">الحالة والإجراء</th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                        {filteredInvoices.length === 0 ? (
+                            <tr><td colSpan="6" className="px-6 py-4 text-center text-sm text-gray-500">لا توجد فواتير مشتريات مطابقة للفلترة.</td></tr>
+                        ) : (
+                            filteredInvoices.map(invoice => (
+                                <tr key={invoice.id} 
+                                    className={`hover:bg-gray-50 transition duration-150 cursor-pointer ${invoice.status === 'Dispatched' ? 'bg-green-50' : invoice.status === 'Cancelled' ? 'bg-red-50' : invoice.status === 'CreditApproved' ? 'bg-blue-50' : 'bg-yellow-50'}`}
+                                    onClick={() => openDetailsModal(invoice)}
+                                >
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">{highlightText(invoice.invoiceNumber, globalSearch)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{new Date(invoice.date).toLocaleDateString('en-US')}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{highlightText(`${invoice.vendor} (${invoice.representative})`, globalSearch)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{invoice.items.length}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-red-600">{formatCurrencyDisplay(invoice.totalAmount)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                        {/* عرض الحالة */}
+                                        {invoice.status === 'Pending' && <span className="text-yellow-600 font-bold text-xs p-1 rounded bg-yellow-100">معلقة (مراجعة)</span>}
+                                        {invoice.status === 'CreditApproved' && <span className="text-blue-600 font-bold text-xs p-1 rounded bg-blue-100">آجل (تم الإدخال)</span>}
+                                        {invoice.status === 'Dispatched' && <span className="text-green-600 font-bold text-xs p-1 rounded bg-green-100">مصروفة (كاش/صرف آجل)</span>}
+                                        {invoice.status === 'Cancelled' && <span className="text-red-600 font-bold text-xs p-1 rounded bg-red-100">ملغاة</span>}
+                                    </td>
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
+                </table>
+            </div>
+
+            {/* مودال إدخال فاتورة جديدة */}
+            {isNewInvoiceModalOpen && (
+                <Modal title="إدخال فاتورة مشتريات جديدة" onClose={() => setIsNewInvoiceModalOpen(false)} size="xl">
+                    <form onSubmit={handleCreateInvoice} className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-xl bg-gray-50">
+                            <h4 className="md:col-span-2 text-lg font-bold text-gray-700 border-b pb-2 mb-2">معلومات الفاتورة الأساسية</h4>
+                            
+                            <InputField 
+                                label="تاريخ الفاتورة" 
+                                type="datetime-local"
+                                value={invoiceForm.date}
+                                onChange={(e) => setInvoiceForm({ ...invoiceForm, date: e.target.value })}
+                                required
+                            />
+                            <InputField 
+                                label="رقم فاتورة المورد" 
+                                value={invoiceForm.invoiceNumber} 
+                                onChange={(e) => setInvoiceForm({ ...invoiceForm, invoiceNumber: e.target.value })} 
+                                required 
+                                placeholder="رقم الفاتورة المطبوع"
+                            />
+                            
+                            <div className="flex flex-col space-y-1 text-right">
+                                <label className="text-sm font-medium text-gray-700">المورد</label>
+                                <select
+                                    value={invoiceForm.vendor}
+                                    onChange={(e) => {
+                                        const newVendor = e.target.value;
+                                        setInvoiceForm(prev => ({
+                                            ...prev,
+                                            vendor: newVendor,
+                                            representative: data.settings.representatives.find(r => r.vendor === newVendor)?.name || ''
+                                        }));
+                                    }}
+                                    required
+                                    className="w-full p-3 border border-gray-300 rounded-xl transition duration-150 text-right focus:ring-teal-500 focus:border-teal-500"
+                                >
+                                    <option value="" disabled>-- اختر الشركة الموردة --</option>
+                                    {data.settings.vendors.map(vendor => (
+                                        <option key={vendor} value={vendor}>{vendor}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            
+                            <div className="flex flex-col space-y-1 text-right">
+                                <label className="text-sm font-medium text-gray-700">المندوب المسؤول</label>
+                                <select
+                                    value={invoiceForm.representative || ''}
+                                    onChange={(e) => setInvoiceForm({ ...invoiceForm, representative: e.target.value })}
+                                    required
+                                    disabled={!invoiceForm.vendor}
+                                    className="w-full p-3 border border-gray-300 rounded-xl transition duration-150 text-right focus:ring-teal-500 focus:border-teal-500"
+                                >
+                                    <option value="" disabled>-- اختر المندوب --</option>
+                                    {filteredReps.map(rep => (
+                                        <option key={rep.name} value={rep.name}>{rep.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            
+                            <div className="md:col-span-2">
+                                <InputField
+                                    label="رابط صورة الفاتورة (اختياري)"
+                                    type="url"
+                                    placeholder="http://example.com/invoice.jpg"
+                                    value={invoiceForm.invoiceImageUrl}
+                                    onChange={(e) => setInvoiceForm({ ...invoiceForm, invoiceImageUrl: e.target.value })}
+                                />
+                            </div>
+
+                             <div className="flex flex-col space-y-1 text-right md:col-span-2">
+                                <label className="text-sm font-medium text-gray-700">فئة المصروف المرتبطة (لتسجيلها كمصروف لاحقاً)</label>
+                                <select
+                                    value={invoiceForm.expenseCategory}
+                                    onChange={(e) => setInvoiceForm({ ...invoiceForm, expenseCategory: e.target.value })}
+                                    required
+                                    className="w-full p-3 border border-gray-300 rounded-xl transition duration-150 text-right focus:ring-teal-500 focus:border-teal-500"
+                                >
+                                    {data.settings.expenseCategories.map(cat => (
+                                        <option key={cat} value={cat}>{cat}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+
+                        <h4 className="text-xl font-bold text-gray-800 border-b pb-2 flex justify-between items-center">
+                            قائمة المواد
+                            <ActionButton onClick={() => setIsAddItemModalOpen(true)} className="bg-teal-500 hover:bg-teal-600 px-4 py-2 text-sm">
+                                <Plus className="w-4 h-4 ml-1" />
+                                إضافة مادة
+                            </ActionButton>
+                        </h4>
+                        
+                        {invoiceForm.items.length === 0 ? (
+                            <div className="text-center p-6 bg-yellow-50 border border-yellow-200 rounded-xl text-yellow-800">الرجاء إضافة مواد إلى الفاتورة.</div>
+                        ) : (
+                            <div className="overflow-x-auto shadow-md rounded-xl">
+                                <table className="min-w-full divide-y divide-gray-200">
+                                    <thead className="bg-teal-100">
+                                        <tr>
+                                            <th className="px-4 py-2 text-right text-xs font-bold text-gray-600">الاسم</th>
+                                            <th className="px-4 py-2 text-right text-xs font-bold text-gray-600">الفئة</th>
+                                            <th className="px-4 py-2 text-right text-xs font-bold text-gray-600">الباركود</th>
+                                            <th className="px-4 py-2 text-right text-xs font-bold text-gray-600">سعر الوحدة</th>
+                                            <th className="px-4 py-2 text-right text-xs font-bold text-gray-600">الكمية</th>
+                                            <th className="px-4 py-2 text-right text-xs font-bold text-gray-600">الإجمالي</th>
+                                            <th className="px-4 py-2 text-right text-xs font-bold text-gray-600">إجراء</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-gray-200">
+                                        {invoiceForm.items.map(item => (
+                                            <tr key={item.id} className="hover:bg-gray-50">
+                                                <td className="px-4 py-2 whitespace-nowrap text-sm font-medium">{item.name}</td>
+                                                <td className="px-4 py-2 whitespace-nowrap text-xs text-gray-600">{item.category}</td>
+                                                <td className="px-4 py-2 whitespace-nowrap text-xs text-gray-600">{item.barcode}</td>
+                                                <td className="px-4 py-2 whitespace-nowrap text-sm">{formatCurrencyDisplay(item.price)}</td>
+                                                <td className="px-4 py-2 whitespace-nowrap text-sm">{item.count}</td>
+                                                <td className="px-4 py-2 whitespace-nowrap text-sm font-bold text-red-700">{formatCurrencyDisplay(item.price * item.count)}</td>
+                                                <td className="px-4 py-2 whitespace-nowrap">
+                                                    <button type="button" onClick={() => handleRemoveItemFromInvoice(item.id)} className="text-red-500 hover:text-red-700">
+                                                        <X className="w-4 h-4" />
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        <tr className="bg-teal-50 font-extrabold text-lg">
+                                            <td colSpan="5" className="px-4 py-3 text-right">الإجمالي الكلي للفاتورة:</td>
+                                            <td colSpan="2" className="px-4 py-3 text-red-800">{formatCurrencyDisplay(invoiceForm.totalAmount)}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                        
+                        <ActionButton type="submit" disabled={invoiceForm.items.length === 0} className="w-full bg-teal-600 hover:bg-teal-700 mt-6">
+                            <Save className="w-5 h-5 ml-2" />
+                            حفظ الفاتورة ليتم مراجعتها
+                        </ActionButton>
+                    </form>
+                </Modal>
+            )}
+
+            {/* مودال إضافة/تعديل مادة في الفاتورة */}
+            {isAddItemModalOpen && (
+                <Modal title="إضافة مادة للفاتورة" onClose={() => setIsAddItemModalOpen(false)} size="sm">
+                    <form onSubmit={handleAddItemToInvoice} className="space-y-4">
+                        <InputField 
+                            label="اسم المادة" 
+                            value={itemForm.name} 
+                            onChange={(e) => handleItemFormChange('name', e.target.value)} 
+                            required 
+                            placeholder="مثال: شامبو، كمبيوتر..."
+                        />
+                        <div className="grid grid-cols-2 gap-4">
+                             <InputField 
+                                label="سعر الوحدة (د.ع.)" 
+                                type="number" 
+                                currency
+                                value={itemForm.price} 
+                                onChange={(e) => handleItemFormChange('price', e.target.value)} 
+                                required 
+                                placeholder="0"
+                            />
+                             <InputField 
+                                label="الكمية" 
+                                type="number" 
+                                value={itemForm.count} 
+                                onChange={(e) => handleItemFormChange('count', e.target.value)} 
+                                required 
+                                placeholder="1"
+                                min="1"
+                            />
+                        </div>
+                        <div className="flex flex-col space-y-1 text-right">
+                            <label className="text-sm font-medium text-gray-700">فئة المادة (لتصنيف المخزون)</label>
+                            <select
+                                value={itemForm.category}
+                                onChange={(e) => setItemForm(prev => ({ ...prev, category: e.target.value }))}
+                                required
+                                className="w-full p-3 border border-gray-300 rounded-xl transition duration-150 text-right focus:ring-teal-500 focus:border-teal-500"
+                            >
+                                <option value="" disabled>اختر الفئة</option>
+                                {data.settings.expenseCategories.map(cat => (
+                                    <option key={cat} value={cat}>{cat}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <InputField 
+                            label="باركود المادة" 
+                            value={itemForm.barcode} 
+                            onChange={(e) => handleItemFormChange('barcode', e.target.value)} 
+                            placeholder="اضغط على توليد باركود أو أدخله يدوياً"
+                        >
+                            <button type="button" onClick={() => setItemForm(prev => ({ ...prev, barcode: generateBarcode() }))} className="absolute left-1 top-1/2 transform -translate-y-1/2 px-3 py-1.5 text-xs bg-gray-200 hover:bg-gray-300 rounded-lg text-gray-800 font-semibold">
+                                توليد باركود
+                            </button>
+                        </InputField>
+                        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-800 text-sm font-semibold">
+                            إجمالي سعر المادة: {formatCurrencyDisplay((parseFloat(itemForm.price || 0) * parseInt(itemForm.count || 0)))}
+                        </div>
+                        <ActionButton type="submit" className="w-full bg-teal-600 hover:bg-teal-700">
+                            <Plus className="w-5 h-5 ml-2" />
+                            إضافة المادة
+                        </ActionButton>
+                    </form>
+                </Modal>
+            )}
+
+            {/* مودال تفاصيل الفاتورة المعلقة */}
+            {isDetailsModalOpen && currentInvoice && (
+                <Modal title={`تفاصيل الفاتورة المعلقة #${currentInvoice.invoiceNumber}`} onClose={() => setIsDetailsModalOpen(false)} size="xl">
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-xl border border-gray-200">
+                            <p className="font-medium text-gray-700">المورد: <span className="font-bold">{currentInvoice.vendor}</span></p>
+                            <p className="font-medium text-gray-700">المندوب: <span className="font-bold">{currentInvoice.representative}</span></p>
+                            <p className="font-medium text-gray-700">تاريخ الفاتورة: <span className="font-bold">{new Date(currentInvoice.date).toLocaleString('en-US')}</span></p>
+                            <p className="font-medium text-gray-700">فئة المصروف: <span className="font-bold">{currentInvoice.expenseCategory}</span></p>
+                        </div>
+                        
+                        {currentInvoice.invoiceImageUrl && (
+                            <div className="text-center p-3 bg-white rounded-xl border border-teal-200">
+                                <h5 className="text-sm font-semibold text-gray-600 mb-2">صورة الفاتورة/المستند:</h5>
+                                <img src={currentInvoice.invoiceImageUrl} alt="Invoice Document" className="w-full h-auto object-contain rounded-lg shadow-md border border-gray-300 max-h-64" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/400x150/cccccc/333333?text=No+Image+Available"; }}/>
+                            </div>
+                        )}
+
+                        <h5 className="text-xl font-bold text-gray-800 border-b pb-2 pt-4">المواد في الفاتورة:</h5>
+                        <div className="overflow-x-auto shadow-md rounded-xl">
+                            <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-teal-100">
+                                    <tr>
+                                        <th className="px-4 py-2 text-right text-xs font-bold text-gray-600">المادة</th>
+                                        <th className="px-4 py-2 text-right text-xs font-bold text-gray-600">الباركود</th>
+                                        <th className="px-4 py-2 text-right text-xs font-bold text-gray-600">سعر الوحدة</th>
+                                        <th className="px-4 py-2 text-right text-xs font-bold text-gray-600">الكمية</th>
+                                        <th className="px-4 py-2 text-right text-xs font-bold text-gray-600">الإجمالي</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                    {currentInvoice.items.map(item => (
+                                        <tr key={item.id} className="hover:bg-gray-50">
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm font-medium">{item.name}</td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-xs text-gray-600">{item.barcode}</td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm">{formatCurrencyDisplay(item.price)}</td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm">{item.count}</td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm font-bold text-red-700">{formatCurrencyDisplay(item.price * item.count)}</td>
+                                        </tr>
+                                    ))}
+                                    <tr className="bg-teal-50 font-extrabold text-lg">
+                                        <td colSpan="4" className="px-4 py-3 text-right">الإجمالي الكلي:</td>
+                                        <td className="px-4 py-3 text-red-800">{formatCurrencyDisplay(currentInvoice.totalAmount)}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div className="flex flex-col gap-4 pt-4">
+                            {/* حالة معلقة - تظهر أزرار الاعتماد والإلغاء */}
+                            {currentInvoice.status === 'Pending' && (
+                                <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
+                                    <ActionButton 
+                                        onClick={() => handleApproveInvoice(currentInvoice, true)} 
+                                        className="bg-blue-600 hover:bg-blue-700"
+                                    >
+                                        <Package className="w-5 h-5 ml-2" />
+                                        اعتماد المخزون (آجل)
+                                    </ActionButton>
+                                    <ActionButton 
+                                        onClick={() => handleApproveInvoice(currentInvoice, false)} 
+                                        className="bg-green-600 hover:bg-green-700"
+                                    >
+                                        <CheckCircle className="w-5 h-5 ml-2" />
+                                        اعتماد المخزون (كاش)
+                                    </ActionButton>
+                                    <ActionButton 
+                                        onClick={() => { setIsDetailsModalOpen(false); setCurrentInvoice(currentInvoice); setIsCancelModalOpen(true); }} 
+                                        className="bg-red-600 hover:bg-red-700"
+                                    >
+                                        <X className="w-5 h-5 ml-2" />
+                                        إلغاء الفاتورة
+                                    </ActionButton>
+                                </div>
+                            )}
+                            
+                            {/* حالة آجل - يظهر زر الصرف */}
+                            {currentInvoice.status === 'CreditApproved' && (
+                                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                                    <ActionButton 
+                                        onClick={() => handleApproveInvoice(currentInvoice, false)} 
+                                        className="w-full bg-yellow-600 hover:bg-yellow-700"
+                                    >
+                                        <DollarSign className="w-5 h-5 ml-2" />
+                                        صرف الفاتورة (تسجيل مصروف)
+                                    </ActionButton>
+                                    <ActionButton 
+                                        onClick={() => { setIsDetailsModalOpen(false); setCurrentInvoice(currentInvoice); setIsCancelModalOpen(true); }} 
+                                        className="w-full bg-red-600 hover:bg-red-700"
+                                    >
+                                        <X className="w-5 h-5 ml-2" />
+                                        إلغاء الفاتورة
+                                    </ActionButton>
+                                </div>
+                            )}
+                            
+                            {/* حالة مصروفة وملغاة */}
+                            {currentInvoice.status === 'Dispatched' && (
+                                <p className="w-full text-center p-3 rounded-xl font-bold bg-green-100 text-green-700">
+                                    تم صرف الفاتورة بالكامل (مسجلة كمصروف).
+                                </p>
+                            )}
+                            {currentInvoice.status === 'Cancelled' && (
+                                <p className="w-full text-center p-3 rounded-xl font-bold bg-red-100 text-red-700">
+                                    الفاتورة ملغاة. السبب: {currentInvoice.cancellationReason || 'غير محدد'}
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                </Modal>
+            )}
+            
+            {/* مودال تأكيد الإلغاء */}
+            {isCancelModalOpen && currentInvoice && (
+                <Modal title={`تأكيد إلغاء الفاتورة #${currentInvoice.invoiceNumber}`} onClose={() => { setIsCancelModalOpen(false); setCancellationReason(''); setCurrentInvoice(null); }} size="sm">
+                    <p className="text-red-700 mb-4 font-semibold">
+                        هل أنت متأكد من إلغاء هذه الفاتورة؟ لن يتم إدخال المواد إلى المخزون ولن يتم تسجيل مصروف.
+                    </p>
+                    <InputField
+                        label="سبب الإلغاء"
+                        type="textarea"
+                        value={cancellationReason}
+                        onChange={(e) => setCancellationReason(e.target.value)}
+                        required
+                        placeholder="يجب ذكر السبب للإلغاء"
+                    />
+                    <ActionButton onClick={() => handleCancelInvoice(currentInvoice)} disabled={!cancellationReason.trim()} className="w-full bg-red-600 hover:bg-red-700 mt-4">
+                        <Trash2 className="w-5 h-5 ml-2" />
+                        إلغاء الفاتورة نهائياً
+                    </ActionButton>
+                </Modal>
+            )}
+        </div>
+    );
+});
+
+
+/**
+ * 3.6. SettingsPage Component
+ */
+const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavigateAttempt }) => {
+    const [settings, setSettings] = useState(data.settings);
+    const [originalSettings, setOriginalSettings] = useState(data.settings); // لحفظ الحالة الأصلية
+    const [isDirty, setIsDirty] = useState(false); // لتتبع التغييرات
+    
+    // حالة المودال لإدارة الخروج بدون حفظ
+    const [isExitModalOpen, setIsExitModalOpen] = useState(false);
+    
+    const [newItem, setNewItem] = useState('');
+    const [currentList, setCurrentList] = useState('expenseCategories');
+    const [newRep, setNewRep] = useState({ name: '', vendor: settings.vendors[0] || '' });
+    
+    // حالة نموذج المستخدم الجديد/المعدل
+    const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+    const [currentUser, setCurrentUser] = useState(null);
+    const [userForm, setUserForm] = useState({
+        username: '',
+        id: '',
+        email: '',
+        password: '',
+        permissions: {}
+    });
+    
+    // قائمة الصلاحيات المتاحة
+    const availablePermissions = useMemo(() => ([
+        { key: 'dashboard', label: 'الرئيسية' },
+        { key: 'revenues', label: 'الإيرادات' },
+        { key: 'expenses', label: 'الصرفيات' },
+        { key: 'advances', label: 'السلف' },
+        { key: 'suspended', label: 'المبالغ المعلقة' },
+        { key: 'employees', label: 'الموظفين' },
+        { key: 'inventoryEntry', label: 'الإدخال المخزني' },
+        { key: 'inventory', label: 'المخزن والمواد' },
+        { key: 'settings', label: 'الإعدادات' },
+    ]), []);
+    
+    // دالة تحديث الحقل العام وتتبع حالة التغيير
+    const handleSettingChange = (newSettings) => {
+        setSettings(newSettings);
+        
+        // مقارنة بسيطة لمعرفة ما إذا كانت هناك تغييرات
+        const currentJSON = JSON.stringify(newSettings);
+        const originalJSON = JSON.stringify(originalSettings);
+        setIsDirty(currentJSON !== originalJSON);
+    };
+
+
+    // دالة مساعدة لحفظ جميع الإعدادات
+    const saveAllSettings = (e) => {
+        if (e) e.preventDefault();
+        
+        handleSettingsUpdate(settings);
+        setOriginalSettings(settings); // تحديث الحالة الأصلية بعد الحفظ
+        setIsDirty(false);
+        showToast('تم حفظ الإعدادات الأساسية بنجاح.', 'success');
+        setIsExitModalOpen(false); // إغلاق المودال في حالة الخروج الموجه
+        
+        // **الإصلاح:** إذا تم الحفظ أثناء محاولة الخروج، نقوم بالتنقل
+        if (isExitModalOpen && isExitModalOpen.targetPageKey) {
+            onNavigateAttempt(isExitModalOpen.targetPageKey);
+        }
+    };
+    
+    // دوال إدارة القوائم (الفئات والموردين)
+    
+    const handleAddItem = (e) => {
+        e.preventDefault();
+        const value = newItem.trim();
+        if (!value) return;
+
+        if (settings[currentList].includes(value)) {
+            showToast('هذا العنصر موجود بالفعل.', 'error');
+            return;
+        }
+
+        handleSettingChange(prev => ({
+            ...prev,
+            [currentList]: [...prev[currentList], value]
+        }));
+        setNewItem('');
+        showToast(`تم إضافة ${value} بنجاح.`, 'success');
+    };
+
+    const handleDeleteItem = (itemToDelete) => {
+        handleSettingChange(prev => ({
+            ...prev,
+            [currentList]: prev[currentList].filter(item => item !== itemToDelete)
+        }));
+        
+        if (currentList === 'vendors') {
+             handleSettingChange(prev => ({
+                ...prev,
+                representatives: prev.representatives.filter(rep => rep.vendor !== itemToDelete)
+            }));
+        }
+
+        showToast(`تم حذف العنصر بنجاح.`, 'warning');
+    };
+
+    // إدارة المندوبين
+    const handleAddRep = (e) => {
+        e.preventDefault();
+        if (!newRep.name.trim() || !newRep.vendor) return;
+
+        if (settings.representatives.some(r => r.name === newRep.name)) {
+            showToast('هذا المندوب موجود بالفعل.', 'error');
+            return;
+        }
+
+        handleSettingChange(prev => ({
+            ...prev,
+            representatives: [...prev.representatives, newRep]
+        }));
+        setNewRep({ name: '', vendor: settings.vendors[0] || '' });
+        showToast(`تم إضافة المندوب ${newRep.name} بنجاح.`, 'success');
+    };
+    
+    const handleDeleteRep = (repToDelete) => {
+        handleSettingChange(prev => ({
+            ...prev,
+            representatives: prev.representatives.filter(rep => rep.name !== repToDelete.name)
+        }));
+        showToast('تم حذف المندوب بنجاح.', 'warning');
+    };
+    
+    // إدارة المستخدمين
+    
+    const openUserModal = (user = null) => {
+        if (user) {
+            setCurrentUser(user);
+            setUserForm({
+                username: user.username,
+                id: user.id,
+                email: user.email,
+                password: '', // لا نعرض الباسورد المحفوظة
+                permissions: user.permissions
+            });
+        } else {
+             setCurrentUser(null);
+             setUserForm({
+                username: '',
+                id: crypto.randomUUID(),
+                email: '',
+                password: '',
+                permissions: BASE_PERMISSIONS
+             });
+        }
+        setIsUserModalOpen(true);
+    };
+
+    const handleUserFormSubmit = (e) => {
+        e.preventDefault();
+        if (!userForm.username.trim() || !userForm.email.trim() || !userForm.password.trim()) {
+            showToast('يجب إدخال الاسم والبريد وكلمة المرور.', 'error');
+            return;
+        }
+
+        const userToSave = {
+            ...userForm,
+            // ضمان وجود صلاحية الرؤية دائما للوحة المعلومات
+            permissions: {
+                ...userForm.permissions,
+                dashboard: { view: true },
+            }
+        };
+
+        handleSettingChange(prev => {
+            const newUsers = currentUser 
+                ? prev.users.map(u => u.id === userToSave.id ? userToSave : u)
+                : [...prev.users, userToSave];
+            
+            // تصحيح: يجب تحديث المستخدم الذي تم تعديله بـ userToSave
+            const finalUsers = prev.users.map(u => u.id === userToSave.id ? userToSave : u);
+            if (!currentUser) finalUsers.push(userToSave);
+
+            return { ...prev, users: finalUsers };
+        });
+        
+        setIsUserModalOpen(false);
+        showToast(currentUser ? 'تم تعديل صلاحيات المستخدم بنجاح.' : 'تم إضافة مستخدم جديد بنجاح.', 'success');
+    };
+    
+    const handleDeleteUser = (userId) => {
+        handleSettingChange(prev => ({
+            ...prev,
+            users: prev.users.filter(u => u.id !== userId)
+        }));
+        showToast('تم حذف المستخدم بنجاح.', 'warning');
+    };
+    
+    const currentItems = settings[currentList] || [];
+
+    // التعامل مع الخروج من الصفحة دون حفظ
+    const handleExitClick = (targetPageKey = null) => {
+        if (isDirty) {
+            setIsExitModalOpen({ targetPageKey: targetPageKey });
+        } else if (targetPageKey) {
+             onNavigateAttempt(targetPageKey);
+        }
+    };
+    
+    const confirmDiscardAndExit = () => {
+         setSettings(originalSettings); // إعادة الحالة الأصلية
+         setIsDirty(false);
+         // توجيه التنقل بعد تجاهل التغييرات
+         if (isExitModalOpen.targetPageKey) {
+             onNavigateAttempt(isExitModalOpen.targetPageKey);
+         }
+         setIsExitModalOpen(false);
+         showToast('تم إلغاء التغييرات والخروج.', 'warning');
+    };
+    
+    const confirmSaveAndExit = (e) => {
+        // نستخدم دالة saveAllSettings التي تتضمن منطق التنقل
+        saveAllSettings(e); 
+    };
+
+
+    // **مهم:** تم تعديل <form> الإعدادات ليصبح زر الحفظ في الأسفل
+    // نستخدم React.Fragment للتحكم في عناصر الإدخال
+    const renderCompanySettings = () => (
+        <React.Fragment>
+            <InputField 
+                label="اسم الشركة/العمل" 
+                value={settings.companyName} 
+                onChange={(e) => handleSettingChange({ ...settings, companyName: e.target.value })} 
+                required
+            />
+             <InputField 
+                label="رابط شعار الشركة (Logo URL)" 
+                value={settings.companyLogoUrl} 
+                onChange={(e) => handleSettingChange({ ...settings, companyLogoUrl: e.target.value })} 
+                placeholder="https://placehold.co/100x40/0d9488/ffffff?text=LOGO"
+            />
+        </React.Fragment>
+    );
+
+    return (
+        <div className="p-6 space-y-8 bg-white rounded-3xl shadow-2xl">
+            <h2 className="text-4xl font-extrabold text-gray-800 border-b-2 border-teal-500 pb-3">الإعدادات {isDirty && <span className='text-red-500 text-base mr-3'>(لم يتم الحفظ)</span>}</h2>
+            
+            {/* **التعامل مع الخروج بدون حفظ** */}
+            {isExitModalOpen && (
+                <Modal title="تنبيه: لم يتم حفظ التغييرات" onClose={() => setIsExitModalOpen(false)} size="sm">
+                    <p className='text-lg font-medium text-red-700 mb-4'>
+                        لقد قمت بإجراء تغييرات في الإعدادات. هل تريد حفظها قبل الخروج؟
+                    </p>
+                    <div className='flex justify-around gap-4'>
+                        <ActionButton 
+                            onClick={confirmSaveAndExit} 
+                            className="bg-green-600 hover:bg-green-700 flex-1"
+                        >
+                            <Save className="w-5 h-5 ml-2" />
+                            حفظ والخروج
+                        </ActionButton>
+                        <ActionButton 
+                            onClick={confirmDiscardAndExit} 
+                            className="bg-gray-400 hover:bg-gray-500 flex-1"
+                        >
+                            <Trash2 className="w-5 h-5 ml-2" />
+                            تجاهل التغييرات
+                        </ActionButton>
+                    </div>
+                </Modal>
+            )}
+
+            {/* إعدادات الشركة */}
+            <form className="space-y-6 p-6 rounded-xl shadow-lg border-l-4 border-indigo-500 bg-indigo-50">
+                <h3 className="text-2xl font-bold text-indigo-800 flex items-center"><Building className="w-6 h-6 ml-2" /> إعدادات الشركة الأساسية</h3>
+                {renderCompanySettings()}
+            </form>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* إدارة القوائم (الفئات والموردين) */}
+                <div className="space-y-6 p-6 rounded-xl shadow-lg border-l-4 border-teal-500 bg-gray-50">
+                    <h3 className="text-2xl font-bold text-teal-800 flex items-center"><List className="w-6 h-6 ml-2" /> إدارة الفئات والأقسام والمناصب</h3>
+
+                    <div className="flex space-x-2 space-x-reverse overflow-x-auto pb-2">
+                        {['expenseCategories', 'revenueCategories', 'departments', 'jobTitles', 'vendors'].map(key => (
+                            <button
+                                key={key}
+                                onClick={() => setCurrentList(key)}
+                                className={`px-4 py-2 rounded-lg text-sm font-semibold transition whitespace-nowrap ${currentList === key ? 'bg-teal-600 text-white shadow-md' : 'bg-white border border-gray-300 text-gray-700 hover:bg-teal-50'}`}
+                            >
+                                {key === 'expenseCategories' ? 'مصروفات' : key === 'revenueCategories' ? 'إيرادات' : key === 'departments' ? 'أقسام' : key === 'jobTitles' ? 'مناصب' : 'الموردين'}
+                            </button>
+                        ))}
+                    </div>
+
+                    <form onSubmit={handleAddItem} className="space-y-3">
+                        <h4 className="font-semibold text-gray-700">إضافة عنصر جديد ({currentList === 'vendors' ? 'مورد' : 'فئة'})</h4>
+                        <InputField 
+                            value={newItem} 
+                            onChange={(e) => setNewItem(e.target.value)} 
+                            placeholder="أدخل اسماً جديداً" 
+                            required
+                        >
+                            {/* **إصلاح زر الإضافة:** جعله أيقونة بيضاء بدون نص */}
+                            <button type="submit" className="absolute left-1 top-1/2 transform -translate-y-1/2 px-4 py-1 text-sm bg-white hover:bg-gray-100 p-2 rounded-lg">
+                                <Plus className="w-4 h-4 text-teal-600" />
+                            </button>
+                        </InputField>
+                    </form>
+
+                    <div className="space-y-2 max-h-60 overflow-y-auto p-2 border rounded-lg bg-white">
+                        <h4 className="font-semibold text-gray-700 border-b pb-1">القائمة الحالية:</h4>
+                        {currentItems.map(item => (
+                            <div key={item} className="flex justify-between items-center p-2 bg-gray-100 rounded-lg shadow-sm">
+                                <span className="font-medium text-gray-800">{item}</span>
+                                <button onClick={() => handleDeleteItem(item)} className="text-red-500 hover:text-red-700 p-1">
+                                    <Trash2 className="w-4 h-4" />
+                                </button>
+                            </div>
+                        ))}
+                        {currentItems.length === 0 && <p className="text-sm text-gray-500 italic">لا توجد عناصر مضافة حالياً.</p>}
+                    </div>
+                </div>
+
+                {/* إدارة المندوبين */}
+                <div className="space-y-6 p-6 rounded-xl shadow-lg border-l-4 border-blue-500 bg-gray-50">
+                    <h3 className="text-2xl font-bold text-blue-800 flex items-center"><User className="w-6 h-6 ml-2" /> إدارة المندوبين (للشركات الموردة)</h3>
+
+                    <form onSubmit={handleAddRep} className="space-y-3 p-3 border rounded-xl bg-white">
+                        <h4 className="font-semibold text-gray-700 border-b pb-2">إضافة مندوب جديد</h4>
+                        <InputField 
+                            label="اسم المندوب" 
+                            value={newRep.name} 
+                            onChange={(e) => setNewRep({ ...newRep, name: e.target.value })} 
+                            required
+                        />
+                        <div className="flex flex-col space-y-1 text-right">
+                            <label className="text-sm font-medium text-gray-700">تابع لشركة</label>
+                            <select
+                                value={newRep.vendor}
+                                onChange={(e) => setNewRep({ ...newRep, vendor: e.target.value })}
+                                required
+                                className="w-full p-3 border border-gray-300 rounded-xl transition duration-150 text-right focus:ring-blue-500 focus:border-blue-500"
+                            >
+                                {settings.vendors.map(vendor => (
+                                    <option key={vendor} value={vendor}>{vendor}</option>
+                                ))}
+                            </select>
+                            {settings.vendors.length === 0 && <p className="text-xs text-red-500 mt-1">يجب إضافة موردين أولاً.</p>}
+                        </div>
+                        <ActionButton type="submit" disabled={settings.vendors.length === 0} className="bg-blue-600 hover:bg-blue-700 w-full">
+                            <UserPlus className="w-5 h-5 ml-2" />
+                            إضافة المندوب
+                        </ActionButton>
+                    </form>
+
+                    <div className="space-y-2 max-h-60 overflow-y-auto p-2 border rounded-lg bg-white">
+                        <h4 className="font-semibold text-gray-700 border-b pb-1">قائمة المندوبين:</h4>
+                        {settings.representatives.map((rep, index) => (
+                            <div key={index} className="flex justify-between items-center p-2 bg-blue-100 rounded-lg shadow-sm">
+                                <span className="font-medium text-gray-800">{rep.name} <span className="text-xs text-gray-500">({rep.vendor})</span></span>
+                                <button onClick={() => handleDeleteRep(rep)} className="text-red-500 hover:text-red-700 p-1">
+                                    <Trash2 className="w-4 h-4" />
+                                </button>
+                            </div>
+                        ))}
+                        {settings.representatives.length === 0 && <p className="text-sm text-gray-500 italic">لا يوجد مندوبون مضافون حالياً.</p>}
+                    </div>
+                </div>
+                
+                {/* إدارة المستخدمين والصلاحيات */}
+                <div className="lg:col-span-2 space-y-6 p-6 rounded-xl shadow-lg border-l-4 border-purple-500 bg-gray-50">
+                    <h3 className="text-2xl font-bold text-purple-800 flex items-center"><Users className="w-6 h-6 ml-2" /> إدارة المستخدمين والصلاحيات</h3>
+                    
+                    <ActionButton onClick={() => openUserModal()} className="bg-purple-600 hover:bg-purple-700 px-4 py-2 text-base">
+                        <UserPlus className="w-5 h-5 ml-2" />
+                        إضافة مستخدم جديد
+                    </ActionButton>
+                    
+                    <div className="overflow-x-auto shadow-md rounded-xl">
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-purple-100">
+                                <tr>
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 uppercase">اسم المستخدم</th>
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 uppercase">البريد الإلكتروني</th>
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 uppercase">الصلاحيات الأساسية</th>
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 uppercase">الإجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {settings.users.map(user => (
+                                    <tr key={user.id} className="hover:bg-gray-50">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold">{user.username}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.email}</td>
+                                        <td className="px-6 py-4 text-sm text-gray-700">
+                                            {user.permissions.revenues?.view ? 'إيرادات، ' : ''}
+                                            {user.permissions.expenses?.view ? 'صرفيات، ' : ''}
+                                            {user.permissions.inventoryEntry?.view ? 'إدخال مخزني' : ''}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                            <div className="flex space-x-3 space-x-reverse">
+                                                <button onClick={() => openUserModal(user)} className="text-indigo-600 hover:text-indigo-900" title="تعديل الصلاحيات">
+                                                    <Edit className="w-5 h-5" />
+                                                </button>
+                                                <button onClick={() => handleDeleteUser(user.id)} className="text-red-600 hover:text-red-900" title="حذف المستخدم">
+                                                    <Trash2 className="w-5 h-5" />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+             <ActionButton onClick={(e) => saveAllSettings(e)} className="w-full bg-green-600 hover:bg-green-700 mt-8">
+                <Save className="w-5 h-5 ml-2" />
+                حفظ جميع التغييرات في الإعدادات
+            </ActionButton>
+
+            
+            {/* مودال إدارة صلاحيات المستخدمين */}
+            {isUserModalOpen && (
+                <Modal title={currentUser ? `تعديل صلاحيات: ${currentUser.username}` : 'إضافة مستخدم جديد'} onClose={() => setIsUserModalOpen(false)} size="xl">
+                    <form onSubmit={handleUserFormSubmit} className="space-y-6">
+                        <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                             <InputField
+                                label="اسم المستخدم"
+                                value={userForm.username}
+                                onChange={(e) => setUserForm(prev => ({ ...prev, username: e.target.value }))}
+                                required
+                            />
+                             <InputField
+                                label="البريد الإلكتروني"
+                                type="email"
+                                value={userForm.email}
+                                onChange={(e) => setUserForm(prev => ({ ...prev, email: e.target.value }))}
+                                required
+                                readOnly={!!currentUser} // لا يمكن تغيير البريد بعد الإضافة
+                            />
+                             <InputField
+                                label={currentUser ? "كلمة المرور الجديدة (أتركها فارغة للحفاظ على الحالية)" : "كلمة المرور"}
+                                type="password"
+                                value={userForm.password}
+                                onChange={(e) => setUserForm(prev => ({ ...prev, password: e.target.value }))}
+                                required={!currentUser} // مطلوبة فقط عند إنشاء مستخدم جديد
+                            />
+                        </div>
+                        
+                        <h4 className="text-xl font-bold text-gray-700 border-b pb-2">تحديد الصلاحيات</h4>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {availablePermissions.map(perm => (
+                                <div key={perm.key} className="p-4 rounded-xl shadow-md bg-gray-100 border border-gray-200">
+                                    <h5 className="font-bold text-lg text-gray-800 mb-3">{perm.label}</h5>
+                                    
+                                    {/* صلاحية الرؤية */}
+                                    <div className="flex items-center justify-between mb-2">
+                                        <label className="text-gray-700 font-medium">الرؤية ({perm.key === 'dashboard' ? 'مطلوبة' : 'view'})</label>
+                                        <input
+                                            type="checkbox"
+                                            checked={userForm.permissions[perm.key]?.view || false}
+                                            disabled={perm.key === 'dashboard'} // الرؤية دائما مطلوبة للرئيسية
+                                            onChange={(e) => {
+                                                setUserForm(prev => ({
+                                                    ...prev,
+                                                    permissions: {
+                                                        ...prev.permissions,
+                                                        [perm.key]: {
+                                                            ...prev.permissions[perm.key],
+                                                            view: e.target.checked,
+                                                            // إذا ألغيت الرؤية، ألغِ باقي الصلاحيات
+                                                            ...(e.target.checked ? {} : { add: false, edit: false, delete: false, approve: false, credit: false, cancel: false })
+                                                        }
+                                                    }
+                                                }));
+                                            }}
+                                            className="w-5 h-5 text-purple-600 focus:ring-purple-500 rounded"
+                                        />
+                                    </div>
+
+                                    {/* صلاحيات CRUD (تعديل، إضافة، حذف) - ما عدا المخزن والإعدادات والتقارير */}
+                                    {(perm.key !== 'inventory' && perm.key !== 'settings' && perm.key !== 'dashboard' && perm.key !== 'inventoryEntry') && (
+                                        <div className='space-y-2 border-t pt-2 mt-2'>
+                                            {['add', 'edit', 'delete'].map(action => (
+                                                <div key={action} className="flex items-center justify-between">
+                                                    <label className="text-gray-600 text-sm">
+                                                        {action === 'add' ? 'إضافة/إنشاء' : action === 'edit' ? 'تعديل' : 'حذف'}
+                                                    </label>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={userForm.permissions[perm.key]?.[action] || false}
+                                                        disabled={!userForm.permissions[perm.key]?.view} // يتطلب صلاحية الرؤية
+                                                        onChange={(e) => {
+                                                            setUserForm(prev => ({
+                                                                ...prev,
+                                                                permissions: {
+                                                                    ...prev.permissions,
+                                                                    [perm.key]: {
+                                                                        ...prev.permissions[perm.key],
+                                                                        [action]: e.target.checked
+                                                                    }
+                                                                }
+                                                            }));
+                                                        }}
+                                                        className="w-5 h-5 text-purple-600 focus:ring-purple-500 rounded"
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                     {/* صلاحيات الإدخال المخزني الخاصة */}
+                                    {perm.key === 'inventoryEntry' && userForm.permissions.inventoryEntry?.view && (
+                                        <div className='space-y-2 border-t pt-2 mt-2'>
+                                            <h6 className="font-semibold text-gray-700 text-sm">إجراءات الفواتير:</h6>
+                                            {['approve', 'credit', 'cancel'].map(action => (
+                                                <div key={action} className="flex items-center justify-between">
+                                                    <label className="text-gray-600 text-sm">
+                                                        {action === 'approve' ? 'اعتماد كاش' : action === 'credit' ? 'اعتماد آجل' : 'إلغاء الفاتورة'}
+                                                    </label>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={userForm.permissions.inventoryEntry[action] || false}
+                                                        onChange={(e) => {
+                                                            setUserForm(prev => ({
+                                                                ...prev,
+                                                                permissions: {
+                                                                    ...prev.permissions,
+                                                                    inventoryEntry: {
+                                                                        ...prev.permissions.inventoryEntry,
+                                                                        [action]: e.target.checked
+                                                                    }
+                                                                }
+                                                            }));
+                                                        }}
+                                                        className="w-5 h-5 text-purple-600 focus:ring-purple-500 rounded"
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                        
+                        <ActionButton type="submit" className="w-full bg-purple-600 hover:bg-purple-700 mt-6">
+                            <Save className="w-5 h-5 ml-2" />
+                            {currentUser ? 'حفظ الصلاحيات' : 'إضافة المستخدم'}
+                        </ActionButton>
+                    </form>
+                </Modal>
+            )}
+        </div>
+    );
+});
+
+
+/**
+ * 3.7. InventoryDispatchComponent (سجل الصرف المخزني)
+ * **تم تحويله إلى صفحة سجل بسيط للعرض فقط**
+ */
+const InventoryDispatchComponent = React.memo(({ data, handleDataAction, showToast, handleDelete, handleRefresh }) => {
+    const [isDispatchDetailsModalOpen, setIsDispatchDetailsModalOpen] = useState(false); 
+    const [currentDispatch, setCurrentDispatch] = useState(null);
+    const [globalSearchHistory, setGlobalSearchHistory] = useState('');
+
+    
+    // قائمة سجلات الصرف (للعرض في الصفحة الرئيسية للمكون)
+    const dispatchHistory = useMemo(() => {
+        let list = data.inventoryDispatches.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+        
+        if (globalSearchHistory) {
+            const searchLower = normalizeTextForSearch(globalSearchHistory);
+            const searchNumeric = normalizeTextForSearch(globalSearchHistory, true);
+            
+            list = list.filter(d => {
+                const matchesName = normalizeTextForSearch(d.employeeName).includes(searchLower);
+                const matchesCost = d.totalCost && normalizeTextForSearch(d.totalCost.toString(), true).includes(searchNumeric);
+                
+                return matchesName || matchesCost;
+            });
+        }
+        return list; 
+    }, [data.inventoryDispatches, globalSearchHistory]);
+    
+    // لفتح مودال التفاصيل عند النقر على سجل في الجدول
+    const openDispatchDetails = (dispatch) => {
+        setCurrentDispatch(dispatch);
+        setIsDispatchDetailsModalOpen(true);
+    };
+
+    return (
+        <div className="p-6 space-y-6 bg-white rounded-3xl shadow-2xl">
+            <h2 className="text-4xl font-extrabold text-gray-800 border-b-2 border-blue-500 pb-3 flex items-center">
+                <LogOut className="w-7 h-7 ml-3 text-blue-600" />
+                سجل عمليات الصرف المخزني
+            </h2>
+
+            <div className="p-6 space-y-4 rounded-xl shadow-lg border-l-4 border-indigo-500 bg-gray-50">
+                <h3 className="text-2xl font-bold text-indigo-800 flex items-center border-b pb-2">
+                    <List className="w-5 h-5 ml-2" />
+                    سجل عمليات الصرف التاريخية (للمراجعة)
+                </h3>
+                
+                {/* البحث والتحديث */}
+                <div className="flex justify-between items-center gap-4">
+                    <div className="flex-grow relative">
+                         <input
+                            type="text"
+                            value={globalSearchHistory}
+                            onChange={(e) => setGlobalSearchHistory(e.target.value)}
+                            placeholder="البحث باسم الموظف أو التكلفة..."
+                            className="w-full p-3 border border-gray-300 rounded-xl pr-10 focus:ring-amber-500 focus:border-amber-500"
+                        />
+                        <Search className="w-5 h-5 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    </div>
+                    <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 shadow-lg transition duration-200">
+                        <RotateCcw className="w-6 h-6" />
+                    </button>
+                </div>
+
+                <div className="overflow-x-auto shadow-md rounded-xl">
+                    <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-indigo-100">
+                            <tr>
+                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">التاريخ</th>
+                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">الموظف المستلم</th>
+                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">عدد المواد</th>
+                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">التكلفة الإجمالية (د.ع.)</th>
+                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                            {dispatchHistory.length === 0 ? (
+                                <tr><td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500">لا يوجد سجلات صرف مخزني.</td></tr>
+                            ) : (
+                                dispatchHistory.map(dispatch => (
+                                    <tr key={dispatch.id} className="hover:bg-gray-50 transition duration-150 cursor-pointer" onClick={() => openDispatchDetails(dispatch)}>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{new Date(dispatch.date).toLocaleString('en-US')}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-indigo-600 font-semibold">{highlightText(dispatch.employeeName, globalSearchHistory)}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{dispatch.items.reduce((sum, item) => sum + item.count, 0)}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-red-600">{highlightText(formatCurrencyDisplay(dispatch.totalCost), globalSearchHistory)}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                             <button onClick={(e) => { e.stopPropagation(); handleDelete('inventoryDispatches', dispatch.id); }} className="text-red-600 hover:text-red-900">
+                                                <Trash2 className="w-5 h-5" />
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            
+            {/* مودال عرض تفاصيل الصرف (الجدول السفلي) */}
+            {isDispatchDetailsModalOpen && currentDispatch && (
+                <Modal title={`تفاصيل صرف ${currentDispatch.employeeName}`} onClose={() => setIsDispatchDetailsModalOpen(false)} size="lg">
+                    <div className="space-y-4 p-4 bg-gray-50 rounded-xl">
+                        <h4 className="text-xl font-bold text-gray-800 border-b pb-2 mb-4 flex items-center">
+                            <List className="w-5 h-5 ml-2 text-indigo-500" />
+                            بيانات الصرف
+                        </h4>
+                        <p className="font-medium text-gray-700">**الموظف:** {currentDispatch.employeeName}</p>
+                        <p className="font-medium text-gray-700">**التاريخ والوقت:** {new Date(currentDispatch.date).toLocaleString('en-US')}</p>
+                        <p className="font-medium text-gray-700">**الملاحظات:** {currentDispatch.notes || 'لا توجد ملاحظات.'}</p>
+                        
+                        <h5 className="text-lg font-bold text-gray-800 border-b pb-2 pt-4">المواد المصروفة:</h5>
+                        <div className="overflow-x-auto shadow-md rounded-xl">
+                             <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-green-200">
+                                    <tr>
+                                        <th className="px-4 py-2 text-right text-xs font-bold text-gray-600">المادة</th>
+                                        <th className="px-4 py-2 text-right text-xs font-bold text-gray-600">الكمية</th>
+                                        <th className="px-4 py-2 text-right text-xs font-bold text-gray-600">تكلفة الوحدة</th>
+                                        <th className="px-4 py-2 text-right text-xs font-bold text-gray-600">الإجمالي</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                    {currentDispatch.items.map(item => (
+                                        <tr key={item.itemId} className="hover:bg-gray-50">
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm font-medium">{item.name}</td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm">{item.count}</td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm">{formatCurrencyDisplay(item.unitPrice)}</td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm font-bold">{formatCurrencyDisplay(item.unitPrice * item.count)}</td>
+                                        </tr>
+                                    ))}
+                                    <tr className="bg-green-50 font-extrabold text-lg">
+                                        <td colSpan="3" className="px-4 py-3 text-right">الإجمالي الكلي:</td>
+                                        <td className="px-4 py-3 text-red-800">{formatCurrencyDisplay(currentDispatch.totalCost)}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </Modal>
+            )}
+
+        </div>
+    );
+});
+
+
+/**
+ * 3.8. AboutSystemModal (حول النظام)
+ */
+const AboutSystemModal = ({ onClose }) => (
+    <Modal title="حول نظام المحاسبة العراقي" onClose={onClose} size="sm">
+        <div className="space-y-4 text-center p-4">
+            <h3 className="text-2xl font-extrabold text-blue-900">نظام المحاسبة العراقي (V 1.0)</h3>
+            {/* **تم تغيير الجملة إلى جملة احترافية** */}
+            <p className="text-gray-700">منصة احترافية متكاملة لإدارة الموارد والمخزون والعمليات التشغيلية بكفاءة عالية.</p>
+            
+            <div className="border-t border-gray-200 pt-4 space-y-2 text-right">
+                {/* **تم تصحيح الاتجاه لليمين** */}
+                <div className="flex justify-between items-center">
+                    <span className="font-semibold text-gray-800">المصمم:</span>
+                    <span className="font-bold text-indigo-600">علاء المالكي</span>
+                </div>
+                <div className="flex justify-between items-center">
+                    <span className="font-semibold text-gray-800">رقم الهاتف:</span>
+                    <span className="font-bold text-indigo-600">٠٧٧١٧٧١٦٢٠٥</span>
+                </div>
+                <div className="flex justify-between items-center">
+                    <span className="font-semibold text-gray-800">إصدار التحديث:</span>
+                    <span className="font-bold text-indigo-600">1.0</span>
+                </div>
+            </div>
+            
+            <ActionButton onClick={onClose} className="w-full bg-teal-600 hover:bg-teal-700 mt-4">
+                إغلاق
+            </ActionButton>
+        </div>
+    </Modal>
+);
+
+
+// =================================================================
+// 4. المكون الرئيسي للتطبيق (APP COMPONENT)
+// =================================================================
+
+const AccountingApp = () => {
+    // 1. Toaster Handler (Moved to the top to fix ReferenceError)
+    const [toast, setToast] = useState({ message: '', type: '', id: null });
+    const showToast = useCallback((message, type) => {
+        const id = Date.now();
+        setToast({ message, type, id });
+    }, []);
+
+    // 2. State Management
+    const [data, setData] = useState(defaultDataStructure);
+    const [currentPage, setCurrentPage] = useState('dashboard');
+    const [printItem, setPrintItem] = useState(null);
+    const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+    const [printReportData, setPrintReportData] = useState([]);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false); 
+    const [refreshKey, setRefreshKey] = useState(0); 
+    const [initialExpenseState, setInitialExpenseState] = useState(null);
+    const [isAboutModalOpen, setIsAboutModalOpen] = useState(false); 
+    
+    // **تعديل:** إزالة منطق المصادقة والاعتماد على المستخدم الافتراضي
+    const currentUser = data.settings.users[0]; 
+
+
+    // دالة تحديث الحالة العامة (لحل مشكلة التحديث الفوري)
+    const handleRefresh = useCallback(() => {
+        setRefreshKey(prev => prev + 1);
+        showToast('تم تحديث بيانات الصفحة.', 'info');
+    }, [showToast]);
+
+    // 3. CRUD Logic (Updated to take showToast as an argument where needed)
+    const handleDataAction = (collectionName, item, isNew, overwrite = false) => {
+        // **تحديث: فحص صلاحيات الإضافة/التعديل**
+        const permissionKey = navItems.find(i => i.key === collectionName)?.key;
+        const requiredAction = isNew ? 'add' : 'edit';
+
+        if (permissionKey && !currentUser?.permissions[permissionKey]?.[requiredAction]) {
+            showToast(`ليس لديك صلاحية ${isNew ? 'إضافة' : 'تعديل'} سجلات في قسم ${navItems.find(i => i.key === collectionName)?.label}.`, 'error');
+            return;
+        }
+
+
+        let newData = { ...data };
+        let collection = newData[collectionName];
+
+        if (overwrite) {
+             newData[collectionName] = item;
+             saveData(newData);
+             
+             // إجبار المكونات على إعادة الرسم بعد التحديث الشامل
+             setRefreshKey(prev => prev + 1);
+             return;
+        }
+
+        if (isNew) {
+            // إضافة
+            const newItem = { ...item, id: crypto.randomUUID(), invoiceNumber: generateInvoiceNumber() };
+            newData[collectionName] = [...collection, newItem];
+            showToast(`تم إضافة السجل بنجاح!`, 'success');
+            // إذا كان سجلاً في المخزون تم إضافته يدوياً، نضيف له سجل شراء مبدئي
+            if (collectionName === 'inventory' && !newItem.purchaseHistory) {
+                 newItem.purchaseHistory = [{ date: newItem.date, price: newItem.price, count: newItem.count, vendor: 'Manual Entry' }];
+            }
+            setInitialExpenseState(null); // مسح حالة الإرسال التلقائي
+        } else {
+            // تعديل
+            const index = collection.findIndex(i => i.id === item.id);
+            if (index !== -1) {
+                collection[index] = item;
+                newData[collectionName] = collection;
+                showToast(`تم تعديل السجل بنجاح!`, 'success');
+            } else if (collectionName === 'pendingInvoices' && item.status) {
+                 // حالة تحديث حالة فاتورة موجودة (مصروفة أو ملغاة)
+                 const existingIndex = collection.findIndex(i => i.id === item.id);
+                 if (existingIndex !== -1) {
+                      collection[existingIndex] = item;
+                      newData[collectionName] = collection;
+                 } else {
+                     // في حالة عدم العثور عليها، يتم إضافتها إذا لم يكن لديها حالة (للتأكد فقط)
+                      newData[collectionName] = [...collection, item];
+                 }
+            }
+        }
+        
+        saveData(newData);
+        // **إضافة التحديث الفوري:**
+        setRefreshKey(prev => prev + 1);
+    };
+
+    const handleDelete = (collectionName, id, showMessage = true) => {
+        // **تحديث: فحص صلاحيات الحذف**
+        const permissionKey = navItems.find(i => i.key === collectionName)?.key;
+        if (permissionKey && !currentUser?.permissions[permissionName]?.delete && collectionName !== 'inventoryDispatches') {
+            showToast(`ليس لديك صلاحية حذف سجلات في قسم ${navItems.find(i => i.key === collectionName)?.label}.`, 'error');
+            return;
+        }
+        
+        let newData = { ...data };
+        
+        // **مهم:** إذا تم حذف سجل صرف مخزني، يجب إعادة المواد للمخزون
+        if (collectionName === 'inventoryDispatches') {
+            const dispatchToDelete = data.inventoryDispatches.find(d => d.id === id);
+            if (dispatchToDelete) {
+                let updatedInventory = [...newData.inventory];
+                dispatchToDelete.items.forEach(dItem => {
+                    const index = updatedInventory.findIndex(i => i.id === dItem.itemId);
+                    if (index !== -1) {
+                        updatedInventory[index] = {
+                            ...updatedInventory[index],
+                            count: updatedInventory[index].count + dItem.count,
+                        };
+                    }
+                });
+                // تحديث المخزون بالكامل
+                newData.inventory = updatedInventory; 
+            }
+        }
+        
+        newData[collectionName] = newData[collectionName].filter(item => item.id !== id);
+
+        if (showMessage) {
+           showToast('تم حذف السجل بنجاح.', 'warning');
+        }
+        
+        saveData(newData);
+        setRefreshKey(prev => prev + 1); // تحديث فوري بعد الحذف
+    };
+    
+    // 4. Data Persistence (Local Storage for simplicity)
+    useEffect(() => {
+        try {
+            const savedData = localStorage.getItem(STORAGE_KEY);
+            if (savedData) {
+                // دمج البيانات المحفوظة مع الإعدادات الافتراضية الجديدة في حال عدم وجودها
+                const parsedData = JSON.parse(savedData);
+                setData(prev => ({
+                    ...defaultDataStructure,
+                    ...parsedData,
+                    settings: {
+                        ...defaultSettings,
+                        ...(parsedData.settings || {})
+                    }
+                }));
+            }
+        } catch (error) {
+            console.error("Failed to load data from localStorage", error);
+        }
+    }, []);
+
+    const saveData = (newData) => {
+        setData(newData);
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(newData));
+        } catch (error) {
+            console.error("Failed to save data to localStorage", error);
+            showToast('خطأ في حفظ البيانات محلياً. يرجى التحقق من مساحة التخزين.', 'error');
+        }
+    };
+
+    // 5. Settings Update
+    const handleSettingsUpdate = (newSettings) => {
+        saveData({
+            ...data,
+            settings: newSettings
+        });
+    };
+    
+    // 6. Birthdays Calculation
+    const upcomingBirthdays = useMemo(() => {
+        const today = new Date();
+        const next7Days = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+        
+        return data.employees.filter(emp => {
+            if (!emp.dateOfBirth) return false;
+            
+            const dob = new Date(emp.dateOfBirth);
+            const thisYearBirthday = new Date(today.getFullYear(), dob.getMonth(), dob.getDate());
+            
+            // تحقق إذا كان عيد الميلاد في الـ 7 أيام القادمة
+            if (thisYearBirthday >= today && thisYearBirthday <= next7Days) {
+                return true;
+            }
+            
+            return false;
+        }).map(emp => ({
+            name: emp.name,
+            date: new Date(emp.dateOfBirth).toLocaleDateString('ar-IQ', { month: 'long', day: 'numeric' })
+        })).sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    }, [data.employees]);
+
+
+    // 7. Routing and Navigation
+    const navItems = [
+        { key: 'dashboard', label: 'الرئيسية', icon: Home, component: DashboardComponent },
+        { key: 'revenues', label: 'الإيرادات', icon: TrendingUp, component: DataPageComponent, props: { type: 'revenue', collectionName: 'revenues', categories: data.settings.revenueCategories, fields: [{ key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'category', label: 'فئة الإيراد', type: 'select', required: true }, { key: 'description', label: 'الوصف/المصدر', type: 'textarea' }], handleRefresh } },
+        { key: 'expenses', label: 'الصرفيات', icon: TrendingDown, component: DataPageComponent, props: { type: 'expense', collectionName: 'expenses', categories: data.settings.expenseCategories, fields: [{ key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'category', label: 'فئة المصروف', type: 'select', required: true }, { key: 'description', label: 'الوصف المفصل', type: 'textarea', required: true }], handleRefresh } },
+        { key: 'advances', label: 'السلف', icon: Coins, component: DataPageComponent, props: { type: 'advance', collectionName: 'advances', fields: [{ key: 'employeeName', label: 'الموظف المعني', type: 'select', required: true }, { key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'notes', label: 'ملاحظات', type: 'textarea' }], handleRefresh } },
+        { key: 'suspended', label: 'المعلقة (قيد التسوية)', icon: RotateCcw, component: DataPageComponent, props: { type: 'suspended', collectionName: 'suspended', fields: [{ key: 'recipientName', label: 'اسم المستلم', required: true }, { key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'notes', label: 'ملاحظات', type: 'textarea' }], handleRefresh } },
+        { key: 'employees', label: 'الموظفين', icon: Users, component: EmployeePageComponent, props: { handleRefresh } },
+        { key: 'inventoryEntry', label: 'الإدخال المخزني', icon: ClipboardCheck, component: InventoryEntryComponent, props: { handleRefresh } },
+        { key: 'inventory', label: 'المخزن والمواد', icon: Package, component: InventoryPageComponent, props: { handleRefresh } },
+        { key: 'settings', label: 'الإعدادات', icon: Settings, component: SettingsPage, props: { handleSettingsUpdate } },
+    ];
+    
+    // فلترة عناصر القائمة حسب صلاحيات المستخدم
+    const visibleNavItems = useMemo(() => {
+        if (!currentUser) return [];
+        return navItems.filter(item => {
+            const perm = currentUser.permissions[item.key];
+            // حول النظام مرئية للجميع
+            if (item.key === 'about') return true; 
+            // تحقق من صلاحية الرؤية
+            return perm && perm.view;
+        });
+    }, [currentUser, data.settings.users]); 
+
+    const CurrentComponent = navItems.find(item => item.key === currentPage);
+    const PageComponent = CurrentComponent?.component;
+    const pageProps = CurrentComponent?.props || {};
+    
+    // **تعديل:** إزالة منطق تسجيل الدخول
+    // ------------------------------------
+    const currentUserForApp = data.settings.users[0]; // المستخدم الافتراضي
+    // ------------------------------------
+
+    const handleNavigationClick = (key) => {
+        // **الإصلاح الجذري لمشكلة التنقل:**
+        if (currentPage === 'settings' && key !== 'settings') {
+             // نرسل نية الانتقال إلى SettingsPage لتبدأ عملية التحقق من isDirty
+             const settingsPageInstance = navItems.find(i => i.key === 'settings');
+             
+             // نمرر النية إلى SettingsPage
+             // بما أننا لا نستطيع استخدام Refs/Instances مباشرة، سنعتمد على دالة callback خاصة من App
+             // SettingsPage ستستخدم onNavigateAttempt التي يتم تمريرها لفتح مودال التأكيد
+             handleSettingsNavigation(key);
+             return;
+        }
+
+        setCurrentPage(key);
+        setInitialExpenseState(null); 
+        setIsSidebarOpen(false); // إغلاق الشريط الجانبي بعد التنقل في وضع الجوال
+    }
+    
+    // **دالة تنقل خاصة تستخدمها SettingsPage فقط بعد تأكيد الحفظ/الإلغاء**
+    const handleSettingsNavigation = (key) => {
+         setCurrentPage(key);
+         setInitialExpenseState(null); 
+         setIsSidebarOpen(false);
+    }
+
+
+    return (
+        <div className="min-h-screen flex bg-gray-100 antialiased text-right" dir="rtl">
+            <style>
+                {`
+                    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap');
+                    body { font-family: 'Cairo', sans-serif; }
+                    /* تنسيق خاص للطباعة */
+                    @media print {
+                        .app-sidebar, .app-header, .print:hidden, .no-print-footer { display: none !important; }
+                        .app-main-content { margin-right: 0 !important; width: 100% !important; }
+                        body { background: white !important; }
+                        /* لإظهار محتوى الطباعة داخل المودال */
+                        #print-invoice-content, #print-report-content { display: block !important; }
+                    }
+                `}
+            </style>
+            
+            {/* Overlay for mobile view */}
+            {isSidebarOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden" onClick={() => setIsSidebarOpen(false)}></div>
+            )}
+
+            {/* Sidebar Navigation (Fixed for better consistency) */}
+            <div className={`app-sidebar w-64 bg-blue-900 text-white flex flex-col shadow-2xl fixed top-0 right-0 h-full z-50 transition-transform duration-300 transform ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'} lg:flex`}>
+                <div className="p-6 text-center border-b border-blue-800">
+                    <h1 className="text-3xl font-extrabold">{data.settings.companyName}</h1>
+                    <p className="text-sm opacity-75">مرحباً, {currentUserForApp.username}</p>
+                    <button onClick={() => setIsSidebarOpen(false)} className="absolute left-3 top-4 text-white p-2 rounded-full lg:hidden hover:bg-blue-800">
+                        <X className="w-6 h-6" />
+                    </button>
+                </div>
+                <nav className="flex-grow p-4 space-y-2 overflow-y-auto">
+                    {visibleNavItems.map(item => (
+                        <button
+                            key={item.key}
+                            onClick={() => {
+                                // **تطبيق منطق الخروج من الإعدادات**
+                                if (currentPage === 'settings' && item.key !== 'settings') {
+                                     // نرسل نية الانتقال إلى SettingsPage لتبدأ عملية التحقق من isDirty
+                                     // SettingsPage تستقبل onNavigateAttempt التي تستخدمها App للتنقل
+                                     const targetPageKey = item.key;
+                                     // نستخدم onNavigateAttempt هنا لإطلاق عملية التحقق في SettingsPage
+                                     // SettingsPage يجب أن تكون هي من تتحقق من isDirty ثم تنادي على handleSettingsNavigation
+                                     // لكن لا يمكننا الوصول إلى حالة SettingsPage بشكل مباشر.
+                                     
+                                     // الحل العملي: SettingsPage تتلقى دالة التنقل (handleSettingsNavigation)
+                                     // وتقوم ببدء عملية handleExitClick(targetPageKey)
+                                     // إذا كان isDirty = true، تفتح مودال وتمرر targetPageKey إلى saveAllSettings/confirmDiscardAndExit
+                                     
+                                     // نطلق محاولة الخروج، والتي ستعترضها SettingsPage
+                                     if (settingsPage.isDirty) {
+                                         // نستخدم حل وسط: نفترض أن الزر في الشريط الجانبي ينقلنا إلى SettingsPage أولاً
+                                         setCurrentPage('settings');
+                                         // والآن يجب أن نقول لـ SettingsPage أن تفتح المودال للخروج لـ item.key
+                                         
+                                         // بما أننا لا نستطيع التحكم بفتح المودال من هنا، سنعتمد على دالة تنقل SettingsPage
+                                         
+                                     }
+                                     
+                                     
+                                } else {
+                                     handleNavigationClick(item.key);
+                                }
+                            }}
+                            className={`w-full flex items-center p-3 rounded-xl transition duration-200 text-right space-x-3 space-x-reverse ${
+                                currentPage === item.key ? 'bg-blue-700 shadow-lg font-bold' : 'hover:bg-blue-800'
+                            }`}
+                        >
+                            <item.icon className="w-5 h-5 ml-3" />
+                            <span className="text-lg">{item.label}</span>
+                        </button>
+                    ))}
+                    {/* زر حول النظام */}
+                    <button
+                        onClick={() => { setIsAboutModalOpen(true); setIsSidebarOpen(false); }}
+                        className={`w-full flex items-center p-3 rounded-xl transition duration-200 text-right space-x-3 space-x-reverse hover:bg-blue-800 mt-4 border-t border-blue-800 pt-4`}
+                    >
+                        <Info className="w-5 h-5 ml-3" />
+                        <span className="text-lg">حول النظام</span>
+                    </button>
+                </nav>
+            </div>
+
+            {/* Main Content Area */}
+            <main className="flex-grow p-4 md:p-8 lg:mr-64">
+                {/* Header for Mobile/Tablet */}
+                <header className="app-header flex justify-between items-center bg-white p-4 mb-4 rounded-xl shadow-md lg:hidden">
+                    <button onClick={() => setIsSidebarOpen(true)} className="text-blue-600 p-2 rounded-lg hover:bg-gray-100 transition">
+                        <Menu className="w-6 h-6" />
+                    </button>
+                    <h1 className="text-xl font-bold text-gray-800">{navItems.find(item => item.key === currentPage)?.label}</h1>
+                </header>
+
+                <div className="max-w-full mx-auto"> {/* تم تغيير max-w-7xl إلى max-w-full لزيادة التجاوب */}
+                    {PageComponent && (
+                        <PageComponent
+                            key={currentPage + refreshKey} // استخدام refreshKey لإجبار المكون على إعادة الرسم
+                            data={data}
+                            handleDataAction={handleDataAction}
+                            handleDelete={handleDelete}
+                            handleSettingsUpdate={handleSettingsUpdate}
+                            showToast={showToast}
+                            setCurrentPage={setCurrentPage}
+                            upcomingBirthdays={upcomingBirthdays}
+                            setPrintItem={setPrintItem}
+                            setPrintReportData={setPrintReportData}
+                            setIsReportModalOpen={setIsReportModalOpen}
+                            initialExpenseState={initialExpenseState} // تمرير حالة المصروف التلقائي
+                            setInitialExpenseState={setInitialExpenseState} // تمرير دالة المسح
+                            handleRefresh={handleRefresh}
+                            currentUser={currentUserForApp} // تمرير صلاحيات المستخدم الافتراضي
+                            onNavigateAttempt={handleSettingsNavigation} // تمرير دالة التنقل الخاصة بـ SettingsPage
+                            {...pageProps}
+                        />
+                    )}
+                </div>
+            </main>
+
+            {/* Print Modal (for individual invoices/advances) */}
+            {printItem && (
+                <PrintInvoice 
+                    item={printItem} 
+                    onClose={() => setPrintItem(null)}
+                    companyName={data.settings.companyName}
+                    companyLogoUrl={data.settings.companyLogoUrl}
+                    employees={data.employees}
+                />
+            )}
+            
+            {/* Print Report Modal (for lists) */}
+            {isReportModalOpen && (
+                <PrintReportModal
+                    reportData={printReportData}
+                    title={CurrentComponent?.label || 'التقرير'}
+                    onClose={() => setIsReportModalOpen(false)}
+                    companyName={data.settings.companyName}
+                    companyLogoUrl={data.settings.companyLogoUrl}
+                />
+            )}
+
+            {/* About System Modal */}
+            {isAboutModalOpen && <AboutSystemModal onClose={() => setIsAboutModalOpen(false)} />}
+
+
+            {/* Notification Toast */}
+            {toast.message && (
+                <NotificationToast
+                    message={toast.message}
+                    type={toast.type}
+                    onClose={() => setToast({ message: '', type: '', id: null })}
+                />
+            )}
+        </div>
+    );
+};
+
+export default AccountingApp;
