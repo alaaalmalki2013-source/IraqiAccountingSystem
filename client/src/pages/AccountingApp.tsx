@@ -2226,153 +2226,286 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
 
 
 /**
- * 3.4. InventoryPage Component (عرض المخزون فقط)
- */
-const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh }) => {
-    const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
-    const [currentItem, setCurrentItem] = useState(null);
-    const [globalSearch, setGlobalSearch] = useState('');
+ * 3.4. InventoryPage Component (عرض المخزون مع إمكانية الإضافة المباشرة)
+ */
+const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, handleDataAction }) => {
+    const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [currentItem, setCurrentItem] = useState(null);
+    const [globalSearch, setGlobalSearch] = useState('');
+    
+    // نموذج المادة الجديدة
+    const [newItemForm, setNewItemForm] = useState({
+        name: '',
+        barcode: '',
+        price: '',
+        count: '',
+        category: data.settings.expenseCategories.find(c => c.includes('مواد')) || data.settings.expenseCategories[0] || ''
+    });
+    
+    // دالة إعادة تعيين النموذج
+    const resetForm = () => {
+        setNewItemForm({
+            name: '',
+            barcode: '',
+            price: '',
+            count: '',
+            category: data.settings.expenseCategories.find(c => c.includes('مواد')) || data.settings.expenseCategories[0] || ''
+        });
+    };
+    
+    // دالة إضافة مادة جديدة
+    const handleAddInventoryItem = (e) => {
+        e.preventDefault();
+        
+        if (!newItemForm.name || !newItemForm.price || !newItemForm.count || !newItemForm.category) {
+            showToast('الرجاء ملء جميع الحقول المطلوبة.', 'error');
+            return;
+        }
+        
+        // التحقق من عدم وجود مادة بنفس الاسم
+        const existingItem = data.inventory.find(item => item.name.trim().toLowerCase() === newItemForm.name.trim().toLowerCase());
+        if (existingItem) {
+            showToast('توجد مادة بهذا الاسم في المخزون بالفعل. يرجى استخدام اسم مختلف أو تحديث المادة الموجودة من خلال فاتورة مشتريات.', 'error');
+            return;
+        }
+        
+        const newItem = {
+            id: crypto.randomUUID(),
+            name: newItemForm.name.trim(),
+            barcode: newItemForm.barcode.trim() || generateBarcode(),
+            price: parseFloat(newItemForm.price),
+            count: parseInt(newItemForm.count),
+            category: newItemForm.category,
+            purchaseHistory: [], // لا يوجد سجل شراء لأنها مادة يدوية
+            invoiceImageUrl: '',
+        };
+        
+        handleDataAction('inventory', newItem, true);
+        showToast(`تم إضافة المادة "${newItem.name}" إلى المخزون بنجاح!`, 'success');
+        resetForm();
+        setIsAddModalOpen(false);
+    };
 
-    const filteredList = useMemo(() => {
-        let list = data.inventory.slice().sort((a, b) => a.name.localeCompare(b.name, 'ar'));
-        
-        if (globalSearch) {
-            const searchLower = normalizeTextForSearch(globalSearch); 
-            const searchNumeric = normalizeTextForSearch(globalSearch, true);
-            
-            list = list.filter(item => {
-                const matchesName = item.name && normalizeTextForSearch(item.name).includes(searchLower);
-                const matchesBarcode = item.barcode && normalizeTextForSearch(item.barcode).includes(searchLower);
-                const matchesCategory = item.category && normalizeTextForSearch(item.category).includes(searchLower);
-                const matchesPrice = item.price && normalizeTextForSearch(item.price.toString(), true).includes(searchNumeric);
+    const filteredList = useMemo(() => {
+        let list = data.inventory.slice().sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+        
+        if (globalSearch) {
+            const searchLower = normalizeTextForSearch(globalSearch); 
+            const searchNumeric = normalizeTextForSearch(globalSearch, true);
+            
+            list = list.filter(item => {
+                const matchesName = item.name && normalizeTextForSearch(item.name).includes(searchLower);
+                const matchesBarcode = item.barcode && normalizeTextForSearch(item.barcode).includes(searchLower);
+                const matchesCategory = item.category && normalizeTextForSearch(item.category).includes(searchLower);
+                const matchesPrice = item.price && normalizeTextForSearch(item.price.toString(), true).includes(searchNumeric);
 
-                
-                return matchesName || matchesBarcode || matchesCategory || matchesPrice;
-            });
-        }
-        return list;
-    }, [data.inventory, globalSearch]);
+                
+                return matchesName || matchesBarcode || matchesCategory || matchesPrice;
+            });
+        }
+        return list;
+    }, [data.inventory, globalSearch]);
 
-    const openDetailsModal = (item) => {
-        setCurrentItem(item);
-        setIsDetailsModalOpen(true);
-    };
+    const openDetailsModal = (item) => {
+        setCurrentItem(item);
+        setIsDetailsModalOpen(true);
+    };
 
-    const formatPurchaseHistory = (history) => (
-        <div className="space-y-3 max-h-48 overflow-y-auto mt-2 p-3 bg-white rounded-lg border">
-            {history.length === 0 ? (
-                <p className="text-gray-500 dark:text-gray-400 italic">لا يوجد سجل مشتريات لهذه المادة.</p>
-            ) : (
-                <table className="min-w-full text-sm">
-                    <thead>
-                        <tr className="bg-gray-100 dark:bg-gray-600">
-                            <th className="px-2 py-1 text-right font-bold text-gray-700">تاريخ الشراء</th>
-                            <th className="px-2 py-1 text-right font-bold text-gray-700">السعر</th>
-                            <th className="px-2 py-1 text-right font-bold text-gray-700">الكمية</th>
-                            <th className="px-2 py-1 text-right font-bold text-gray-700">المورد</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {history.sort((a, b) => new Date(b.date) - new Date(a.date)).map((record, index) => (
-                            <tr key={index} className="border-t hover:bg-indigo-50 dark:bg-indigo-900">
-                                <td className="px-2 py-1">{new Date(record.date).toLocaleString('en-US', {dateStyle: 'short', timeStyle: 'short'})}</td>
-                                <td className="px-2 py-1 font-semibold">{formatCurrencyDisplay(record.price)}</td>
-                                <td className="px-2 py-1">{record.count}</td>
-                                <td className="px-2 py-1">{record.vendor}</td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            )}
-        </div>
-    );
-    
-    return (
-        <div className="p-6 space-y-6 bg-white rounded-3xl shadow-2xl">
-            <h2 className="text-4xl font-extrabold text-gray-800 dark:text-gray-200 border-b-2 border-teal-500 pb-3">المخزن (المواد المتوفرة) </h2>
+    const formatPurchaseHistory = (history) => (
+        <div className="space-y-3 max-h-48 overflow-y-auto mt-2 p-3 bg-white rounded-lg border">
+            {history.length === 0 ? (
+                <p className="text-gray-500 dark:text-gray-400 italic">لا يوجد سجل مشتريات لهذه المادة.</p>
+            ) : (
+                <table className="min-w-full text-sm">
+                    <thead>
+                        <tr className="bg-gray-100 dark:bg-gray-600">
+                            <th className="px-2 py-1 text-right font-bold text-gray-700">تاريخ الشراء</th>
+                            <th className="px-2 py-1 text-right font-bold text-gray-700">السعر</th>
+                            <th className="px-2 py-1 text-right font-bold text-gray-700">الكمية</th>
+                            <th className="px-2 py-1 text-right font-bold text-gray-700">المورد</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {history.sort((a, b) => new Date(b.date) - new Date(a.date)).map((record, index) => (
+                            <tr key={index} className="border-t hover:bg-indigo-50 dark:bg-indigo-900">
+                                <td className="px-2 py-1">{new Date(record.date).toLocaleString('en-US', {dateStyle: 'short', timeStyle: 'short'})}</td>
+                                <td className="px-2 py-1 font-semibold">{formatCurrencyDisplay(record.price)}</td>
+                                <td className="px-2 py-1">{record.count}</td>
+                                <td className="px-2 py-1">{record.vendor}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            )}
+        </div>
+    );
+    
+    return (
+        <div className="p-6 space-y-6 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl">
+            <h2 className="text-4xl font-extrabold text-gray-800 dark:text-gray-200 border-b-2 border-teal-500 pb-3">المخزن (المواد المتوفرة) </h2>
 
-            {/* البحث الشامل */}
-            <div className="bg-white p-4 rounded-xl shadow-lg border border-teal-100 relative">
-                 <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">البحث الشامل</label>
-                <input
-                    type="text"
-                    value={globalSearch}
-                    onChange={(e) => setGlobalSearch(e.target.value)}
-                    placeholder="ابحث باسم المادة، الباركود، الفئة..."
-                    className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl pr-10 focus:ring-amber-500 focus:border-amber-500"
-                />
-                <Search className="w-5 h-5 absolute right-3 top-1/2 transform translate-y-1/2 text-gray-400 mt-2" />
-            </div>
-            
-            <div className="flex justify-end">
-                <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:text-gray-200 shadow-lg transition duration-200">
-                    <RotateCcw className="w-6 h-6" />
-                </button>
-            </div>
-            
-            <div className="bg-white p-6 rounded-xl shadow-lg overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                        <tr>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">اسم المادة</th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">الفئة</th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">الباركود</th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">سعر القطعة (د.ع.)</th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">العدد في المخزن</th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">الإجراءات</th>
-                        </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                        {filteredList.length === 0 ? (
-                            <tr><td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">لا توجد مواد مضافة في المخزن.</td></tr>
-                        ) : (
-                            filteredList.map(item => (
-                                <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150">
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600 cursor-pointer" onClick={() => openDetailsModal(item)}>{highlightText(item.name, globalSearch)}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{highlightText(item.category, globalSearch)}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{highlightText(item.barcode || 'N/A', globalSearch)}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{formatCurrencyDisplay(item.price)}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 font-bold">{item.count}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                        <div className="flex space-x-3 space-x-reverse">
-                                            {/* لا يمكن التعديل أو الحذف من هنا، فقط من صفحة الادخال المخزني */}
-                                            <button onClick={() => openDetailsModal(item)} className="text-teal-600 hover:text-teal-900">
-                                                <List className="w-5 h-5" />
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))
-                        )}
-                    </tbody>
-                </table>
-            </div>
-            
-            {isDetailsModalOpen && currentItem && (
-                <Modal title={`تفاصيل المادة: ${currentItem.name}`} onClose={() => setIsDetailsModalOpen(false)} size="xl">
-                    <div className="space-y-4 p-4 bg-gray-50 rounded-xl">
-                        <h4 className="text-xl font-bold text-gray-800 dark:text-gray-200 border-b pb-2 mb-4">معلومات المادة</h4>
-                        
-                        {currentItem.invoiceImageUrl && (
-                            <div className="text-center mb-4">
-                                <h5 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">صورة الفاتورة/المستند:</h5>
-                                <img src={currentItem.invoiceImageUrl} alt="Invoice Document" className="w-full h-auto object-contain rounded-lg shadow-md border border-gray-300 dark:border-gray-600" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/400x200/cccccc/333333?text=No+Image+Available"; }}/>
-                            </div>
-                        )}
+            {/* البحث الشامل */}
+            <div className="bg-white dark:bg-gray-700 p-4 rounded-xl shadow-lg border border-teal-100 dark:border-teal-700 relative">
+                 <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">البحث الشامل</label>
+                <input
+                    type="text"
+                    value={globalSearch}
+                    onChange={(e) => setGlobalSearch(e.target.value)}
+                    placeholder="ابحث باسم المادة، الباركود، الفئة..."
+                    className="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 rounded-xl pr-10 focus:ring-amber-500 focus:border-amber-500"
+                    data-testid="input-inventory-search"
+                />
+                <Search className="w-5 h-5 absolute right-3 top-1/2 transform translate-y-1/2 text-gray-400 mt-2" />
+            </div>
+            
+            <div className="flex justify-between items-center">
+                <ActionButton onClick={() => setIsAddModalOpen(true)} className="bg-indigo-600 hover:bg-indigo-700" data-testid="button-add-inventory-item">
+                    <Plus className="w-5 h-5 ml-2" />
+                    إضافة مادة جديدة
+                </ActionButton>
+                
+                <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200" data-testid="button-refresh-inventory">
+                    <RotateCcw className="w-6 h-6" />
+                </button>
+            </div>
+            
+            <div className="bg-white dark:bg-gray-700 p-6 rounded-xl shadow-lg overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-600">
+                    <thead className="bg-gray-50 dark:bg-gray-600">
+                        <tr>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">اسم المادة</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">الفئة</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">الباركود</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">سعر القطعة (د.ع.)</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">العدد في المخزن</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
+                        {filteredList.length === 0 ? (
+                            <tr><td colSpan="6" className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">لا توجد مواد مضافة في المخزن.</td></tr>
+                        ) : (
+                            filteredList.map(item => (
+                                <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150" data-testid={`row-inventory-${item.id}`}>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600 dark:text-blue-400 cursor-pointer" onClick={() => openDetailsModal(item)}>{highlightText(item.name, globalSearch)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{highlightText(item.category, globalSearch)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{highlightText(item.barcode || 'N/A', globalSearch)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{formatCurrencyDisplay(item.price)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 font-bold">{item.count}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                        <div className="flex space-x-3 space-x-reverse">
+                                            <button onClick={() => openDetailsModal(item)} className="text-teal-600 dark:text-teal-400 hover:text-teal-900 dark:hover:text-teal-300" data-testid={`button-details-${item.id}`}>
+                                                <List className="w-5 h-5" />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
+                </table>
+            </div>
+            
+            {/* Modal إضافة مادة جديدة */}
+            {isAddModalOpen && (
+                <Modal title="إضافة مادة جديدة للمخزون" onClose={() => { setIsAddModalOpen(false); resetForm(); }} size="lg">
+                    <form onSubmit={handleAddInventoryItem} className="space-y-4">
+                        <InputField
+                            label="اسم المادة *"
+                            type="text"
+                            value={newItemForm.name}
+                            onChange={(e) => setNewItemForm({ ...newItemForm, name: e.target.value })}
+                            placeholder="أدخل اسم المادة"
+                            required
+                            data-testid="input-new-item-name"
+                        />
+                        
+                        <InputField
+                            label="الباركود (اختياري - سيتم توليده تلقائياً إذا ترك فارغاً)"
+                            type="text"
+                            value={newItemForm.barcode}
+                            onChange={(e) => setNewItemForm({ ...newItemForm, barcode: e.target.value })}
+                            placeholder="أدخل الباركود"
+                            data-testid="input-new-item-barcode"
+                        />
+                        
+                        <InputField
+                            label="السعر (د.ع.) *"
+                            type="number"
+                            step="0.01"
+                            value={newItemForm.price}
+                            onChange={(e) => setNewItemForm({ ...newItemForm, price: e.target.value })}
+                            placeholder="أدخل السعر"
+                            required
+                            data-testid="input-new-item-price"
+                        />
+                        
+                        <InputField
+                            label="الكمية *"
+                            type="number"
+                            value={newItemForm.count}
+                            onChange={(e) => setNewItemForm({ ...newItemForm, count: e.target.value })}
+                            placeholder="أدخل الكمية"
+                            required
+                            data-testid="input-new-item-count"
+                        />
+                        
+                        <div className="space-y-1">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">الفئة *</label>
+                            <select
+                                value={newItemForm.category}
+                                onChange={(e) => setNewItemForm({ ...newItemForm, category: e.target.value })}
+                                className="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                                required
+                                data-testid="select-new-item-category"
+                            >
+                                {data.settings.expenseCategories.map((cat, idx) => (
+                                    <option key={idx} value={cat}>{cat}</option>
+                                ))}
+                            </select>
+                        </div>
+                        
+                        <div className="flex space-x-3 space-x-reverse pt-4">
+                            <ActionButton type="submit" className="flex-1 bg-green-600 hover:bg-green-700" data-testid="button-save-inventory-item">
+                                <Save className="w-5 h-5 ml-2" />
+                                حفظ المادة
+                            </ActionButton>
+                            <ActionButton type="button" onClick={() => { setIsAddModalOpen(false); resetForm(); }} className="flex-1 bg-gray-500 hover:bg-gray-600" data-testid="button-cancel-add-item">
+                                <X className="w-5 h-5 ml-2" />
+                                إلغاء
+                            </ActionButton>
+                        </div>
+                    </form>
+                </Modal>
+            )}
+            
+            {/* Modal تفاصيل المادة */}
+            {isDetailsModalOpen && currentItem && (
+                <Modal title={`تفاصيل المادة: ${currentItem.name}`} onClose={() => setIsDetailsModalOpen(false)} size="xl">
+                    <div className="space-y-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl">
+                        <h4 className="text-xl font-bold text-gray-800 dark:text-gray-200 border-b pb-2 mb-4">معلومات المادة</h4>
+                        
+                        {currentItem.invoiceImageUrl && (
+                            <div className="text-center mb-4">
+                                <h5 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">صورة الفاتورة/المستند:</h5>
+                                <img src={currentItem.invoiceImageUrl} alt="Invoice Document" className="w-full h-auto object-contain rounded-lg shadow-md border border-gray-300 dark:border-gray-600" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/400x200/cccccc/333333?text=No+Image+Available"; }}/>
+                            </div>
+                        )}
 
-                        <p className="flex items-center text-lg"><List className="w-5 h-5 ml-2 text-indigo-500" /> **الفئة:** {currentItem.category}</p>
-                        <p className="flex items-center text-lg"><List className="w-5 h-5 ml-2 text-indigo-500" /> **الباركود:** {currentItem.barcode || 'N/A'}</p>
-                        <p className="flex items-center text-lg"><Coins className="w-5 h-5 ml-2 text-indigo-500" /> **سعر الوحدة الحالي:** {formatCurrencyDisplay(currentItem.price)}</p>
-                        <p className="flex items-center text-lg"><Package className="w-5 h-5 ml-2 text-indigo-500" /> **الكمية في المخزن:** <span className="font-bold text-teal-600">{currentItem.count}</span></p>
-                        
-                        <h4 className="text-xl font-bold text-gray-800 dark:text-gray-200 border-b pb-2 pt-4 mb-2 flex items-center"><CalendarCheck className="w-5 h-5 ml-2 text-teal-600" /> سجل الشراء (تاريخ وسعر التكلفة)</h4>
-                        {formatPurchaseHistory(currentItem.purchaseHistory || [])}
+                        <p className="flex items-center text-lg dark:text-gray-200"><List className="w-5 h-5 ml-2 text-indigo-500" /> **الفئة:** {currentItem.category}</p>
+                        <p className="flex items-center text-lg dark:text-gray-200"><List className="w-5 h-5 ml-2 text-indigo-500" /> **الباركود:** {currentItem.barcode || 'N/A'}</p>
+                        <p className="flex items-center text-lg dark:text-gray-200"><Coins className="w-5 h-5 ml-2 text-indigo-500" /> **سعر الوحدة الحالي:** {formatCurrencyDisplay(currentItem.price)}</p>
+                        <p className="flex items-center text-lg dark:text-gray-200"><Package className="w-5 h-5 ml-2 text-indigo-500" /> **الكمية في المخزن:** <span className="font-bold text-teal-600 dark:text-teal-400">{currentItem.count}</span></p>
+                        
+                        <h4 className="text-xl font-bold text-gray-800 dark:text-gray-200 border-b pb-2 pt-4 mb-2 flex items-center"><CalendarCheck className="w-5 h-5 ml-2 text-teal-600" /> سجل الشراء (تاريخ وسعر التكلفة)</h4>
+                        {formatPurchaseHistory(currentItem.purchaseHistory || [])}
 
-                    </div>
-                </Modal>
-            )}
-        </div>
-    );
+                    </div>
+                </Modal>
+            )}
+        </div>
+    );
 });
 
 
@@ -4323,7 +4456,7 @@ const AccountingApp = () => {
         { key: 'employees', label: 'الموظفين', icon: Users, component: EmployeePageComponent, props: { handleRefresh } },
         { key: 'payroll', label: 'الرواتب', icon: Calculator, component: PayrollPageComponent, props: { handleRefresh } },
         { key: 'inventoryEntry', label: 'الإدخال المخزني', icon: ClipboardCheck, component: InventoryEntryComponent, props: { handleRefresh } },
-        { key: 'inventory', label: 'المخزن والمواد', icon: Package, component: InventoryPageComponent, props: { handleRefresh } },
+        { key: 'inventory', label: 'المخزن والمواد', icon: Package, component: InventoryPageComponent, props: { handleRefresh, handleDataAction } },
         { key: 'settings', label: 'الإعدادات', icon: Settings, component: SettingsPage, props: { handleSettingsUpdate } },
     ];
     
