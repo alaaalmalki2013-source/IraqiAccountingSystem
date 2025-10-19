@@ -4383,7 +4383,7 @@ const AccountingApp = () => {
         const [messages, setMessages] = useState([
             {
                 id: 1,
-                text: 'مرحباً! أنا مساعدك الذكي في نظام الحسابات. كيف يمكنني مساعدتك اليوم؟',
+                text: 'مرحباً! أنا علاء، مساعدك الذكي في نظام الحسابات. كيف يمكنني مساعدتك اليوم؟',
                 sender: 'bot',
                 timestamp: new Date()
             }
@@ -4478,7 +4478,7 @@ const AccountingApp = () => {
                                     <MessageCircle className="w-6 h-6 text-teal-600" />
                                 </div>
                                 <div>
-                                    <h3 className="text-white font-bold text-lg">المساعد الذكي</h3>
+                                    <h3 className="text-white font-bold text-lg">اسأل علاء</h3>
                                     <p className="text-teal-100 text-xs">متصل الآن</p>
                                 </div>
                             </div>
