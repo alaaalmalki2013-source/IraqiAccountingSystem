@@ -3759,35 +3759,10 @@ const AccountingApp = () => {
                     {visibleNavItems.map(item => (
                         <button
                             key={item.key}
-                            onClick={() => {
-                                // **تطبيق منطق الخروج من الإعدادات**
-                                if (currentPage === 'settings' && item.key !== 'settings') {
-                                     // نرسل نية الانتقال إلى SettingsPage لتبدأ عملية التحقق من isDirty
-                                     // SettingsPage تستقبل onNavigateAttempt التي تستخدمها App للتنقل
-                                     const targetPageKey = item.key;
-                                     // نستخدم onNavigateAttempt هنا لإطلاق عملية التحقق في SettingsPage
-                                     // SettingsPage يجب أن تكون هي من تتحقق من isDirty ثم تنادي على handleSettingsNavigation
-                                     // لكن لا يمكننا الوصول إلى حالة SettingsPage بشكل مباشر.
-                                     
-                                     // الحل العملي: SettingsPage تتلقى دالة التنقل (handleSettingsNavigation)
-                                     // وتقوم ببدء عملية handleExitClick(targetPageKey)
-                                     // إذا كان isDirty = true، تفتح مودال وتمرر targetPageKey إلى saveAllSettings/confirmDiscardAndExit
-                                     
-                                     // نطلق محاولة الخروج، والتي ستعترضها SettingsPage
-                                     if (settingsPage.isDirty) {
-                                         // نستخدم حل وسط: نفترض أن الزر في الشريط الجانبي ينقلنا إلى SettingsPage أولاً
-                                         setCurrentPage('settings');
-                                         // والآن يجب أن نقول لـ SettingsPage أن تفتح المودال للخروج لـ item.key
-                                         
-                                         // بما أننا لا نستطيع التحكم بفتح المودال من هنا، سنعتمد على دالة تنقل SettingsPage
-                                         
-                                     }
-                                     
-                                     
-                                } else {
-                                     handleNavigationClick(item.key);
-                                }
-                            }}
+                            onClick={() => {
+                                handleNavigationClick(item.key);
+                                setIsSidebarOpen(false);
+                            }}
                             className={`w-full flex items-center p-3 rounded-xl transition duration-200 text-right space-x-3 space-x-reverse ${
                                 currentPage === item.key ? 'bg-blue-700 shadow-lg font-bold' : 'hover:bg-blue-800'
                             }`}
