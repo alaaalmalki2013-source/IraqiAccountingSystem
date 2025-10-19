@@ -76,7 +76,7 @@ const BASE_PERMISSIONS = {
     employees: { view: true, add: true, edit: true, delete: true },
     payroll: { view: true, add: true, edit: true, delete: true, pay: true },
     inventoryEntry: { view: true, approve: true, credit: true, cancel: true }, // صلاحيات خاصة للإدخال المخزني
-    inventory: { view: true },
+    inventory: { view: true, add: true, edit: true, delete: true },
     settings: { view: true }
 };
 
@@ -4284,64 +4284,77 @@ const AccountingApp = () => {
         showToast('تم تحديث بيانات الصفحة.', 'info');
     }, [showToast]);
 
-    // 3. CRUD Logic (Updated to take showToast as an argument where needed)
-    const handleDataAction = (collectionName, item, isNew, overwrite = false) => {
-        // **تحديث: فحص صلاحيات الإضافة/التعديل**
-        const permissionKey = navItems.find(i => i.key === collectionName)?.key;
-        const requiredAction = isNew ? 'add' : 'edit';
+    // 3. CRUD Logic (Updated to take showToast as an argument where needed)
+    const handleDataAction = (collectionName, item, isNew, overwrite = false) => {
+        // **تحديث: فحص صلاحيات الإضافة/التعديل**
+        const permissionKey = navItems.find(i => i.key === collectionName)?.key;
+        const requiredAction = isNew ? 'add' : 'edit';
 
-        if (permissionKey && !currentUser?.permissions[permissionKey]?.[requiredAction]) {
-            showToast(`ليس لديك صلاحية ${isNew ? 'إضافة' : 'تعديل'} سجلات في قسم ${navItems.find(i => i.key === collectionName)?.label}.`, 'error');
-            return;
-        }
+        if (permissionKey && !currentUser?.permissions[permissionKey]?.[requiredAction]) {
+            showToast(`ليس لديك صلاحية ${isNew ? 'إضافة' : 'تعديل'} سجلات في قسم ${navItems.find(i => i.key === collectionName)?.label}.`, 'error');
+            return;
+        }
 
 
-        let newData = { ...data };
-        let collection = newData[collectionName];
+        let newData = { ...data };
+        let collection = newData[collectionName];
 
-        if (overwrite) {
-             newData[collectionName] = item;
-             saveData(newData);
-             
-             // إجبار المكونات على إعادة الرسم بعد التحديث الشامل
-             setRefreshKey(prev => prev + 1);
-             return;
-        }
+        if (overwrite) {
+             newData[collectionName] = item;
+             saveData(newData);
+             
+             // إجبار المكونات على إعادة الرسم بعد التحديث الشامل
+             setRefreshKey(prev => prev + 1);
+             return;
+        }
 
-        if (isNew) {
-            // إضافة
-            const newItem = { ...item, id: crypto.randomUUID(), invoiceNumber: generateInvoiceNumber() };
-            newData[collectionName] = [...collection, newItem];
-            showToast(`تم إضافة السجل بنجاح!`, 'success');
-            // إذا كان سجلاً في المخزون تم إضافته يدوياً، نضيف له سجل شراء مبدئي
-            if (collectionName === 'inventory' && !newItem.purchaseHistory) {
-                 newItem.purchaseHistory = [{ date: newItem.date, price: newItem.price, count: newItem.count, vendor: 'Manual Entry' }];
-            }
-            setInitialExpenseState(null); // مسح حالة الإرسال التلقائي
-        } else {
-            // تعديل
-            const index = collection.findIndex(i => i.id === item.id);
-            if (index !== -1) {
-                collection[index] = item;
-                newData[collectionName] = collection;
-                showToast(`تم تعديل السجل بنجاح!`, 'success');
-            } else if (collectionName === 'pendingInvoices' && item.status) {
-                 // حالة تحديث حالة فاتورة موجودة (مصروفة أو ملغاة)
-                 const existingIndex = collection.findIndex(i => i.id === item.id);
-                 if (existingIndex !== -1) {
-                      collection[existingIndex] = item;
-                      newData[collectionName] = collection;
-                 } else {
-                     // في حالة عدم العثور عليها، يتم إضافتها إذا لم يكن لديها حالة (للتأكد فقط)
-                      newData[collectionName] = [...collection, item];
-                 }
-            }
-        }
-        
-        saveData(newData);
-        // **إضافة التحديث الفوري:**
-        setRefreshKey(prev => prev + 1);
-    };
+        if (isNew) {
+            // إضافة
+            // للمواد المخزنية، قد يكون لديها id و barcode بالفعل
+            const newItem = {
+                ...item,
+                id: item.id || crypto.randomUUID(),
+                // فقط إضافة invoiceNumber إذا لم يكن المخزون
+                ...(collectionName !== 'inventory' ? { invoiceNumber: generateInvoiceNumber() } : {})
+            };
+            newData[collectionName] = [...collection, newItem];
+            
+            // رسالة النجاح المخصصة
+            if (collectionName === 'inventory') {
+                // لا نعرض رسالة هنا لأن المكون سيعرضها
+            } else {
+                showToast(`تم إضافة السجل بنجاح!`, 'success');
+            }
+            
+            // إذا كان سجلاً في المخزون تم إضافته يدوياً، نضيف له سجل شراء مبدئي
+            if (collectionName === 'inventory' && !newItem.purchaseHistory) {
+                 newItem.purchaseHistory = [];
+            }
+            setInitialExpenseState(null); // مسح حالة الإرسال التلقائي
+        } else {
+            // تعديل
+            const index = collection.findIndex(i => i.id === item.id);
+            if (index !== -1) {
+                collection[index] = item;
+                newData[collectionName] = collection;
+                showToast(`تم تعديل السجل بنجاح!`, 'success');
+            } else if (collectionName === 'pendingInvoices' && item.status) {
+                 // حالة تحديث حالة فاتورة موجودة (مصروفة أو ملغاة)
+                 const existingIndex = collection.findIndex(i => i.id === item.id);
+                 if (existingIndex !== -1) {
+                      collection[existingIndex] = item;
+                      newData[collectionName] = collection;
+                 } else {
+                     // في حالة عدم العثور عليها، يتم إضافتها إذا لم يكن لديها حالة (للتأكد فقط)
+                      newData[collectionName] = [...collection, item];
+                 }
+            }
+        }
+        
+        saveData(newData);
+        // **إضافة التحديث الفوري:**
+        setRefreshKey(prev => prev + 1);
+    };
 
     const handleDelete = (collectionName, id, showMessage = true) => {
         // **تحديث: فحص صلاحيات الحذف**
