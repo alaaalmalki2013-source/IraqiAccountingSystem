@@ -4423,6 +4423,16 @@ const AccountingApp = () => {
                             {!isSidebarCollapsed && <span className="text-lg">{item.label}</span>}
                         </button>
                     ))}
+                    {/* زر الوضع الداكن/الفاتح */}
+                    <button
+                        onClick={toggleDarkMode}
+                        title={isSidebarCollapsed ? (isDarkMode ? 'الوضع الفاتح' : 'الوضع الداكن') : ''}
+                        className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center p-2' : 'text-right p-3'} rounded-xl transition duration-200 hover:bg-blue-800 mt-4 border-t border-blue-800 pt-4`}
+                    >
+                        {isDarkMode ? <Sun className={`w-5 h-5 ${!isSidebarCollapsed && 'ml-3'}`} /> : <Moon className={`w-5 h-5 ${!isSidebarCollapsed && 'ml-3'}`} />}
+                        {!isSidebarCollapsed && <span className="text-lg">{isDarkMode ? 'الوضع الفاتح' : 'الوضع الداكن'}</span>}
+                    </button>
+                    
                     {/* زر حول النظام */}
                     <button
                         onClick={() => { setIsAboutModalOpen(true); setIsSidebarOpen(false); }}
