@@ -43,7 +43,10 @@ import {
     ChevronRight,
     ChevronLeft,
     PanelRightClose,
-    PanelRightOpen
+    PanelRightOpen,
+    MessageCircle,
+    Send,
+    Minimize2
 } from 'lucide-react';
 
 // =================================================================
@@ -4371,6 +4374,203 @@ const AccountingApp = () => {
     }
 
 
+
+    // =================================================================
+    // AI Chatbot Component
+    // =================================================================
+    const AIChatbot = () => {
+        const [isOpen, setIsOpen] = useState(false);
+        const [messages, setMessages] = useState([
+            {
+                id: 1,
+                text: 'مرحباً! أنا مساعدك الذكي في نظام الحسابات. كيف يمكنني مساعدتك اليوم؟',
+                sender: 'bot',
+                timestamp: new Date()
+            }
+        ]);
+        const [inputMessage, setInputMessage] = useState('');
+        const [isSending, setIsSending] = useState(false);
+        const messagesEndRef = React.useRef(null);
+
+        const scrollToBottom = () => {
+            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        };
+
+        useEffect(() => {
+            scrollToBottom();
+        }, [messages]);
+
+        const handleSendMessage = async (e) => {
+            e.preventDefault();
+            
+            if (!inputMessage.trim() || isSending) return;
+
+            const userMessage = {
+                id: Date.now(),
+                text: inputMessage,
+                sender: 'user',
+                timestamp: new Date()
+            };
+
+            setMessages(prev => [...prev, userMessage]);
+            setInputMessage('');
+            setIsSending(true);
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        message: inputMessage,
+                        context: {
+                            currentPage,
+                            user: currentUserForApp.username
+                        }
+                    }),
+                });
+
+                if (!response.ok) {
+                    throw new Error('فشل في الاتصال بالخادم');
+                }
+
+                const data = await response.json();
+                
+                const botMessage = {
+                    id: Date.now() + 1,
+                    text: data.reply || 'عذراً، حدث خطأ في معالجة طلبك.',
+                    sender: 'bot',
+                    timestamp: new Date()
+                };
+
+                setMessages(prev => [...prev, botMessage]);
+            } catch (error) {
+                console.error('Chat error:', error);
+                const errorMessage = {
+                    id: Date.now() + 1,
+                    text: 'عذراً، حدث خطأ في الاتصال. يرجى المحاولة مرة أخرى.',
+                    sender: 'bot',
+                    timestamp: new Date()
+                };
+                setMessages(prev => [...prev, errorMessage]);
+            } finally {
+                setIsSending(false);
+            }
+        };
+
+        const formatTime = (date) => {
+            return new Date(date).toLocaleTimeString('ar-IQ', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
+        };
+
+        return (
+            <div className="fixed bottom-4 left-4 z-50" dir="rtl">
+                {/* Chat Window */}
+                {isOpen && (
+                    <div className="mb-4 w-96 max-w-[calc(100vw-2rem)] bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden transition-all duration-300">
+                        {/* Header */}
+                        <div className="bg-gradient-to-r from-teal-600 to-blue-600 p-4 flex items-center justify-between">
+                            <div className="flex items-center space-x-3 space-x-reverse">
+                                <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
+                                    <MessageCircle className="w-6 h-6 text-teal-600" />
+                                </div>
+                                <div>
+                                    <h3 className="text-white font-bold text-lg">المساعد الذكي</h3>
+                                    <p className="text-teal-100 text-xs">متصل الآن</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setIsOpen(false)}
+                                className="text-white hover:bg-white/20 p-2 rounded-lg transition"
+                                data-testid="button-close-chatbot"
+                            >
+                                <Minimize2 className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {/* Messages Container */}
+                        <div className="h-96 overflow-y-auto p-4 space-y-4 bg-gray-50 dark:bg-gray-900">
+                            {messages.map((message) => (
+                                <div
+                                    key={message.id}
+                                    className={`flex ${message.sender === 'user' ? 'justify-start' : 'justify-end'}`}
+                                >
+                                    <div
+                                        className={`max-w-[80%] rounded-2xl p-3 ${
+                                            message.sender === 'user'
+                                                ? 'bg-teal-600 text-white rounded-tr-none'
+                                                : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700 rounded-tl-none'
+                                        }`}
+                                    >
+                                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.text}</p>
+                                        <p className={`text-xs mt-1 ${
+                                            message.sender === 'user' 
+                                                ? 'text-teal-100' 
+                                                : 'text-gray-500 dark:text-gray-400'
+                                        }`}>
+                                            {formatTime(message.timestamp)}
+                                        </p>
+                                    </div>
+                                </div>
+                            ))}
+                            {isSending && (
+                                <div className="flex justify-end">
+                                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl rounded-tl-none p-3">
+                                        <div className="flex space-x-2 space-x-reverse">
+                                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                            <div ref={messagesEndRef} />
+                        </div>
+
+                        {/* Input Form */}
+                        <form onSubmit={handleSendMessage} className="p-4 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+                            <div className="flex items-center space-x-2 space-x-reverse">
+                                <input
+                                    type="text"
+                                    value={inputMessage}
+                                    onChange={(e) => setInputMessage(e.target.value)}
+                                    placeholder="اكتب رسالتك هنا..."
+                                    disabled={isSending}
+                                    className="flex-1 p-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-transparent transition bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                                    data-testid="input-chat-message"
+                                />
+                                <button
+                                    type="submit"
+                                    disabled={!inputMessage.trim() || isSending}
+                                    className="bg-teal-600 hover:bg-teal-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white p-3 rounded-xl transition duration-200 shadow-lg"
+                                    data-testid="button-send-message"
+                                >
+                                    <Send className="w-5 h-5" />
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                )}
+
+                {/* Floating Toggle Button */}
+                <button
+                    onClick={() => setIsOpen(!isOpen)}
+                    className="bg-gradient-to-r from-teal-600 to-blue-600 hover:from-teal-700 hover:to-blue-700 text-white w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 hover:scale-110"
+                    data-testid="button-toggle-chatbot"
+                >
+                    {isOpen ? (
+                        <X className="w-6 h-6" />
+                    ) : (
+                        <MessageCircle className="w-6 h-6" />
+                    )}
+                </button>
+            </div>
+        );
+    };
+
     return (
         <div className="min-h-screen flex bg-gray-100 dark:bg-gray-600 dark:bg-gray-900 antialiased text-right" dir="rtl">
             <style>
@@ -4519,6 +4719,9 @@ const AccountingApp = () => {
                     onClose={() => setToast({ message: '', type: '', id: null })}
                 />
             )}
+
+            {/* AI Chatbot */}
+            <AIChatbot />
         </div>
     );
 };
