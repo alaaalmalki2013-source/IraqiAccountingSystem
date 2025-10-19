@@ -92,9 +92,7 @@ const defaultSettings = {
             username: 'المدير العام', 
             email: 'admin@system.com',
             password: 'password', 
-            permissions: BASE_PERMISSIONS,
-            darkMode: false,
-            sidebarCollapsed: false
+            permissions: BASE_PERMISSIONS
         }
     ]
 };
@@ -102,10 +100,16 @@ const defaultSettings = {
 const defaultDataStructure = {
     revenues: [],
     expenses: [],
-    employees: [],
+    employees: [
+        // موظف افتراضي للتست
+        { id: 'emp_101', name: 'أحمد علي (للاختبار)', phone: '07701234567', salary: 600000, department: 'المحاسبة', jobTitle: 'مدير الادراة والحسابات', absenceDays: 0, docUrl: '', dateOfBirth: '1990-01-01' },
+    ],
     advances: [],
     suspended: [],
-    inventory: [],
+    inventory: [
+        { id: '1', name: 'مادة تنظيف', barcode: '123456789012', price: 5000, count: 20, category: 'مواد أولية', purchaseHistory: [{ date: '2024-10-01T10:00', price: 3000, count: 20, vendor: 'السامر' }] },
+        { id: '2', name: 'قلم حبر', barcode: '100000000001', price: 1000, count: 100, category: 'لوازم مكتبية', purchaseHistory: [{ date: '2024-01-01T10:00', price: 500, count: 100, vendor: 'الجودة' }] },
+    ],
     pendingInvoices: [], 
     inventoryDispatches: [
          // سجل صرف تجريبي فارغ
@@ -3492,47 +3496,10 @@ const AccountingApp = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false); 
     const [refreshKey, setRefreshKey] = useState(0); 
     const [initialExpenseState, setInitialExpenseState] = useState(null);
-    const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
-    const [isDarkMode, setIsDarkMode] = useState(false);
-    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); 
+    const [isAboutModalOpen, setIsAboutModalOpen] = useState(false); 
     
     // **تعديل:** إزالة منطق المصادقة والاعتماد على المستخدم الافتراضي
-    const currentUser = data.settings.users[0];
-    
-    // تحميل تفضيلات Dark Mode و Sidebar Collapse من المستخدم
-    useEffect(() => {
-        const user = data.settings.users[0];
-        if (user) {
-            setIsDarkMode(user.darkMode || false);
-            setIsSidebarCollapsed(user.sidebarCollapsed || false);
-        }
-    }, [data.settings.users]);
-
-    // تطبيق dark mode على body
-    useEffect(() => {
-        if (isDarkMode) {
-            document.body.classList.add('dark');
-        } else {
-            document.body.classList.remove('dark');
-        }
-    }, [isDarkMode]);
-
-    // حفظ تفضيلات Dark Mode و Sidebar في localStorage
-    const toggleDarkMode = () => {
-        const newMode = !isDarkMode;
-        setIsDarkMode(newMode);
-        const updatedUsers = [...data.settings.users];
-        updatedUsers[0] = { ...updatedUsers[0], darkMode: newMode };
-        handleSettingsUpdate({ ...data.settings, users: updatedUsers });
-    };
-
-    const toggleSidebarCollapse = () => {
-        const newCollapse = !isSidebarCollapsed;
-        setIsSidebarCollapsed(newCollapse);
-        const updatedUsers = [...data.settings.users];
-        updatedUsers[0] = { ...updatedUsers[0], sidebarCollapsed: newCollapse };
-        handleSettingsUpdate({ ...data.settings, users: updatedUsers });
-    }; 
+    const currentUser = data.settings.users[0]; 
 
 
     // دالة تحديث الحالة العامة (لحل مشكلة التحديث الفوري)
@@ -3764,7 +3731,7 @@ const AccountingApp = () => {
 
 
     return (
-        <div className="min-h-screen flex bg-gray-100 dark:bg-gray-900 antialiased text-right" dir="rtl">
+        <div className="min-h-screen flex bg-gray-100 antialiased text-right" dir="rtl">
             <style>
                 {`
                     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap');
@@ -3786,14 +3753,10 @@ const AccountingApp = () => {
             )}
 
             {/* Sidebar Navigation (Fixed for better consistency) */}
-            <div className={`app-sidebar ${isSidebarCollapsed ? 'w-16' : 'w-64'} bg-blue-900 text-white flex flex-col shadow-2xl fixed top-0 right-0 h-full z-50 transition-transform duration-300 transform ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'} lg:flex`}>
+            <div className={`app-sidebar w-64 bg-blue-900 text-white flex flex-col shadow-2xl fixed top-0 right-0 h-full z-50 transition-transform duration-300 transform ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'} lg:flex`}>
                 <div className="p-6 text-center border-b border-blue-800">
-                    {/* زر الطي في أعلى Sidebar */}
-                    <button onClick={toggleSidebarCollapse} className="absolute left-3 top-4 text-white p-2 rounded-full lg:inline-block hidden hover:bg-blue-800 transition">
-                        {isSidebarCollapsed ? <ChevronLeft className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
-                    </button>
-                    {!isSidebarCollapsed && <h1 className="text-3xl font-extrabold">{data.settings.companyName}</h1>}
-                    {!isSidebarCollapsed && <p className="text-sm opacity-75">مرحباً, {currentUserForApp.username}</p>}
+                    <h1 className="text-3xl font-extrabold">{data.settings.companyName}</h1>
+                    <p className="text-sm opacity-75">مرحباً, {currentUserForApp.username}</p>
                     <button onClick={() => setIsSidebarOpen(false)} className="absolute left-3 top-4 text-white p-2 rounded-full lg:hidden hover:bg-blue-800">
                         <X className="w-6 h-6" />
                     </button>
@@ -3811,7 +3774,7 @@ const AccountingApp = () => {
                             }`}
                         >
                             <item.icon className="w-5 h-5 ml-3" />
-                            {!isSidebarCollapsed && <span className="text-lg">{item.label}</span>}
+                            <span className="text-lg">{item.label}</span>
                         </button>
                     ))}
                     {/* زر حول النظام */}
@@ -3820,25 +3783,20 @@ const AccountingApp = () => {
                         className={`w-full flex items-center p-3 rounded-xl transition duration-200 text-right space-x-3 space-x-reverse hover:bg-blue-800 mt-4 border-t border-blue-800 pt-4`}
                     >
                         <Info className="w-5 h-5 ml-3" />
-                        {!isSidebarCollapsed && <span className="text-lg">حول النظام</span>}
+                        <span className="text-lg">حول النظام</span>
                     </button>
                 </nav>
             </div>
 
             {/* Main Content Area */}
-            <main className={`flex-grow p-4 md:p-8 ${isSidebarCollapsed ? 'lg:mr-16' : 'lg:mr-64'}`}>
+            <main className="flex-grow p-4 md:p-8 lg:mr-64">
                 {/* Header for Mobile/Tablet */}
-                <header className="app-header flex justify-between items-center bg-white dark:bg-gray-800 p-4 mb-4 rounded-xl shadow-md lg:hidden">
-                    <button onClick={() => setIsSidebarOpen(true)} className="text-blue-600 dark:text-blue-400 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+                <header className="app-header flex justify-between items-center bg-white p-4 mb-4 rounded-xl shadow-md lg:hidden">
+                    <button onClick={() => setIsSidebarOpen(true)} className="text-blue-600 p-2 rounded-lg hover:bg-gray-100 transition">
                         <Menu className="w-6 h-6" />
                     </button>
-                    <h1 className="text-xl font-bold text-gray-800 dark:text-gray-100">{navItems.find(item => item.key === currentPage)?.label}</h1>
-                <div className="flex items-center space-x-2 space-x-reverse">
-                        <button onClick={toggleDarkMode} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition text-gray-700 dark:text-gray-200">
-                            {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-                        </button>
-                    </div>
-                </header>
+                    <h1 className="text-xl font-bold text-gray-800">{navItems.find(item => item.key === currentPage)?.label}</h1>
+                </header>
 
                 <div className="max-w-full mx-auto"> {/* تم تغيير max-w-7xl إلى max-w-full لزيادة التجاوب */}
                     {PageComponent && (
