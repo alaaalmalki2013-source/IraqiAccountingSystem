@@ -1440,14 +1440,6 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
     const [formState, setFormState] = useState({});
     const [globalSearch, setGlobalSearch] = useState(''); 
 
-    const calculateNetSalary = (employee) => {
-        const salary = parseFloat(employee.salary || 0);
-        // التأكد من أن أيام الغياب ليست سالبة
-        const absenceDays = Math.max(0, parseInt(employee.absenceDays || 0)); 
-        const dailyRate = salary / 30; 
-        const deduction = dailyRate * absenceDays;
-        return salary - deduction;
-    };
     
     const formatDOB = (dateString) => {
         if (!dateString) return 'غير محدد';
@@ -1481,7 +1473,7 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
                 name: '', phone: '', salary: '', 
                 department: data.settings.departments[0] || '', 
                 jobTitle: data.settings.jobTitles[0] || '', 
-                absenceDays: 0, docUrl: '', dateOfBirth: '', id: null 
+                docUrl: '', dateOfBirth: '', id: null 
             });
         }
     }, [currentEmployee, data.settings.departments, data.settings.jobTitles]);
@@ -1494,7 +1486,6 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
     const openDetailsModal = (employee) => {
         setCurrentEmployee(employee);
         setIsDetailsModalOpen(true);
-        // تعيين حالة النموذج عند فتح التفاصيل لتمكين تعديل أيام الغياب فوراً
         setFormState(employee); 
     };
 
@@ -1506,8 +1497,6 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
         handleDataAction('employees', { 
             ...formState, 
             salary: parseFloat(processedSalary || 0),
-            // ضمان حفظ أيام الغياب المحدثة من نافذة التفاصيل
-            absenceDays: parseInt(formState.absenceDays || 0), 
         }, !currentEmployee);
         setIsModalOpen(false);
         setCurrentEmployee(null); 
@@ -1525,7 +1514,6 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
             'القسم': item.department,
             'المنصب': item.jobTitle,
             'الراتب الأساسي (د.ع.)': formatCurrencyDisplay(item.salary),
-            'صافي الراتب': calculateNetSalary(item).toLocaleString('en-US'),
             'رقم الهاتف': item.phone || 'N/A',
         }));
         
@@ -1545,7 +1533,6 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
             'القسم': item.department,
             'المنصب': item.jobTitle,
             'الراتب': parseFloat(item.salary || 0),
-            'صافي الراتب': calculateNetSalary(item),
             'رقم الهاتف': item.phone || 'N/A',
             'رابط المستندات': item.docUrl || 'N/A',
         }));
@@ -1598,13 +1585,12 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
                             <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">تاريخ الميلاد</th>
                             <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">القسم</th>
                             <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">الراتب الأساسي (د.ع.)</th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">صافي الراتب المتوقع</th>
                             <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">الإجراءات</th>
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                         {filteredList.length === 0 ? (
-                            <tr><td colSpan="6" className="px-6 py-4 text-center text-sm text-gray-500">لا يوجد موظفين مسجلين.</td></tr>
+                            <tr><td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500">لا يوجد موظفين مسجلين.</td></tr>
                         ) : (
                             filteredList.map(emp => (
                                 <tr key={emp.id} className="hover:bg-gray-50 transition duration-150">
@@ -1612,7 +1598,6 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{highlightText(formatDOB(emp.dateOfBirth), globalSearch)}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{highlightText(emp.department, globalSearch)}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{highlightText(formatCurrencyDisplay(emp.salary), globalSearch)}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-green-600">{highlightText(formatCurrencyDisplay(calculateNetSalary(emp)), globalSearch)}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                         <div className="flex space-x-3 space-x-reverse">
                                             <button onClick={() => openModal(emp)} className="text-indigo-600 hover:text-indigo-900">
@@ -1723,32 +1708,6 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
                             </a>
                         )}
 
-                        <hr className="my-4"/>
-
-                        <h4 className="text-xl font-bold text-gray-800 border-b pb-2 mb-4">احتساب الراتب (للمراجعة)</h4>
-                        
-                        <InputField
-                            label="أيام الغياب لهذا الشهر (للاحتساب)"
-                            type="number"
-                            value={formState.absenceDays || 0}
-                            onChange={(e) => {
-                                const val = Math.max(0, parseInt(convertArabicToEnglish(e.target.value)) || 0); // منع السالب
-                                setFormState(prev => ({ ...prev, absenceDays: val }));
-                            }}
-                            onBlur={() => {
-                                // حفظ التعديل مباشرة على الموظف عند الخروج من الحقل
-                                handleSubmit({ preventDefault: () => {} });
-                            }}
-                            required
-                            className="text-right"
-                        />
-
-                        <div className="mt-4 p-4 bg-white rounded-xl shadow-inner border border-green-200 space-y-2">
-                            <p className="font-medium text-gray-700">الراتب الأساسي: <span className="font-bold">{formatCurrencyDisplay(currentEmployee.salary)}</span></p>
-                            <p className="font-medium text-gray-700">خصم الغياب ({formState.absenceDays || 0} أيام): <span className="font-bold text-red-600">{formatCurrencyDisplay((parseFloat(currentEmployee.salary || 0) / 30 * (formState.absenceDays || 0)))}</span></p>
-                            <hr/>
-                            <p className="font-extrabold text-2xl mt-2">صافي الراتب المتوقع: <span className="text-green-600">{formatCurrencyDisplay(calculateNetSalary({ ...currentEmployee, absenceDays: formState.absenceDays }))}</span></p>
-                        </div>
                         
                     </div>
                 </Modal>
@@ -1857,7 +1816,7 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh }) =
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                         {filteredList.length === 0 ? (
-                            <tr><td colSpan="6" className="px-6 py-4 text-center text-sm text-gray-500">لا توجد مواد مضافة في المخزن.</td></tr>
+                            <tr><td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500">لا توجد مواد مضافة في المخزن.</td></tr>
                         ) : (
                             filteredList.map(item => (
                                 <tr key={item.id} className="hover:bg-gray-50 transition duration-150">
@@ -2443,7 +2402,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                         {filteredInvoices.length === 0 ? (
-                            <tr><td colSpan="6" className="px-6 py-4 text-center text-sm text-gray-500">لا توجد فواتير مشتريات مطابقة للفلترة.</td></tr>
+                            <tr><td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500">لا توجد فواتير مشتريات مطابقة للفلترة.</td></tr>
                         ) : (
                             filteredInvoices.map(invoice => (
                                 <tr key={invoice.id} 
