@@ -79,7 +79,8 @@ const BASE_PERMISSIONS = {
 const defaultSettings = {
     revenueCategories: ['الصالون'],
     expenseCategories: ['الإيجارات', 'مواد أولية', 'صيانة'],
-    departments: ['الإدارة', 'المبيعات', 'المحاسبة'],
+    advanceCategories: ['سلفة شخصية', 'سلفة طارئة', 'سلفة علاجية', 'سلفة عائلية', 'أخرى'],
+    departments: ['الإدارة', 'المبيعات', 'المحاسبة'],
     jobTitles: ['مدير الادراة والحسابات', 'موظف مبيعات'],
     vendors: ['السامر', 'الجودة'],
     representatives: [{ name: 'عبد الله', vendor: 'السامر' }],
@@ -3157,13 +3158,13 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
                     <h3 className="text-2xl font-bold text-teal-800 flex items-center"><List className="w-6 h-6 ml-2" /> إدارة الفئات والأقسام والمناصب</h3>
 
                     <div className="flex space-x-2 space-x-reverse overflow-x-auto pb-2">
-                        {['expenseCategories', 'revenueCategories', 'departments', 'jobTitles', 'vendors'].map(key => (
+                        {['expenseCategories', 'revenueCategories', 'advanceCategories', 'departments', 'jobTitles', 'vendors'].map(key => (
                             <button
                                 key={key}
                                 onClick={() => setCurrentList(key)}
                                 className={`px-4 py-2 rounded-lg text-sm font-semibold transition whitespace-nowrap ${currentList === key ? 'bg-teal-600 text-white shadow-md' : 'bg-white border border-gray-300 text-gray-700 hover:bg-teal-50'}`}
                             >
-                                {key === 'expenseCategories' ? 'مصروفات' : key === 'revenueCategories' ? 'إيرادات' : key === 'departments' ? 'أقسام' : key === 'jobTitles' ? 'مناصب' : 'الموردين'}
+                                {key === 'expenseCategories' ? 'مصروفات' : key === 'revenueCategories' ? 'إيرادات' : key === 'advanceCategories' ? 'سلف' : key === 'departments' ? 'أقسام' : key === 'jobTitles' ? 'مناصب' : 'الموردين'}
                             </button>
                         ))}
                     </div>
@@ -3850,7 +3851,7 @@ const AccountingApp = () => {
         { key: 'dashboard', label: 'الرئيسية', icon: Home, component: DashboardComponent },
         { key: 'revenues', label: 'الإيرادات', icon: TrendingUp, component: DataPageComponent, props: { type: 'revenue', collectionName: 'revenues', categories: data.settings.revenueCategories, fields: [{ key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'category', label: 'فئة الإيراد', type: 'select', required: true }, { key: 'description', label: 'الوصف/المصدر', type: 'textarea' }], handleRefresh } },
         { key: 'expenses', label: 'الصرفيات', icon: TrendingDown, component: DataPageComponent, props: { type: 'expense', collectionName: 'expenses', categories: data.settings.expenseCategories, fields: [{ key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'category', label: 'فئة المصروف', type: 'select', required: true }, { key: 'description', label: 'الوصف المفصل', type: 'textarea', required: true }], handleRefresh } },
-        { key: 'advances', label: 'السلف', icon: Coins, component: DataPageComponent, props: { type: 'advance', collectionName: 'advances', fields: [{ key: 'employeeName', label: 'الموظف المعني', type: 'select', required: true }, { key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'notes', label: 'ملاحظات', type: 'textarea' }], handleRefresh } },
+        { key: 'advances', label: 'السلف', icon: Coins, component: DataPageComponent, props: { type: 'advance', collectionName: 'advances', categories: data.settings.advanceCategories, fields: [{ key: 'employeeName', label: 'الموظف المعني', type: 'select', required: true }, { key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'category', label: 'فئة السلفة', type: 'select', required: true }, { key: 'notes', label: 'ملاحظات', type: 'textarea' }], handleRefresh } },
         { key: 'suspended', label: 'المعلقة (قيد التسوية)', icon: RotateCcw, component: DataPageComponent, props: { type: 'suspended', collectionName: 'suspended', fields: [{ key: 'recipientName', label: 'اسم المستلم', required: true }, { key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'notes', label: 'ملاحظات', type: 'textarea' }], handleRefresh } },
         { key: 'employees', label: 'الموظفين', icon: Users, component: EmployeePageComponent, props: { handleRefresh } },
         { key: 'inventoryEntry', label: 'الإدخال المخزني', icon: ClipboardCheck, component: InventoryEntryComponent, props: { handleRefresh } },
