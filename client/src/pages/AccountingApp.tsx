@@ -2062,100 +2062,115 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
     
     // دالة طباعة الستكر
     const printBarcodeSticker = () => {
-        const printContent = document.getElementById('barcode-sticker-content');
-        if (printContent) {
-            const printWindow = window.open('', '_blank');
-            const htmlContent = `
-                <!DOCTYPE html>
-                <html dir="rtl">
-                <head>
-                    <meta charset="UTF-8">
-                    <title>طباعة باركود</title>
-                    <style>
-                        @page {
-                            size: 50mm 30mm;
-                            margin: 0;
-                        }
-                        
-                        * {
-                            margin: 0;
-                            padding: 0;
-                            box-sizing: border-box;
-                        }
-                        
-                        body {
-                            font-family: 'Cairo', 'Arial', sans-serif;
-                            background: white;
-                            padding: 0;
-                            -webkit-print-color-adjust: exact;
-                            print-color-adjust: exact;
-                        }
-                        
-                        .sticker-container {
-                            width: 50mm;
-                            height: 30mm;
-                            display: flex;
-                            flex-direction: column;
-                            justify-content: center;
-                            align-items: center;
-                            gap: 2mm;
-                            border: 1px solid #000;
-                            padding: 3mm;
-                            background: white;
-                        }
-                        
-                        .item-name {
-                            font-weight: bold;
-                            text-align: center;
-                            width: 100%;
-                            word-wrap: break-word;
-                            overflow-wrap: break-word;
-                            hyphens: auto;
-                            line-height: 1.3;
-                            flex-shrink: 1;
-                            font-size: clamp(8pt, 2.5vw, 12pt);
-                            max-height: 14mm;
-                            overflow: hidden;
-                            display: -webkit-box;
-                            -webkit-line-clamp: 3;
-                            -webkit-box-orient: vertical;
-                        }
-                        
-                        .barcode-visual {
-                            width: 100%;
-                            height: 8mm;
-                            background: repeating-linear-gradient(
-                                90deg,
-                                #000 0px,
-                                #000 1px,
-                                #fff 1px,
-                                #fff 2px
-                            );
-                            flex-shrink: 0;
-                        }
-                        
-                        .barcode-display {
-                            font-family: 'Courier New', monospace;
-                            font-weight: bold;
-                            letter-spacing: 1px;
-                            text-align: center;
-                            width: 100%;
-                            font-size: clamp(10pt, 3vw, 14pt);
-                            flex-shrink: 0;
-                        }
-                    </style>
-                </head>
-                <body>
-                    ${printContent.innerHTML}
-                </body>
-                </html>
-            `;
-            
-            printWindow.document.write(htmlContent);
-            printWindow.document.close();
-            printWindow.print();
-            printWindow.close();
-        }
+        if (!itemToPrint) return;
+        
+        const printWindow = window.open('', '_blank');
+        const itemName = itemToPrint.name;
+        const itemBarcode = itemToPrint.barcode || 'N/A';
+        
+        // حساب حجم الخط بناءً على طول النص
+        const nameFontSize = itemName.length > 40 ? '7pt' : itemName.length > 25 ? '9pt' : '11pt';
+        const nameLineClamp = itemName.length > 40 ? 4 : itemName.length > 25 ? 3 : 2;
+        const barcodeFontSize = itemBarcode.length > 15 ? '8pt' : itemBarcode.length > 12 ? '10pt' : '12pt';
+        const barcodeLetterSpacing = itemBarcode.length > 12 ? '0.5px' : '1px';
+        
+        const htmlContent = `
+            <!DOCTYPE html>
+            <html dir="rtl">
+            <head>
+                <meta charset="UTF-8">
+                <title>طباعة باركود - ${itemName}</title>
+                <style>
+                    @page {
+                        size: 50mm 30mm;
+                        margin: 0;
+                    }
+                    
+                    * {
+                        margin: 0;
+                        padding: 0;
+                        box-sizing: border-box;
+                    }
+                    
+                    body {
+                        font-family: 'Cairo', 'Arial', sans-serif;
+                        background: white;
+                        padding: 0;
+                        -webkit-print-color-adjust: exact;
+                        print-color-adjust: exact;
+                    }
+                    
+                    .sticker-container {
+                        width: 50mm;
+                        height: 30mm;
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: space-between;
+                        align-items: center;
+                        border: 2px solid #000;
+                        padding: 2mm;
+                        background: white;
+                    }
+                    
+                    .item-name {
+                        font-weight: bold;
+                        text-align: center;
+                        width: 100%;
+                        word-wrap: break-word;
+                        overflow-wrap: break-word;
+                        hyphens: auto;
+                        line-height: 1.2;
+                        font-size: ${nameFontSize};
+                        max-height: 12mm;
+                        overflow: hidden;
+                        display: -webkit-box;
+                        -webkit-line-clamp: ${nameLineClamp};
+                        -webkit-box-orient: vertical;
+                        padding-bottom: 1mm;
+                        color: #000;
+                    }
+                    
+                    .barcode-visual {
+                        width: 100%;
+                        height: 8mm;
+                        background: repeating-linear-gradient(
+                            90deg,
+                            #000 0px,
+                            #000 1.5px,
+                            #fff 1.5px,
+                            #fff 3px
+                        );
+                        margin-top: 1mm;
+                        margin-bottom: 1mm;
+                        flex-shrink: 0;
+                    }
+                    
+                    .barcode-display {
+                        font-family: 'Courier New', monospace;
+                        font-weight: bold;
+                        letter-spacing: ${barcodeLetterSpacing};
+                        text-align: center;
+                        width: 100%;
+                        font-size: ${barcodeFontSize};
+                        padding-top: 1mm;
+                        color: #000;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="sticker-container">
+                    <div class="item-name">${itemName}</div>
+                    <div class="barcode-visual"></div>
+                    <div class="barcode-display">${itemBarcode}</div>
+                </div>
+            </body>
+            </html>
+        `;
+        
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+        printWindow.print();
+        printWindow.close();
     };
 
     const filteredList = useMemo(() => {
@@ -2327,11 +2342,11 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
                                 height: '30mm',
                                 display: 'flex',
                                 flexDirection: 'column',
-                                justifyContent: 'center',
+                                justifyContent: 'space-between',
                                 alignItems: 'center',
-                                gap: '2mm',
-                                padding: '3mm'
+                                padding: '2mm'
                             }}>
+                                {/* اسم المادة - يتكيف مع الطول */}
                                 <div className="item-name" style={{
                                     fontWeight: 'bold',
                                     textAlign: 'center',
@@ -2339,31 +2354,38 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
                                     wordWrap: 'break-word',
                                     overflowWrap: 'break-word',
                                     hyphens: 'auto',
-                                    lineHeight: '1.3',
-                                    flexShrink: 1,
-                                    fontSize: 'clamp(8pt, 2.5vw, 12pt)',
-                                    maxHeight: '14mm',
+                                    lineHeight: '1.2',
+                                    fontSize: itemToPrint.name.length > 40 ? '7pt' : itemToPrint.name.length > 25 ? '9pt' : '11pt',
+                                    maxHeight: '12mm',
                                     overflow: 'hidden',
                                     display: '-webkit-box',
-                                    WebkitLineClamp: 3,
-                                    WebkitBoxOrient: 'vertical'
+                                    WebkitLineClamp: itemToPrint.name.length > 40 ? 4 : itemToPrint.name.length > 25 ? 3 : 2,
+                                    WebkitBoxOrient: 'vertical',
+                                    paddingBottom: '1mm',
+                                    color: '#000'
                                 }}>
                                     {itemToPrint.name}
                                 </div>
+                                
+                                {/* الباركود البصري */}
                                 <div className="barcode-visual" style={{
                                     width: '100%',
                                     height: '8mm',
-                                    background: 'repeating-linear-gradient(90deg, #000 0px, #000 1px, #fff 1px, #fff 2px)',
-                                    flexShrink: 0
+                                    background: 'repeating-linear-gradient(90deg, #000 0px, #000 1.5px, #fff 1.5px, #fff 3px)',
+                                    marginTop: '1mm',
+                                    marginBottom: '1mm'
                                 }}></div>
+                                
+                                {/* رقم الباركود - يتكيف مع الطول */}
                                 <div className="barcode-display" style={{
                                     fontFamily: "'Courier New', monospace",
                                     fontWeight: 'bold',
-                                    letterSpacing: '1px',
+                                    letterSpacing: (itemToPrint.barcode || 'N/A').length > 12 ? '0.5px' : '1px',
                                     textAlign: 'center',
                                     width: '100%',
-                                    fontSize: 'clamp(10pt, 3vw, 14pt)',
-                                    flexShrink: 0
+                                    fontSize: (itemToPrint.barcode || 'N/A').length > 15 ? '8pt' : (itemToPrint.barcode || 'N/A').length > 12 ? '10pt' : '12pt',
+                                    paddingTop: '1mm',
+                                    color: '#000'
                                 }}>
                                     {itemToPrint.barcode || 'N/A'}
                                 </div>
