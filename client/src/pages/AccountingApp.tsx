@@ -1,3 +1,4 @@
+// نظام المحاسبة العراقي - الإصدار 1.0 (بالعربية فقط) - تم التحديث في 2025-10-20
 // @ts-nocheck
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
@@ -1224,7 +1225,7 @@ const DataPageComponent = React.memo(({ 
 /**
  * 3.3. EmployeePage Component
  */
-const EmployeePageComponent = React.memo(({ data, handleDataAction, t, handleDelete, setPrintReportData, setIsReportModalOpen, showToast, handleRefresh }) => {
+const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete, setPrintReportData, setIsReportModalOpen, showToast, handleRefresh }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     const [currentEmployee, setCurrentEmployee] = useState(null);
@@ -2045,7 +2046,7 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
 /**
  * 3.4. InventoryPage Component (عرض المخزون)
  */
-const InventoryPageComponent = React.memo(({ data, showToast, t, handleRefresh, handleDataAction }) => {
+const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, handleDataAction }) => {
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     const [currentItem, setCurrentItem] = useState(null);
     const [globalSearch, setGlobalSearch] = useState('');
@@ -2419,7 +2420,7 @@ const InventoryPageComponent = React.memo(({ data, showToast, t, handleRefresh, 
 /**
  * 3.5. InventoryEntryComponent (الادخال المخزني)
  */
-const InventoryEntryComponent = React.memo(({ data, handleDataAction, t, handleDelete, setCurrentPage, showToast, setInitialExpenseState, handleRefresh }) => {
+const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDelete, setCurrentPage, showToast, setInitialExpenseState, handleRefresh }) => {
     const [isNewInvoiceModalOpen, setIsNewInvoiceModalOpen] = useState(false);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     const [isCancelModalOpen, setIsCancelModalOpen] = useState(false); 
@@ -4127,7 +4128,6 @@ const AboutSystemModal = ({ onClose }) => (
 
 const AccountingApp = () => {
     // 1. Toaster Handler (Moved to the top to fix ReferenceError)
-    // Language Hook
 
     const [toast, setToast] = useState({ message: '', type: '', id: null });
     const showToast = useCallback((message, type) => {
@@ -4738,7 +4738,6 @@ const AccountingApp = () => {
                             handleRefresh={handleRefresh}
                             currentUser={currentUserForApp} // تمرير صلاحيات المستخدم الافتراضي
                             onNavigateAttempt={handleSettingsNavigation} // تمرير دالة التنقل الخاصة بـ SettingsPage
-                            t={t}
                             {...pageProps}
                         />
                     )}
