@@ -364,38 +364,10 @@ const PrintReportModal = React.memo(({ reportData, title, onClose, companyName, 
     const formatCurrency = (amount) => (parseFloat(amount) || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' د.ع.';
     const formatDate = (dateString) => new Date(dateString).toLocaleDateString('en-US');
     
-    const handlePrint = () => {
-        const printContent = document.getElementById('print-report-content');
-        if (printContent) {
-            const originalContents = document.body.innerHTML;
-            
-            // إنشاء نافذة طباعة جديدة
-            const printWindow = window.open('', '', 'height=600,width=800');
-            if (printWindow) {
-                // إعداد محتوى الطباعة
-                printWindow.document.write('<html><head><title>Print Report</title>');
-                printWindow.document.write('<style>');
-                printWindow.document.write(`
-                    body { font-family: 'Cairo', sans-serif; margin: 0; padding: 0; direction: rtl; }
-                    @page { size: A4 landscape; margin: 15mm; }
-                    .report-table { width: 100%; border-collapse: collapse; }
-                    .report-table th, .report-table td { border: 1px solid #ddd; padding: 6px; font-size: 8pt; text-align: right; }
-                    .report-table th { background-color: #f2f2f2; }
-                    .report-header { border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 20px; text-align: center; }
-                `);
-                printWindow.document.write('</style></head><body>');
-                printWindow.document.write(printContent.innerHTML);
-                printWindow.document.write('</body></html>');
-                printWindow.document.close();
-                
-                printWindow.print();
-                printWindow.close();
-            } else {
-                 // لا نستخدم alert()
-            }
-        }
-        onClose(); // إغلاق المودال الأصلي بعد إرسال أمر الطباعة
-    };
+    const handlePrint = () => {
+        window.print();
+        onClose();
+    };
     
     const totalAmount = reportData.reduce((sum, item) => {
         const amountString = item['المبلغ (د.ع.)'] ? item['المبلغ (د.ع.)'].replace(' د.ع.', '').replace(/,/g, '') : '0';
@@ -1552,6 +1524,7 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
     const [adjustmentForm, setAdjustmentForm] = useState({ type: 'bonus', amount: '', description: '', date: new Date().toISOString().slice(0, 10) });
     const [globalSearch, setGlobalSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('الكل');
+    const [payslipToPrint, setPayslipToPrint] = useState(null);
 
     const monthNames = ['يناير', 'فبراير', 'مارس', 'إبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
 
@@ -1712,42 +1685,7 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
 
     // دالة طباعة كشف الراتب
     const handlePrintPayslip = (employee, salaryData) => {
-        const printContent = `
-            <html dir="rtl">
-            <head>
-                <style>
-                    @page { size: 80mm auto; margin: 5mm; }
-                    body { font-family: 'Cairo', Arial; font-size: 12px; text-align: right; }
-                    h2 { text-align: center; margin: 10px 0; }
-                    table { width: 100%; border-collapse: collapse; }
-                    td { padding: 5px; border-bottom: 1px dashed #ccc; }
-                    .total { font-weight: bold; font-size: 14px; }
-                </style>
-            </head>
-            <body>
-                <h2>${data.settings.companyName}</h2>
-                <h3 style="text-align: center;">كشف راتب</h3>
-                <p><strong>الموظف:</strong> ${employee.name}</p>
-                <p><strong>الشهر:</strong> ${monthNames[selectedMonth - 1]} ${selectedYear}</p>
-                <hr/>
-                <table>
-                    <tr><td>الراتب الأساسي:</td><td>${salaryData.baseSalary.toLocaleString()} د.ع.</td></tr>
-                    ${salaryData.bonuses > 0 ? `<tr><td>المكافآت:</td><td>+${salaryData.bonuses.toLocaleString()} د.ع.</td></tr>` : ''}
-                    ${salaryData.overtimeAmount > 0 ? `<tr><td>الأوفرتايم:</td><td>+${salaryData.overtimeAmount.toLocaleString()} د.ع.</td></tr>` : ''}
-                    ${salaryData.deductions > 0 ? `<tr><td>الخصومات:</td><td>-${salaryData.deductions.toLocaleString()} د.ع.</td></tr>` : ''}
-                    ${salaryData.absenceAmount > 0 ? `<tr><td>خصم الغياب:</td><td>-${salaryData.absenceAmount.toLocaleString()} د.ع.</td></tr>` : ''}
-                    ${salaryData.advances > 0 ? `<tr><td>السلف:</td><td>-${salaryData.advances.toLocaleString()} د.ع.</td></tr>` : ''}
-                    <tr class="total"><td>الراتب الصافي:</td><td>${salaryData.netSalary.toLocaleString()} د.ع.</td></tr>
-                </table>
-                <p style="text-align: center; margin-top: 20px;">التاريخ: ${new Date().toLocaleDateString('ar-IQ')}</p>
-            </body>
-            </html>
-        `;
-        
-        const printWindow = window.open('', '', 'width=300');
-        printWindow.document.write(printContent);
-        printWindow.document.close();
-        printWindow.print();
+        setPayslipToPrint({ employee, salaryData });
     };
 
     return (
@@ -2037,6 +1975,71 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                         </ActionButton>
                     </form>
                 </Modal>
+            )}
+
+            {/* مودال معاينة قسيمة الراتب */}
+            {payslipToPrint && (
+                <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setPayslipToPrint(null)}>
+                    <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto transform transition-all duration-300 scale-100" onClick={e => e.stopPropagation()}>
+                        {/* رأس المودال */}
+                        <div className="flex justify-between items-center p-4 border-b border-purple-100 dark:border-purple-700 bg-gradient-to-r from-purple-500 to-blue-600 rounded-t-3xl">
+                            <h3 className="text-xl font-bold text-white flex-grow text-center">معاينة قسيمة الراتب 🧾</h3> 
+                            <button onClick={() => setPayslipToPrint(null)} className="text-white hover:text-gray-200 transition p-1 bg-white/20 rounded-full">
+                                <X className="w-6 h-6" />
+                            </button>
+                        </div>
+
+                        {/* زر الطباعة */}
+                        <div className="p-4 print:hidden flex justify-center">
+                            <button
+                                onClick={() => { window.print(); setPayslipToPrint(null); }}
+                                className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-semibold shadow-lg transition flex items-center gap-2"
+                                data-testid="button-print-payslip"
+                            >
+                                <Printer className="w-5 h-5" />
+                                🖨️ طباعة الآن
+                            </button>
+                        </div>
+
+                        {/* معاينة القسيمة */}
+                        <div className="p-4 bg-gray-100 dark:bg-gray-700 m-4 rounded-xl">
+                            <div style={{
+                                width: '80mm',
+                                margin: '0 auto',
+                                padding: '5mm',
+                                backgroundColor: 'white',
+                                color: '#000',
+                                fontFamily: "'Cairo', Arial",
+                                fontSize: '12px',
+                                textAlign: 'right',
+                                direction: 'rtl'
+                            }}>
+                                <h2 style={{ textAlign: 'center', margin: '10px 0', color: '#000', fontSize: '16px', fontWeight: 'bold' }}>{data.settings.companyName}</h2>
+                                <h3 style={{ textAlign: 'center', color: '#000', fontSize: '14px' }}>كشف راتب</h3>
+                                <p style={{ color: '#000', margin: '5px 0' }}><strong>الموظف:</strong> {payslipToPrint.employee.name}</p>
+                                <p style={{ color: '#000', margin: '5px 0' }}><strong>الشهر:</strong> {monthNames[selectedMonth - 1]} {selectedYear}</p>
+                                <hr style={{ border: '1px solid #000', margin: '10px 0' }} />
+                                <table style={{ width: '100%', borderCollapse: 'collapse', color: '#000' }}>
+                                    <tbody>
+                                        <tr><td style={{ padding: '5px', borderBottom: '1px dashed #ccc' }}>الراتب الأساسي:</td><td style={{ padding: '5px', borderBottom: '1px dashed #ccc' }}>{payslipToPrint.salaryData.baseSalary.toLocaleString()} د.ع.</td></tr>
+                                        {payslipToPrint.salaryData.bonuses > 0 && <tr><td style={{ padding: '5px', borderBottom: '1px dashed #ccc' }}>المكافآت:</td><td style={{ padding: '5px', borderBottom: '1px dashed #ccc' }}>+{payslipToPrint.salaryData.bonuses.toLocaleString()} د.ع.</td></tr>}
+                                        {payslipToPrint.salaryData.overtimeAmount > 0 && <tr><td style={{ padding: '5px', borderBottom: '1px dashed #ccc' }}>الأوفرتايم:</td><td style={{ padding: '5px', borderBottom: '1px dashed #ccc' }}>+{payslipToPrint.salaryData.overtimeAmount.toLocaleString()} د.ع.</td></tr>}
+                                        {payslipToPrint.salaryData.deductions > 0 && <tr><td style={{ padding: '5px', borderBottom: '1px dashed #ccc' }}>الخصومات:</td><td style={{ padding: '5px', borderBottom: '1px dashed #ccc' }}>-{payslipToPrint.salaryData.deductions.toLocaleString()} د.ع.</td></tr>}
+                                        {payslipToPrint.salaryData.absenceAmount > 0 && <tr><td style={{ padding: '5px', borderBottom: '1px dashed #ccc' }}>خصم الغياب:</td><td style={{ padding: '5px', borderBottom: '1px dashed #ccc' }}>-{payslipToPrint.salaryData.absenceAmount.toLocaleString()} د.ع.</td></tr>}
+                                        {payslipToPrint.salaryData.advances > 0 && <tr><td style={{ padding: '5px', borderBottom: '1px dashed #ccc' }}>السلف:</td><td style={{ padding: '5px', borderBottom: '1px dashed #ccc' }}>-{payslipToPrint.salaryData.advances.toLocaleString()} د.ع.</td></tr>}
+                                        <tr style={{ fontWeight: 'bold', fontSize: '14px' }}><td style={{ padding: '5px', borderBottom: '1px solid #000' }}>الراتب الصافي:</td><td style={{ padding: '5px', borderBottom: '1px solid #000' }}>{payslipToPrint.salaryData.netSalary.toLocaleString()} د.ع.</td></tr>
+                                    </tbody>
+                                </table>
+                                <p style={{ textAlign: 'center', marginTop: '20px', color: '#000' }}>التاريخ: {new Date().toLocaleDateString('ar-IQ')}</p>
+                            </div>
+                        </div>
+
+                        {/* معلومات الأبعاد */}
+                        <div className="p-4 print:hidden text-center text-sm text-gray-600 dark:text-gray-400">
+                            📏 الأبعاد: 80mm × طول تلقائي
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

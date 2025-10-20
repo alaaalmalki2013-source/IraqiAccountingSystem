@@ -4,6 +4,32 @@
 This project is a comprehensive Iraqi accounting system designed to manage revenues, expenses, inventory, employees, and payroll. It features a full Arabic RTL interface with a professional design, dark/light mode support, and aims to be a complete solution for financial management tailored for the Iraqi market. The system operates offline, storing data locally, and provides an intelligent AI assistant named "Alaa" specialized in guiding users through the system's functionalities.
 
 ### Recent Changes (October 20, 2025)
+**Unified Print Preview System (v5.7 - Complete):**
+- ✅ Converted all print functions to use internal modal previews instead of external windows
+- ✅ **Barcode Stickers (50mm × 30mm):**
+  - Internal modal with live preview before printing
+  - Adaptive font sizing based on item name length (40+ chars: 7pt, 25-40: 9pt, <25: 11pt)
+  - Adaptive barcode number sizing (15+ chars: 8pt, 12-15: 10pt, <12: 12pt)
+  - Explicit black color (#000) for all text elements to ensure visibility
+  - Professional gradient header (blue-purple)
+  - Dimensions info display
+- ✅ **Payroll Slips (80mm × auto):**
+  - Converted from window.open() to internal modal
+  - Live preview of payslip with all salary details
+  - Professional gradient header (purple-blue)
+  - All text explicitly colored black for printing
+  - Shows company name, employee info, salary breakdown, and date
+- ✅ **Bulk Reports (A4 landscape):**
+  - Simplified print function to use window.print() directly
+  - No external window - prints modal content directly
+  - Maintains proper table formatting and pagination
+- ✅ **CSS Print Styles:**
+  - Added comprehensive @media print rules in index.css
+  - Proper page margins and sizing for different print formats
+  - Table styling with borders and proper page breaks
+  - Hidden elements marked with .print:hidden
+- **Impact:** Improved user experience with consistent in-app preview system across all print functions
+
 **Modal Dark Mode Fixes (v5.6 - Complete):**
 - ✅ Fixed employee details modal to fully adapt to dark mode
   - Background: `bg-gray-50 dark:bg-gray-700` 
