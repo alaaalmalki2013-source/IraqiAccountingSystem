@@ -2054,6 +2054,8 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
     
     // دالة طباعة ستكر الباركود
     const printBarcodeSticker = (item) => {
+        // التحقق من حالة الوضع الداكن من document.documentElement
+        const isDark = document.documentElement.classList.contains('dark');
         const printWindow = window.open('', '_blank', 'width=600,height=500');
         
         const htmlContent = `
@@ -2076,7 +2078,7 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
                     
                     body {
                         font-family: 'Cairo', 'Arial', sans-serif;
-                        background: #f3f4f6;
+                        background: ${isDark ? '#1f2937' : '#f3f4f6'};
                         padding: 20px;
                         display: flex;
                         flex-direction: column;
@@ -2085,14 +2087,14 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
                     }
                     
                     .preview-header {
-                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        background: linear-gradient(135deg, ${isDark ? '#4f46e5' : '#667eea'} 0%, ${isDark ? '#7c3aed' : '#764ba2'} 100%);
                         color: white;
                         padding: 15px 30px;
                         border-radius: 10px;
                         text-align: center;
                         width: 100%;
                         max-width: 500px;
-                        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                        box-shadow: 0 4px 6px rgba(0,0,0,${isDark ? '0.3' : '0.1'});
                     }
                     
                     .preview-header h1 {
@@ -2106,10 +2108,10 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
                     }
                     
                     .sticker-preview-wrapper {
-                        background: white;
+                        background: ${isDark ? '#374151' : 'white'};
                         padding: 30px;
                         border-radius: 15px;
-                        box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+                        box-shadow: 0 10px 25px rgba(0,0,0,${isDark ? '0.4' : '0.15'});
                         display: flex;
                         justify-content: center;
                         align-items: center;
@@ -2192,7 +2194,7 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
                     }
                     
                     .dimensions-info {
-                        color: #6b7280;
+                        color: ${isDark ? '#9ca3af' : '#6b7280'};
                         font-size: 10pt;
                         text-align: center;
                         margin-top: 10px;
