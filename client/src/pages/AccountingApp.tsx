@@ -246,7 +246,7 @@ const highlightText = (text, search) => {
                     <React.Fragment key={index}>
                         {part}
                         {index < textStr.split(searchStr).length - 1 && (
-                            <span className="bg-amber-300 text-gray-900 dark:text-gray-100 rounded-sm font-semibold p-[1px]">{searchStr}</span>
+                            <span className="bg-gradient-to-r from-amber-300 to-yellow-300 dark:from-amber-500 dark:to-yellow-500 text-gray-900 dark:text-gray-100 rounded-md font-bold px-1 shadow-sm">{searchStr}</span>
                         )}
                     </React.Fragment>
                 ))}
@@ -662,7 +662,7 @@ const PrintReportModal = React.memo(({ reportData, title, onClose, companyName, 
                 </div>
 
                 <div className="mb-4">
-                    <p className="text-base font-bold">إجمالي المبلغ في التقرير: {formatCurrency(totalAmount)}</p>
+                    <p className="text-lg font-extrabold bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent">إجمالي المبلغ في التقرير: {formatCurrency(totalAmount)}</p>
                     <p className="text-sm">عدد السجلات: {reportData.length}</p>
                 </div>
 
@@ -737,24 +737,72 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
     }, [revenues, expenses, suspended, advances, employees]);
 
     const primaryCards = [
-        { title: 'رصيد الصندوق الحالي', value: formatCurrencyDisplay(summaryData.totalCashFund), icon: DollarSign, color: summaryData.totalCashFund >= 0 ? 'text-teal-600' : 'text-pink-600', bg: 'bg-teal-100' },
-        { title: 'الإيرادات الإجمالية', value: formatCurrencyDisplay(summaryData.totalRevenues), icon: TrendingUp, color: 'text-green-600', bg: 'bg-green-100' },
-        { title: 'الصرفيات الإجمالية', value: formatCurrencyDisplay(summaryData.totalExpenses), icon: TrendingDown, color: 'text-red-600', bg: 'bg-red-100' },
-    ];
+        { 
+            title: 'رصيد الصندوق الحالي', 
+            value: formatCurrencyDisplay(summaryData.totalCashFund), 
+            icon: DollarSign, 
+            color: summaryData.totalCashFund >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-rose-600 dark:text-rose-400', 
+            bg: 'bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-950/50 dark:to-blue-900/50',
+            iconBg: 'bg-blue-500/20 dark:bg-blue-500/30',
+            gradient: true
+        },
+        { 
+            title: 'الإيرادات الإجمالية', 
+            value: formatCurrencyDisplay(summaryData.totalRevenues), 
+            icon: TrendingUp, 
+            color: 'text-emerald-600 dark:text-emerald-400', 
+            bg: 'bg-gradient-to-br from-emerald-100 to-emerald-200 dark:from-emerald-950/50 dark:to-emerald-900/50',
+            iconBg: 'bg-emerald-500/20 dark:bg-emerald-500/30',
+            gradient: true
+        },
+        { 
+            title: 'الصرفيات الإجمالية', 
+            value: formatCurrencyDisplay(summaryData.totalExpenses), 
+            icon: TrendingDown, 
+            color: 'text-rose-600 dark:text-rose-400', 
+            bg: 'bg-gradient-to-br from-rose-100 to-rose-200 dark:from-rose-950/50 dark:to-rose-900/50',
+            iconBg: 'bg-rose-500/20 dark:bg-rose-500/30',
+            gradient: true
+        },
+    ];
     
     const secondaryCards = [
-        { title: 'مجموع السلف', value: formatCurrencyDisplay(summaryData.totalAdvances), icon: Coins, color: 'text-indigo-600', bg: 'bg-indigo-100' },
-        { title: 'مجموع المبالغ المعلقة', value: formatCurrencyDisplay(summaryData.totalSuspended), icon: RotateCcw, color: 'text-amber-600', bg: 'bg-amber-100' }, 
-        { title: 'إجمالي رواتب الموظفين', value: formatCurrencyDisplay(summaryData.totalSalaries), icon: Users, color: 'text-purple-600', bg: 'bg-purple-100' },
-    ];
+        { 
+            title: 'مجموع السلف', 
+            value: formatCurrencyDisplay(summaryData.totalAdvances), 
+            icon: Coins, 
+            color: 'text-violet-600 dark:text-violet-400', 
+            bg: 'bg-gradient-to-br from-violet-100 to-violet-200 dark:from-violet-950/50 dark:to-violet-900/50',
+            iconBg: 'bg-violet-500/20 dark:bg-violet-500/30',
+            gradient: true
+        },
+        { 
+            title: 'مجموع المبالغ المعلقة', 
+            value: formatCurrencyDisplay(summaryData.totalSuspended), 
+            icon: RotateCcw, 
+            color: 'text-amber-600 dark:text-amber-400', 
+            bg: 'bg-gradient-to-br from-amber-100 to-amber-200 dark:from-amber-950/50 dark:to-amber-900/50',
+            iconBg: 'bg-amber-500/20 dark:bg-amber-500/30',
+            gradient: true
+        },
+        { 
+            title: 'إجمالي رواتب الموظفين', 
+            value: formatCurrencyDisplay(summaryData.totalSalaries), 
+            icon: Users, 
+            color: 'text-purple-600 dark:text-purple-400', 
+            bg: 'bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-950/50 dark:to-purple-900/50',
+            iconBg: 'bg-purple-500/20 dark:bg-purple-500/30',
+            gradient: true
+        },
+    ];
 
 
     return (
-        <div className="space-y-8 p-6 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl">
-            <h2 className="text-4xl font-extrabold text-gray-800 dark:text-gray-200 border-b-2 border-teal-500 pb-3">الرئيسية </h2>
+        <div className="space-y-8 p-8 bg-gradient-to-br from-white to-gray-50 dark:from-gray-900 dark:to-gray-800 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700">
+            <h2 className="text-4xl font-extrabold bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent border-b-2 border-blue-500 dark:border-blue-400 pb-3">الرئيسية</h2>
 
             {upcomingBirthdays.length > 0 && (
-                <div className="bg-pink-100 dark:bg-pink-900 border-l-4 border-pink-500 dark:border-pink-400 p-4 rounded-xl shadow-md">
+                <div className="bg-gradient-to-r from-pink-100 to-rose-100 dark:from-pink-950/50 dark:to-rose-950/50 border-l-4 border-pink-500 dark:border-pink-400 p-6 rounded-2xl shadow-xl">
                     <h3 className="text-2xl font-bold text-pink-800 dark:text-pink-200 flex items-center mb-2">
                         <Gift className="w-6 h-6 ml-2" />
                         تذكير أعياد الميلاد القادمة!
@@ -769,16 +817,16 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
                 </div>
             )}
             
-            <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-200 border-b border-gray-300 dark:border-gray-600 pb-2">الملخص المالي الرئيسي</h3>
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 border-b-2 border-gradient-to-r from-blue-500 to-purple-500 pb-2">الملخص المالي الرئيسي</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {primaryCards.map((card, index) => (
-                    <div key={index} className="p-6 rounded-2xl shadow-lg transition transform hover:scale-[1.03] border-l-4 border-teal-500 dark:border-teal-400 bg-gray-50 dark:bg-gray-700">
+                    <div key={index} className={`p-6 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-[1.02] border dark:border-gray-200/10 ${card.bg}`}>
                         <div className="flex items-center justify-between">
                             <div className="space-y-1">
                                 <p className="text-lg font-semibold text-gray-600 dark:text-gray-400">{card.title}</p>
                                 <p className={`text-3xl font-extrabold ${card.color}`}>{card.value}</p>
                             </div>
-                            <div className={`p-4 rounded-full ${card.bg}`}>
+                            <div className={`p-4 rounded-2xl shadow-lg ${card.iconBg}`}>
                                 <card.icon className={`w-8 h-8 ${card.color}`} />
                             </div>
                         </div>
@@ -788,13 +836,13 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {secondaryCards.map((card, index) => (
-                    <div key={index} className="p-6 rounded-2xl shadow-lg transition transform hover:scale-[1.03] border-l-4 border-teal-500 dark:border-teal-400 bg-gray-50 dark:bg-gray-700">
+                    <div key={index} className={`p-6 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-[1.02] border dark:border-gray-200/10 ${card.bg}`}>
                         <div className="flex items-center justify-between">
                             <div className="space-y-1">
                                 <p className="text-lg font-semibold text-gray-600 dark:text-gray-400">{card.title}</p>
                                 <p className={`text-3xl font-extrabold ${card.color}`}>{card.value}</p>
                             </div>
-                            <div className={`p-4 rounded-full ${card.bg}`}>
+                            <div className={`p-4 rounded-2xl shadow-lg ${card.iconBg}`}>
                                 <card.icon className={`w-8 h-8 ${card.color}`} />
                             </div>
                         </div>
@@ -806,14 +854,14 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* كروت الإيرادات حسب الفئة */}
-                <div className="p-4 rounded-2xl shadow-lg bg-green-50 dark:bg-green-900 border-l-4 border-green-600 dark:border-green-400">
-                    <h4 className="text-xl font-bold text-green-800 dark:text-green-200 mb-3 flex items-center">
+                <div className="p-6 rounded-2xl shadow-xl bg-gradient-to-br from-emerald-50 to-green-100 dark:from-emerald-950/50 dark:to-green-900/50 border-l-4 border-emerald-500 dark:border-emerald-400">
+                    <h4 className="text-xl font-bold text-emerald-700 dark:text-emerald-300 mb-4 flex items-center">
                         <TrendingUp className="w-5 h-5 ml-2" />
                         إجمالي الإيرادات لكل فئة
                     </h4>
                     <ul className="space-y-2">
                         {Object.keys(summaryData.revenueByCategory).map(category => (
-                            <li key={category} className="flex justify-between items-center p-2 bg-white dark:bg-gray-700 rounded-lg shadow-sm">
+                            <li key={category} className="flex justify-between items-center p-3 bg-white/80 dark:bg-gray-800/80 rounded-xl shadow-md hover:shadow-lg transition-all duration-200 backdrop-blur-sm">
                                 <span className="text-gray-700 dark:text-gray-300 font-medium">{category}</span>
                                 <span className="font-bold text-green-600 dark:text-green-400">{formatCurrencyDisplay(summaryData.revenueByCategory[category])}</span>
                             </li>
@@ -822,14 +870,14 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
                 </div>
 
                 {/* كروت الصرفيات حسب الفئة */}
-                <div className="p-4 rounded-2xl shadow-lg bg-red-50 dark:bg-red-900 border-l-4 border-red-600 dark:border-red-400">
-                    <h4 className="text-xl font-bold text-red-800 dark:text-red-200 mb-3 flex items-center">
+                <div className="p-6 rounded-2xl shadow-xl bg-gradient-to-br from-rose-50 to-red-100 dark:from-rose-950/50 dark:to-red-900/50 border-l-4 border-rose-500 dark:border-rose-400">
+                    <h4 className="text-xl font-bold text-rose-700 dark:text-rose-300 mb-4 flex items-center">
                         <TrendingDown className="w-5 h-5 ml-2" />
                         إجمالي الصرفيات لكل فئة
                     </h4>
                     <ul className="space-y-2">
                         {Object.keys(summaryData.expenseByCategory).map(category => (
-                            <li key={category} className="flex justify-between items-center p-2 bg-white dark:bg-gray-700 rounded-lg shadow-sm">
+                            <li key={category} className="flex justify-between items-center p-3 bg-white/80 dark:bg-gray-800/80 rounded-xl shadow-md hover:shadow-lg transition-all duration-200 backdrop-blur-sm">
                                 <span className="text-gray-700 dark:text-gray-300 font-medium">{category}</span>
                                 <span className="font-bold text-red-600 dark:text-red-400">{formatCurrencyDisplay(summaryData.expenseByCategory[category])}</span>
                             </li>
@@ -1212,13 +1260,13 @@ const DataPageComponent = React.memo(({ 
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50 rounded-t-xl">
                         <tr>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">التاريخ والوقت</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">التاريخ والوقت</th>
                             {fields.map(field => (
                                 <th key={field.key} className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{field.label}</th>
                             ))}
-                            {collectionName === 'expenses' && <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">المورد والمندوب</th>}
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">رقم الفاتورة</th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">الإجراءات</th>
+                            {collectionName === 'expenses' && <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">المورد والمندوب</th>}
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">رقم الفاتورة</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">الإجراءات</th>
                         </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
@@ -1586,11 +1634,11 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50 dark:bg-gray-600">
                         <tr>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">اسم الموظف</th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">تاريخ الميلاد</th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">القسم</th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">الراتب الأساسي (د.ع.)</th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">الإجراءات</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">اسم الموظف</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">تاريخ الميلاد</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">القسم</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">الراتب الأساسي (د.ع.)</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">الإجراءات</th>
                         </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
@@ -3033,12 +3081,12 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50 dark:bg-gray-600">
                         <tr>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">رقم فاتورة المورد</th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">تاريخ الإدخال</th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">المورد والمندوب</th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">عدد المواد</th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">الإجمالي (د.ع.)</th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">الحالة والإجراء</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">رقم فاتورة المورد</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">تاريخ الإدخال</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">المورد والمندوب</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">عدد المواد</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">الإجمالي (د.ع.)</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">الحالة والإجراء</th>
                         </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
@@ -3169,13 +3217,13 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                                 <table className="min-w-full divide-y divide-gray-200">
                                     <thead className="bg-teal-100">
                                         <tr>
-                                            <th className="px-4 py-2 text-right text-xs font-bold text-gray-600 dark:text-gray-400">الاسم</th>
-                                            <th className="px-4 py-2 text-right text-xs font-bold text-gray-600 dark:text-gray-400">الفئة</th>
-                                            <th className="px-4 py-2 text-right text-xs font-bold text-gray-600 dark:text-gray-400">الباركود</th>
-                                            <th className="px-4 py-2 text-right text-xs font-bold text-gray-600 dark:text-gray-400">سعر الوحدة</th>
-                                            <th className="px-4 py-2 text-right text-xs font-bold text-gray-600 dark:text-gray-400">الكمية</th>
-                                            <th className="px-4 py-2 text-right text-xs font-bold text-gray-600 dark:text-gray-400">الإجمالي</th>
-                                            <th className="px-4 py-2 text-right text-xs font-bold text-gray-600 dark:text-gray-400">إجراء</th>
+                                            <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800">الاسم</th>
+                                            <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800">الفئة</th>
+                                            <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800">الباركود</th>
+                                            <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800">سعر الوحدة</th>
+                                            <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800">الكمية</th>
+                                            <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800">الإجمالي</th>
+                                            <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800">إجراء</th>
                                         </tr>
                                     </thead>
                                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
@@ -3197,9 +3245,9 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                                                 </td>
                                             </tr>
                                         ))}
-                                        <tr className="bg-teal-50 font-extrabold text-lg">
-                                            <td colSpan="5" className="px-4 py-3 text-right">الإجمالي الكلي للفاتورة:</td>
-                                            <td colSpan="2" className="px-4 py-3 text-red-800">{formatCurrencyDisplay(invoiceForm.totalAmount)}</td>
+                                        <tr className="bg-gradient-to-r from-blue-100 via-purple-100 to-cyan-100 dark:from-blue-950/50 dark:via-purple-950/50 dark:to-cyan-950/50 font-extrabold text-lg border-t-2 border-blue-500 dark:border-blue-400">
+                                            <td colSpan="5" className="px-4 py-3 text-right text-gray-900 dark:text-gray-100 font-bold">الإجمالي الكلي للفاتورة:</td>
+                                            <td colSpan="2" className="px-4 py-3 text-blue-700 dark:text-blue-300 font-extrabold text-xl">{formatCurrencyDisplay(invoiceForm.totalAmount)}</td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -3320,7 +3368,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                                 توليد باركود
                             </button>
                         </InputField>
-                        <div className="p-3 bg-red-50 dark:bg-red-900 border border-red-200 rounded-lg text-red-800 text-sm font-semibold">
+                        <div className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/50 dark:to-purple-950/50 border-2 border-blue-400 dark:border-blue-500 rounded-xl text-blue-700 dark:text-blue-300 text-base font-bold shadow-lg">
                             إجمالي سعر المادة: {formatCurrencyDisplay((parseFloat(itemForm.price || 0) * parseInt(itemForm.count || 0)))}
                         </div>
                         <ActionButton type="submit" className="w-full bg-teal-600 hover:bg-teal-700">
@@ -3363,11 +3411,11 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                             <table className="min-w-full divide-y divide-gray-200">
                                 <thead className="bg-teal-100">
                                     <tr>
-                                        <th className="px-4 py-2 text-right text-xs font-bold text-gray-600 dark:text-gray-400">المادة</th>
-                                        <th className="px-4 py-2 text-right text-xs font-bold text-gray-600 dark:text-gray-400">الباركود</th>
-                                        <th className="px-4 py-2 text-right text-xs font-bold text-gray-600 dark:text-gray-400">سعر الوحدة</th>
-                                        <th className="px-4 py-2 text-right text-xs font-bold text-gray-600 dark:text-gray-400">الكمية</th>
-                                        <th className="px-4 py-2 text-right text-xs font-bold text-gray-600 dark:text-gray-400">الإجمالي</th>
+                                        <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800">المادة</th>
+                                        <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800">الباركود</th>
+                                        <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800">سعر الوحدة</th>
+                                        <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800">الكمية</th>
+                                        <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800">الإجمالي</th>
                                     </tr>
                                 </thead>
                                 <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
@@ -3380,7 +3428,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                                             <td className="px-4 py-2 whitespace-nowrap text-sm font-bold text-red-700">{formatCurrencyDisplay(item.price * item.count)}</td>
                                         </tr>
                                     ))}
-                                    <tr className="bg-teal-50 font-extrabold text-lg">
+                                    <tr className="bg-gradient-to-r from-blue-100 via-purple-100 to-cyan-100 dark:from-blue-950/50 dark:via-purple-950/50 dark:to-cyan-950/50 font-extrabold text-lg border-t-2 border-blue-500 dark:border-blue-400">
                                         <td colSpan="4" className="px-4 py-3 text-right">الإجمالي الكلي:</td>
                                         <td className="px-4 py-3 text-red-800">{formatCurrencyDisplay(currentInvoice.totalAmount)}</td>
                                     </tr>
@@ -4101,11 +4149,11 @@ const InventoryDispatchComponent = React.memo(({ data, handleDataAction, showToa
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-indigo-100">
                             <tr>
-                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">التاريخ</th>
-                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">الموظف المستلم</th>
-                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">عدد المواد</th>
-                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">التكلفة الإجمالية (د.ع.)</th>
-                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">الإجراءات</th>
+                                <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">التاريخ</th>
+                                <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">الموظف المستلم</th>
+                                <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">عدد المواد</th>
+                                <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">التكلفة الإجمالية (د.ع.)</th>
+                                <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">الإجراءات</th>
                             </tr>
                         </thead>
                         <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
@@ -4149,10 +4197,10 @@ const InventoryDispatchComponent = React.memo(({ data, handleDataAction, showToa
                              <table className="min-w-full divide-y divide-gray-200">
                                 <thead className="bg-green-200">
                                     <tr>
-                                        <th className="px-4 py-2 text-right text-xs font-bold text-gray-600 dark:text-gray-400">المادة</th>
-                                        <th className="px-4 py-2 text-right text-xs font-bold text-gray-600 dark:text-gray-400">الكمية</th>
-                                        <th className="px-4 py-2 text-right text-xs font-bold text-gray-600 dark:text-gray-400">تكلفة الوحدة</th>
-                                        <th className="px-4 py-2 text-right text-xs font-bold text-gray-600 dark:text-gray-400">الإجمالي</th>
+                                        <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800">المادة</th>
+                                        <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800">الكمية</th>
+                                        <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800">تكلفة الوحدة</th>
+                                        <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800">الإجمالي</th>
                                     </tr>
                                 </thead>
                                 <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
@@ -4718,7 +4766,7 @@ const AccountingApp = () => {
     };
 
     return (
-        <div className="min-h-screen flex bg-gray-100 dark:bg-gray-600 dark:bg-gray-900 antialiased text-right" dir="rtl">
+        <div className="min-h-screen flex bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950 antialiased text-right" dir="rtl">
             <style>
                 {`
                     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap');
@@ -4740,8 +4788,8 @@ const AccountingApp = () => {
             )}
 
             {/* Sidebar Navigation (Fixed for better consistency) */}
-            <div className={`app-sidebar ${isSidebarCollapsed ? 'w-16' : 'w-64'} bg-blue-900 text-white flex flex-col shadow-2xl fixed top-0 right-0 h-full z-50 transition-all duration-300 transform ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'} lg:flex`}>
-                <div className={`${isSidebarCollapsed ? 'p-2' : 'p-6'} text-center border-b border-blue-800 transition-all duration-300`}>
+            <div className={`app-sidebar ${isSidebarCollapsed ? 'w-16' : 'w-64'} bg-gradient-to-b from-blue-900 via-blue-800 to-blue-900 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 text-white flex flex-col shadow-2xl border-l border-blue-700 dark:border-gray-700 fixed top-0 right-0 h-full z-50 transition-all duration-300 transform ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'} lg:flex`}>
+                <div className={`${isSidebarCollapsed ? 'p-2' : 'p-6'} text-center border-b-2 border-blue-600 dark:border-gray-700 transition-all duration-300 bg-blue-950/30 dark:bg-gray-950/30`}>
                     {/* زر الطي في أعلى Sidebar */}
                     <button onClick={toggleSidebarCollapse} className={`${isSidebarCollapsed ? 'mx-auto' : 'absolute left-3 top-4'} text-white p-2 rounded-full lg:inline-block hidden hover:bg-blue-800 transition`}>
                         {isSidebarCollapsed ? <ChevronLeft className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
@@ -4761,7 +4809,7 @@ const AccountingApp = () => {
                                 setIsSidebarOpen(false);
                             }}
                             className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center p-2' : 'text-right p-3'} rounded-xl transition duration-200 ${
-                                currentPage === item.key ? 'bg-blue-700 shadow-lg font-bold' : 'hover:bg-blue-800'
+                                currentPage === item.key ? 'bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-500 dark:to-purple-500 shadow-xl font-bold scale-105' : 'hover:bg-blue-800/50 dark:hover:bg-gray-700/50 hover:scale-102'
                             }`}
                             title={isSidebarCollapsed ? item.label : ''}
                         >
@@ -4773,7 +4821,7 @@ const AccountingApp = () => {
                     <button
                         onClick={() => { setIsAboutModalOpen(true); setIsSidebarOpen(false); }}
                         title={isSidebarCollapsed ? 'حول النظام' : ''}
-                        className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center p-2' : 'text-right p-3'} rounded-xl transition duration-200 hover:bg-blue-800 mt-4 border-t border-blue-800 pt-4`}
+                        className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center p-2' : 'text-right p-3'} rounded-xl transition-all duration-200 hover:bg-blue-800/50 dark:hover:bg-gray-700/50 mt-4 border-t-2 border-blue-600 dark:border-gray-700 pt-4 hover:scale-102`}
                     >
                         <Info className={`w-5 h-5 ${!isSidebarCollapsed && 'ml-3'}`} />
                         {!isSidebarCollapsed && <span className="text-lg">حول النظام</span>}
@@ -4784,7 +4832,7 @@ const AccountingApp = () => {
                         onClick={toggleDarkMode}
                         data-testid="button-toggle-theme"
                         title={isDarkMode ? 'الوضع الفاتح' : 'الوضع الداكن'}
-                        className="w-full flex items-center justify-center p-2 rounded-xl transition duration-200 hover:bg-blue-800"
+                        className="w-full flex items-center justify-center p-2 rounded-xl transition-all duration-200 hover:bg-blue-800/50 dark:hover:bg-gray-700/50 hover:scale-105"
                     >
                         {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                     </button>
@@ -4794,13 +4842,13 @@ const AccountingApp = () => {
             {/* Main Content Area */}
             <main className={`flex-grow p-4 md:p-8 ${isSidebarCollapsed ? 'lg:mr-16' : 'lg:mr-64'}`}>
                 {/* Header for Mobile/Tablet */}
-                <header className="app-header flex justify-between items-center bg-white dark:bg-gray-800 p-4 mb-4 rounded-xl shadow-md lg:hidden">
+                <header className="app-header flex justify-between items-center bg-gradient-to-r from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 p-4 mb-4 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 lg:hidden">
                     <button onClick={() => setIsSidebarOpen(true)} className="text-blue-600 dark:text-blue-400 p-2 rounded-lg hover:bg-gray-100 dark:bg-gray-600 dark:hover:bg-gray-700 transition">
                         <Menu className="w-6 h-6" />
                     </button>
                     <h1 className="text-xl font-bold text-gray-800 dark:text-gray-200 dark:text-gray-100">{navItems.find(item => item.key === currentPage)?.label}</h1>
                 <div className="flex items-center space-x-2 space-x-reverse">
-                        <button onClick={toggleDarkMode} className="p-2 rounded-lg hover:bg-gray-100 dark:bg-gray-600 dark:hover:bg-gray-700 transition text-gray-700 dark:text-gray-300 dark:text-gray-200">
+                        <button onClick={toggleDarkMode} className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 hover:scale-110 text-gray-700 dark:text-gray-200">
                             {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                         </button>
                     </div>
