@@ -46,7 +46,8 @@ import {
     PanelRightOpen,
     MessageCircle,
     Send,
-    Minimize2
+    Minimize2,
+    Languages
 } from 'lucide-react';
 
 // استيراد الثوابت والأنواع
@@ -70,6 +71,9 @@ import {
     exportToCsv,
     getCurrentMonthRange
 } from '../utils/accounting';
+
+// استيراد نظام الترجمة
+import { useLanguage } from '../contexts/LanguageContext';
 
 // =================================================================
 // 2. المكونات الأساسية (UI PRIMITIVES)
@@ -4034,6 +4038,9 @@ const AboutSystemModal = ({ onClose }) => (
 
 const AccountingApp = () => {
     // 1. Toaster Handler (Moved to the top to fix ReferenceError)
+    // Language Hook
+    const { language, setLanguage, t, dir } = useLanguage();
+
     const [toast, setToast] = useState({ message: '', type: '', id: null });
     const showToast = useCallback((message, type) => {
         const id = Date.now();
@@ -4081,6 +4088,12 @@ const AccountingApp = () => {
         const updatedUsers = [...data.settings.users];
         updatedUsers[0] = { ...updatedUsers[0], darkMode: newMode };
         handleSettingsUpdate({ ...data.settings, users: updatedUsers });
+    };
+    
+    // Toggle Language
+    const toggleLanguage = () => {
+        const newLang = language === 'ar' ? 'en' : 'ar';
+        setLanguage(newLang);
     };
 
     const toggleSidebarCollapse = () => {
@@ -4602,6 +4615,16 @@ const AccountingApp = () => {
                     >
                         {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                     </button>
+                    
+                    {/* زر تبديل اللغة */}
+                    <button
+                        onClick={toggleLanguage}
+                        data-testid="button-toggle-language"
+                        title={language === 'ar' ? 'English' : 'العربية'}
+                        className="w-full flex items-center justify-center p-2 rounded-xl transition-all duration-200 hover:bg-blue-800/50 dark:hover:bg-gray-700/50 hover:scale-105"
+                    >
+                        <Languages className="w-5 h-5" />
+                    </button>
                 </nav>
             </div>
 
@@ -4616,6 +4639,9 @@ const AccountingApp = () => {
                 <div className="flex items-center space-x-2 space-x-reverse">
                         <button onClick={toggleDarkMode} className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 hover:scale-110 text-gray-700 dark:text-gray-200">
                             {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                        </button>
+                        <button onClick={toggleLanguage} data-testid="button-toggle-language-mobile" title={language === 'ar' ? 'English' : 'العربية'} className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 hover:scale-110 text-gray-700 dark:text-gray-200">
+                            <Languages className="w-5 h-5" />
                         </button>
                     </div>
                 </header>
