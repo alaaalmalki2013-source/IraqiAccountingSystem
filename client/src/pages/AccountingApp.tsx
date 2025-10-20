@@ -3130,7 +3130,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                             onChange={(e) => handleItemFormChange('barcode', e.target.value)} 
                             placeholder="اضغط على توليد باركود أو أدخله يدوياً"
                         >
-                            <button type="button" onClick={() => setItemForm(prev => ({ ...prev, barcode: generateBarcode() }))} className="absolute left-1 top-1/2 transform -translate-y-1/2 px-3 py-1.5 text-xs bg-gray-200 hover:bg-gray-300 rounded-lg text-gray-800 dark:text-gray-200 font-semibold">
+                            <button type="button" onClick={() => setItemForm(prev => ({ ...prev, barcode: generateBarcode() }))} className="absolute left-1 top-1/2 transform -translate-y-1/2 px-3 py-1.5 text-xs bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg text-gray-800 dark:text-gray-200 font-semibold">
                                 توليد باركود
                             </button>
                         </InputField>
