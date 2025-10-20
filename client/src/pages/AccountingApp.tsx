@@ -47,7 +47,6 @@ import {
     MessageCircle,
     Send,
     Minimize2,
-    Languages
 } from 'lucide-react';
 
 // استيراد الثوابت والأنواع
@@ -71,9 +70,6 @@ import {
     exportToCsv,
     getCurrentMonthRange
 } from '../utils/accounting';
-
-// استيراد نظام الترجمة
-import { useLanguage } from '../contexts/LanguageContext';
 
 // =================================================================
 // 2. المكونات الأساسية (UI PRIMITIVES)
@@ -156,7 +152,7 @@ const InputField = React.memo(({ label, type = 'text', value, onChange, placehol
     </div>
 ));
 
-// زر {t('procedures')}
+// زر {'الإجراءات'}
 const ActionButton = ({ onClick, children, className = 'bg-teal-600 hover:bg-teal-700', type = 'button', disabled = false }) => ( 
     <button
         onClick={onClick}
@@ -299,7 +295,7 @@ const PrintInvoice = React.memo(({ item, onClose, companyName, companyLogoUrl, e
                                 رقم الفاتورة: <span style={{ fontWeight: 'bold' }}>{item.invoiceNumber}</span>
                             </p>
                             <p style={{ fontSize: paperSize === 'A4' ? '12px' : '10px', margin: '0' }}>
-                                {t('dateAndTime')}: <span style={{ fontWeight: 'bold' }}>{formatDate(item.date)}</span>
+                                {'التاريخ والوقت'}: <span style={{ fontWeight: 'bold' }}>{formatDate(item.date)}</span>
                             </p>
                         </div>
                     </div>
@@ -441,7 +437,6 @@ const PrintReportModal = React.memo(({ reportData, title, onClose, companyName, 
  */
 const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
     const { revenues, expenses, suspended, advances, employees } = data;
-    const { t } = useLanguage();
 
     // استخدام useMemo لضمان عدم إعادة الحساب إلا عند الضرورة
     const summaryData = useMemo(() => {
@@ -481,7 +476,7 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
 
     const primaryCards = [
         { 
-            title: t('currentCashFund'), 
+            title: 'رصيد الصندوق الحالي', 
             value: formatCurrencyDisplay(summaryData.totalCashFund), 
             icon: DollarSign, 
             color: summaryData.totalCashFund >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-rose-600 dark:text-rose-400', 
@@ -490,7 +485,7 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
             gradient: true
         },
         { 
-            title: t('totalRevenues'), 
+            title: 'الإيرادات الإجمالية', 
             value: formatCurrencyDisplay(summaryData.totalRevenues), 
             icon: TrendingUp, 
             color: 'text-emerald-600 dark:text-emerald-400', 
@@ -499,7 +494,7 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
             gradient: true
         },
         { 
-            title: t('totalExpenses'), 
+            title: 'الصرفيات الإجمالية', 
             value: formatCurrencyDisplay(summaryData.totalExpenses), 
             icon: TrendingDown, 
             color: 'text-rose-600 dark:text-rose-400', 
@@ -511,7 +506,7 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
     
     const secondaryCards = [
         { 
-            title: t('totalAdvances'), 
+            title: 'مجموع السلف', 
             value: formatCurrencyDisplay(summaryData.totalAdvances), 
             icon: Coins, 
             color: 'text-violet-600 dark:text-violet-400', 
@@ -520,7 +515,7 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
             gradient: true
         },
         { 
-            title: t('totalSuspended'), 
+            title: 'مجموع المبالغ المعلقة', 
             value: formatCurrencyDisplay(summaryData.totalSuspended), 
             icon: RotateCcw, 
             color: 'text-amber-600 dark:text-amber-400', 
@@ -529,7 +524,7 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
             gradient: true
         },
         { 
-            title: t('totalSalaries'), 
+            title: 'إجمالي رواتب الموظفين', 
             value: formatCurrencyDisplay(summaryData.totalSalaries), 
             icon: Users, 
             color: 'text-purple-600 dark:text-purple-400', 
@@ -542,25 +537,25 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
 
     return (
         <div className="space-y-8 p-8 bg-gradient-to-br from-white to-gray-50 dark:from-gray-900 dark:to-gray-800 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700">
-            <h2 className="text-4xl font-extrabold bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent border-b-2 border-blue-500 dark:border-blue-400 pb-3">{ t("dashboard") }</h2>
+            <h2 className="text-4xl font-extrabold bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent border-b-2 border-blue-500 dark:border-blue-400 pb-3">الرئيسية</h2>
 
             {upcomingBirthdays.length > 0 && (
                 <div className="bg-gradient-to-r from-pink-100 to-rose-100 dark:from-pink-950/50 dark:to-rose-950/50 border-l-4 border-pink-500 dark:border-pink-400 p-6 rounded-2xl shadow-xl">
                     <h3 className="text-2xl font-bold text-pink-800 dark:text-pink-200 flex items-center mb-2">
                         <Gift className="w-6 h-6 ml-2" />
-                        { t("upcomingBirthdaysReminder") }
+                        تذكير أعياد الميلاد القادمة!
                     </h3>
                     <ul className="list-disc list-inside space-y-1 text-gray-700 dark:text-gray-300">
                         {upcomingBirthdays.map((b, index) => (
                             <li key={index} className="font-semibold">
-                                {t("employee")} **{b.name}** {t("birthdayOn")} **{b.date}**.
+                                **{b.name}** عيد ميلاده في **{b.date}**.
                             </li>
                         ))}
                     </ul>
                 </div>
             )}
             
-            <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 border-b-2 border-gradient-to-r from-blue-500 to-purple-500 pb-2">{ t("financialSummary") }</h3>
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 border-b-2 border-gradient-to-r from-blue-500 to-purple-500 pb-2">الملخص المالي الرئيسي</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {primaryCards.map((card, index) => (
                     <div key={index} className={`p-6 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-[1.02] border dark:border-gray-200/10 ${card.bg}`}>
@@ -593,14 +588,14 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
                 ))}
             </div>
 
-            <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-200 border-b border-gray-300 dark:border-gray-600 pb-2 pt-4">{ t("categoryStatistics") }</h3>
+            <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-200 border-b border-gray-300 dark:border-gray-600 pb-2 pt-4">إحصائيات حسب الفئة</h3>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* كروت الإيرادات حسب الفئة */}
                 <div className="p-6 rounded-2xl shadow-xl bg-gradient-to-br from-emerald-50 to-green-100 dark:from-emerald-950/50 dark:to-green-900/50 border-l-4 border-emerald-500 dark:border-emerald-400">
                     <h4 className="text-xl font-bold text-emerald-700 dark:text-emerald-300 mb-4 flex items-center">
                         <TrendingUp className="w-5 h-5 ml-2" />
-                        { t("revenuesByCategory") }
+                        إجمالي الإيرادات لكل فئة
                     </h4>
                     <ul className="space-y-2">
                         {Object.keys(summaryData.revenueByCategory).map(category => (
@@ -616,7 +611,7 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
                 <div className="p-6 rounded-2xl shadow-xl bg-gradient-to-br from-rose-50 to-red-100 dark:from-rose-950/50 dark:to-red-900/50 border-l-4 border-rose-500 dark:border-rose-400">
                     <h4 className="text-xl font-bold text-rose-700 dark:text-rose-300 mb-4 flex items-center">
                         <TrendingDown className="w-5 h-5 ml-2" />
-                        { t("expensesByCategory") }
+                        إجمالي الصرفيات لكل فئة
                     </h4>
                     <ul className="space-y-2">
                         {Object.keys(summaryData.expenseByCategory).map(category => (
@@ -787,7 +782,7 @@ const DataPageComponent = React.memo(({ 
         
         // تحقق إضافي لحقول المصروفات
         if (collectionName === 'expenses' && (!itemToSave.vendor || !itemToSave.representative)) {
-            showToast(t('mustSelectVendorRep'), 'error');
+            showToast('يجب اختيار المورد والمندوب للمصروف', 'error');
             return;
         }
 
@@ -811,12 +806,12 @@ const DataPageComponent = React.memo(({ 
     
     const handlePrintAll = () => {
         if (filteredList.length === 0) {
-             showToast(t('noDataToPrint'), "error");
+             showToast('لا توجد بيانات لطباعة التقرير', "error");
              return;
         }
         const exportContent = filteredList.map(item => {
             const baseItem = {
-                [t('dateAndTime')]: new Date(item.date).toLocaleString('en-US'),
+                ['التاريخ والوقت']: new Date(item.date).toLocaleString('en-US'),
                 'رقم الفاتورة': item.invoiceNumber || 'N/A',
                 'المبلغ (د.ع.)': formatCurrencyDisplay(item.amount || 0),
                 'الجهة المعنية': item.category || (item.employeeId ? data.employees.find(e => e.id === item.employeeId)?.name : item.recipientName) || 'N/A',
@@ -825,7 +820,7 @@ const DataPageComponent = React.memo(({ 
             if (collectionName === 'expenses') {
                 return {
                     ...baseItem,
-                    [t('vendorAndRep')]: `${item.vendor || 'N/A'} (${item.representative || 'N/A'})`,
+                    ['المورد والمندوب']: `${item.vendor || 'N/A'} (${item.representative || 'N/A'})`,
                 };
             }
             return baseItem;
@@ -837,13 +832,13 @@ const DataPageComponent = React.memo(({ 
 
     const handleExportAll = () => {
         if (filteredList.length === 0) {
-             showToast(t('noDataToExport'), "error");
+             showToast('لا توجد بيانات للتصدير', "error");
              return;
         }
         
         const exportContent = filteredList.map(item => {
             const baseItem = {
-                [t('dateAndTime')]: new Date(item.date).toLocaleString('en-US'),
+                ['التاريخ والوقت']: new Date(item.date).toLocaleString('en-US'),
                 'رقم الفاتورة': item.invoiceNumber || 'N/A',
                 'المبلغ (د.ع.)': parseFloat(item.amount || 0), // يتم التصدير كرقم ليسهل الحساب
                 'الجهة المعنية': item.category || (item.employeeId ? data.employees.find(e => e.id === item.employeeId)?.name : item.recipientName) || 'N/A',
@@ -862,7 +857,7 @@ const DataPageComponent = React.memo(({ 
         });
 
         exportToCsv(exportContent, `${title}_تقرير`);
-        showToast(t('exportedSuccessfully'), "success");
+        showToast('تم تصدير البيانات إلى Excel بنجاح!', "success");
     };
 
     const filteredReps = data.settings.representatives.filter(rep => rep.vendor === selectedVendor);
@@ -875,8 +870,8 @@ const DataPageComponent = React.memo(({ 
             <div className="flex justify-between items-center">
                  <ActionButton onClick={() => openModal()} className="bg-green-600 hover:bg-green-700" disabled={!!initialExpenseState && collectionName === 'expenses' && isModalOpen}>
                     <Plus className="w-5 h-5 ml-2" />
-                    {type === 'suspended' ? 'إضافة مبلغ معلق' : type === 'revenue' ? t('addRevenue2') : type === 'expense' ? t('addExpense2') : t('addAdvance2')}
-                    {!!initialExpenseState && collectionName === 'expenses' && t('infoFromInventory')}
+                    {type === 'suspended' ? 'إضافة مبلغ معلق' : type === 'revenue' ? 'إضافة إيراد' : type === 'expense' ? 'إضافة مصروف' : 'إضافة سلفة'}
+                    {!!initialExpenseState && collectionName === 'expenses' && '(معلومات من المخزن)'}
                 </ActionButton>
                 
                 <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
@@ -922,18 +917,18 @@ const DataPageComponent = React.memo(({ 
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 items-center">
                     <div className="col-span-1 text-xl font-bold p-4 rounded-xl bg-teal-50 dark:bg-teal-900/30 text-teal-800 dark:text-teal-200 flex flex-col items-center justify-center shadow-md border-t-4 border-teal-600 dark:border-teal-400">
                         <Calculator className="w-6 h-6 mb-1" />
-                        <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t('filteredTotal')}:</span>
+                        <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{'المجموع المفلتر'}:</span>
                         <span className="font-extrabold text-2xl mt-1">
                             {formatCurrencyDisplay(totalFilteredAmount)}
                         </span>
                     </div>
 
                     <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-xl bg-gray-50 dark:bg-gray-700 shadow-inner">
-                        <h3 className="md:col-span-3 w-full text-lg font-semibold text-gray-700 dark:text-gray-300 flex items-center border-b pb-2 mb-2"><Filter className="w-5 h-5 ml-2" /> {t('tableFilters')}</h3>
+                        <h3 className="md:col-span-3 w-full text-lg font-semibold text-gray-700 dark:text-gray-300 flex items-center border-b pb-2 mb-2"><Filter className="w-5 h-5 ml-2" /> {'فلاتر الجدول'}</h3>
                         
                         {(type === 'expense' || type === 'suspended' || type === 'revenue' || type === 'advance') && (
                             <div className="md:col-span-3 flex flex-col space-y-1 relative">
-                                <label className="text-sm font-medium text-gray-600 dark:text-gray-400">{t('globalSearch')}</label>
+                                <label className="text-sm font-medium text-gray-600 dark:text-gray-400">{'البحث الشامل'}</label>
                                 <input
                                     type="text"
                                     value={globalSearch}
@@ -948,7 +943,7 @@ const DataPageComponent = React.memo(({ 
                         {collectionName !== 'suspended' && (
                             <>
                                 <div className="flex flex-col space-y-1">
-                                    <label className="text-sm font-medium text-gray-600 dark:text-gray-400">{t('dateFrom')}</label>
+                                    <label className="text-sm font-medium text-gray-600 dark:text-gray-400">{'التاريخ من'}</label>
                                     <input
                                         type="date"
                                         value={filterDateFrom}
@@ -958,7 +953,7 @@ const DataPageComponent = React.memo(({ 
                                 </div>
 
                                 <div className="flex flex-col space-y-1">
-                                    <label className="text-sm font-medium text-gray-600 dark:text-gray-400">{t('dateTo')}</label>
+                                    <label className="text-sm font-medium text-gray-600 dark:text-gray-400">{'التاريخ إلى'}</label>
                                     <input
                                         type="date"
                                         value={filterDateTo}
@@ -1003,18 +998,18 @@ const DataPageComponent = React.memo(({ 
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50 dark:bg-gray-600 rounded-t-xl">
                         <tr>
-                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">{t('dateAndTime')}</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">{'التاريخ والوقت'}</th>
                             {fields.map(field => (
                                 <th key={field.key} className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">{field.label}</th>
                             ))}
-                            {collectionName === 'expenses' && <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">{t('vendorAndRep')}</th>}
+                            {collectionName === 'expenses' && <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">{'المورد والمندوب'}</th>}
                             <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">رقم الفاتورة</th>
-                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">{t('procedures')}</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">{'الإجراءات'}</th>
                         </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
                         {filteredList.length === 0 ? (
-                            <tr><td colSpan={fields.length + (collectionName === 'expenses' ? 4 : 3)} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">{t('noRecordsMatch')}.</td></tr>
+                            <tr><td colSpan={fields.length + (collectionName === 'expenses' ? 4 : 3)} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">{'لا توجد سجلات متاحة تتوافق مع الفلاتر'}.</td></tr>
                         ) : (
                             filteredList.map(item => (
                                 <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150">
@@ -1300,7 +1295,7 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, t, handleDel
 
     const handlePrintAll = () => {
              if (filteredList.length === 0) {
-                 showToast(t('noDataToPrint'), "error");
+                 showToast('لا توجد بيانات لطباعة التقرير', "error");
                  return;
              }
             
@@ -1319,7 +1314,7 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, t, handleDel
     
     const handleExportAll = () => {
         if (filteredList.length === 0) {
-             showToast(t('noDataToExport'), "error");
+             showToast('لا توجد بيانات للتصدير', "error");
              return;
            }
             
@@ -1333,17 +1328,17 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, t, handleDel
             'رابط المستندات': item.docUrl || 'N/A',
         }));
 
-        exportToCsv(exportContent, t('employeeReport'));
-        showToast(t('exportedSuccessfully'), "success");
+        exportToCsv(exportContent, 'تقرير_الموظفين');
+        showToast('تم تصدير البيانات إلى Excel بنجاح!', "success");
     };
 
 
     return (
         <div className="p-6 space-y-6 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl">
-            <h2 className="text-4xl font-extrabold text-gray-800 dark:text-gray-200 border-b-2 border-teal-500 pb-3">{t('employeesManagement')}</h2>
+            <h2 className="text-4xl font-extrabold text-gray-800 dark:text-gray-200 border-b-2 border-teal-500 pb-3">{'إدارة الموظفين'}</h2>
             
             <div className="bg-white dark:bg-gray-700 p-4 rounded-xl shadow-lg border border-teal-100 dark:border-teal-700 relative">
-                 <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">{t('globalSearch')}</label>
+                 <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">{'البحث الشامل'}</label>
                 <input
                     type="text"
                     value={globalSearch}
@@ -1381,7 +1376,7 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, t, handleDel
                             <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">تاريخ الميلاد</th>
                             <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">القسم</th>
                             <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">الراتب الأساسي (د.ع.)</th>
-                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">{t('procedures')}</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">{'الإجراءات'}</th>
                         </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
@@ -1777,7 +1772,7 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                             <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">السلف</th>
                             <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">الراتب الصافي</th>
                             <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">الحالة</th>
-                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">{t('procedures')}</th>
+                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">{'الإجراءات'}</th>
                         </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
@@ -1997,7 +1992,7 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                                 data-testid="button-print-payslip"
                             >
                                 <Printer className="w-5 h-5" />
-                                🖨️ {t('printNow')}
+                                🖨️ {'طباعة الآن'}
                             </button>
                         </div>
 
@@ -2204,12 +2199,12 @@ const InventoryPageComponent = React.memo(({ data, showToast, t, handleRefresh, 
     const formatPurchaseHistory = (history) => (
         <div className="space-y-3 max-h-48 overflow-y-auto mt-2 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600">
             {history.length === 0 ? (
-                <p className="text-gray-500 dark:text-gray-400 italic">{t('noPurchaseHistory')}.</p>
+                <p className="text-gray-500 dark:text-gray-400 italic">{'لا يوجد سجل مشتريات لهذه المادة'}.</p>
             ) : (
                 <table className="min-w-full text-sm">
                     <thead>
                         <tr className="bg-gray-100 dark:bg-gray-600">
-                            <th className="px-2 py-1 text-right font-bold text-gray-700 dark:text-gray-300">{t('purchaseDate')}</th>
+                            <th className="px-2 py-1 text-right font-bold text-gray-700 dark:text-gray-300">{'تاريخ الشراء'}</th>
                             <th className="px-2 py-1 text-right font-bold text-gray-700 dark:text-gray-300">السعر</th>
                             <th className="px-2 py-1 text-right font-bold text-gray-700 dark:text-gray-300">الكمية</th>
                             <th className="px-2 py-1 text-right font-bold text-gray-700 dark:text-gray-300">المورد</th>
@@ -2232,11 +2227,11 @@ const InventoryPageComponent = React.memo(({ data, showToast, t, handleRefresh, 
     
     return (
         <div className="p-6 space-y-6 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl">
-            <h2 className="text-4xl font-extrabold text-gray-800 dark:text-gray-200 border-b-2 border-teal-500 pb-3">{t('inventoryManagement')}</h2>
+            <h2 className="text-4xl font-extrabold text-gray-800 dark:text-gray-200 border-b-2 border-teal-500 pb-3">{'المخزن (المواد المتوفرة)'}</h2>
 
-            {/* {t('globalSearch')} */}
+            {/* {'البحث الشامل'} */}
             <div className="bg-white dark:bg-gray-700 p-4 rounded-xl shadow-lg border border-teal-100 dark:border-teal-700 relative">
-                 <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">{t('globalSearch')}</label>
+                 <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">{'البحث الشامل'}</label>
                 <input
                     type="text"
                     value={globalSearch}
@@ -2262,13 +2257,13 @@ const InventoryPageComponent = React.memo(({ data, showToast, t, handleRefresh, 
                             <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">الفئة</th>
                             <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">الباركود</th>
                             <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">سعر القطعة (د.ع.)</th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">{t('stockCount')}</th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">{t('procedures')}</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">{'العدد في المخزن'}</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">{'الإجراءات'}</th>
                         </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
                         {filteredList.length === 0 ? (
-                            <tr><td colSpan="6" className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">{t('noMaterialsInInventory')}.</td></tr>
+                            <tr><td colSpan="6" className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">{'لا توجد مواد مضافة في المخزن'}.</td></tr>
                         ) : (
                             filteredList.map(item => (
                                 <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150" data-testid={`row-inventory-${item.id}`}>
@@ -2291,11 +2286,11 @@ const InventoryPageComponent = React.memo(({ data, showToast, t, handleRefresh, 
                 </table>
             </div>
             
-            {/* Modal {t('materialDetails')} */}
+            {/* Modal {'تفاصيل المادة'} */}
             {isDetailsModalOpen && currentItem && (
-                <Modal title={`{t('materialDetails')}: ${currentItem.name}`} onClose={() => setIsDetailsModalOpen(false)} size="xl">
+                <Modal title={`{'تفاصيل المادة'}: ${currentItem.name}`} onClose={() => setIsDetailsModalOpen(false)} size="xl">
                     <div className="space-y-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl">
-                        <h4 className="text-xl font-bold text-gray-800 dark:text-gray-200 border-b pb-2 mb-4">{t('materialInfo')}</h4>
+                        <h4 className="text-xl font-bold text-gray-800 dark:text-gray-200 border-b pb-2 mb-4">{'معلومات المادة'}</h4>
                         
                         {currentItem.invoiceImageUrl && (
                             <div className="text-center mb-4">
@@ -2306,10 +2301,10 @@ const InventoryPageComponent = React.memo(({ data, showToast, t, handleRefresh, 
 
                         <p className="flex items-center text-lg dark:text-gray-200"><List className="w-5 h-5 ml-2 text-indigo-500" /> **الفئة:** {currentItem.category}</p>
                         <p className="flex items-center text-lg dark:text-gray-200"><List className="w-5 h-5 ml-2 text-indigo-500" /> **الباركود:** {currentItem.barcode || 'N/A'}</p>
-                        <p className="flex items-center text-lg dark:text-gray-200"><Coins className="w-5 h-5 ml-2 text-indigo-500" /> **{t('currentUnitPrice')}:** {formatCurrencyDisplay(currentItem.price)}</p>
-                        <p className="flex items-center text-lg dark:text-gray-200"><Package className="w-5 h-5 ml-2 text-indigo-500" /> **{t('stockQuantity')}:** <span className="font-bold text-teal-600 dark:text-teal-400">{currentItem.count}</span></p>
+                        <p className="flex items-center text-lg dark:text-gray-200"><Coins className="w-5 h-5 ml-2 text-indigo-500" /> **{'سعر الوحدة الحالي'}:** {formatCurrencyDisplay(currentItem.price)}</p>
+                        <p className="flex items-center text-lg dark:text-gray-200"><Package className="w-5 h-5 ml-2 text-indigo-500" /> **{'الكمية في المخزن'}:** <span className="font-bold text-teal-600 dark:text-teal-400">{currentItem.count}</span></p>
                         
-                        {/* زر {t('barcodePreview')} */}
+                        {/* زر {'معاينة ستكر الباركود'} */}
                         <div className="pt-3 pb-2">
                             <ActionButton 
                                 onClick={() => openPrintPreview(currentItem)} 
@@ -2321,7 +2316,7 @@ const InventoryPageComponent = React.memo(({ data, showToast, t, handleRefresh, 
                             </ActionButton>
                         </div>
                         
-                        <h4 className="text-xl font-bold text-gray-800 dark:text-gray-200 border-b pb-2 pt-4 mb-2 flex items-center"><CalendarCheck className="w-5 h-5 ml-2 text-teal-600" /> {t('purchaseHistoryTitle')}</h4>
+                        <h4 className="text-xl font-bold text-gray-800 dark:text-gray-200 border-b pb-2 pt-4 mb-2 flex items-center"><CalendarCheck className="w-5 h-5 ml-2 text-teal-600" /> {'سجل الشراء (تاريخ وسعر التكلفة)'}</h4>
                         {formatPurchaseHistory(currentItem.purchaseHistory || [])}
 
                     </div>
@@ -2334,7 +2329,7 @@ const InventoryPageComponent = React.memo(({ data, showToast, t, handleRefresh, 
                     <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto transform transition-all duration-300 scale-100" onClick={e => e.stopPropagation()}>
                         {/* رأس المودال */}
                         <div className="flex justify-between items-center p-4 border-b border-indigo-100 dark:border-indigo-700 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-t-3xl">
-                            <h3 className="text-xl font-bold text-white flex-grow text-center">{t('barcodePreview')} 🏷️</h3> 
+                            <h3 className="text-xl font-bold text-white flex-grow text-center">{'معاينة ستكر الباركود'} 🏷️</h3> 
                             <button onClick={() => setIsPrintPreviewOpen(false)} className="text-white hover:text-gray-200 transition p-1 bg-white/20 rounded-full">
                                 <X className="w-6 h-6" />
                             </button>
@@ -2348,7 +2343,7 @@ const InventoryPageComponent = React.memo(({ data, showToast, t, handleRefresh, 
                                 data-testid="button-print-now"
                             >
                                 <Printer className="w-5 h-5" />
-                                🖨️ {t('printNow')}
+                                🖨️ {'طباعة الآن'}
                             </button>
                         </div>
                         
@@ -2411,7 +2406,7 @@ const InventoryPageComponent = React.memo(({ data, showToast, t, handleRefresh, 
                         
                         {/* معلومات الأبعاد */}
                         <div className="p-4 print:hidden text-center text-sm text-gray-600 dark:text-gray-400">
-                            📏 {t('stickerDimensions')}
+                            📏 {'الأبعاد: 50mm × 30mm'}
                         </div>
                     </div>
                 </div>
@@ -2664,7 +2659,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, t, handleD
     const filteredInvoices = useMemo(() => {
         let list = data.pendingInvoices.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
         
-        // الفلترة حسب {t('globalSearch')}
+        // الفلترة حسب {'البحث الشامل'}
         if (globalSearch) {
             const searchLower = normalizeTextForSearch(globalSearch); 
             const searchNumeric = normalizeTextForSearch(globalSearch, true); 
@@ -2872,7 +2867,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, t, handleD
 
     return (
         <div className="p-6 space-y-6 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl">
-            <h2 className="text-4xl font-extrabold text-gray-800 dark:text-gray-200 border-b-2 border-teal-500 pb-3">{t('inventoryEntryManagement')}</h2>
+            <h2 className="text-4xl font-extrabold text-gray-800 dark:text-gray-200 border-b-2 border-teal-500 pb-3">{'إدارة الإدخال المخزني'}</h2>
 
             <div className="flex justify-between items-center flex-wrap gap-4">
                  <ActionButton onClick={() => setIsNewInvoiceModalOpen(true)} className="bg-indigo-600 hover:bg-indigo-700">
@@ -2947,7 +2942,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, t, handleD
                         <tr>
                             <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">رقم فاتورة المورد</th>
                             <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">تاريخ الإدخال</th>
-                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">{t('vendorAndRep')}</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">{'المورد والمندوب'}</th>
                             <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">عدد المواد</th>
                             <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">الإجمالي (د.ع.)</th>
                             <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">الحالة والإجراء</th>
@@ -3772,7 +3767,7 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
                                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase">اسم المستخدم</th>
                                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase">البريد الإلكتروني</th>
                                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase">الصلاحيات الأساسية</th>
-                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase">{t('procedures')}</th>
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase">{'الإجراءات'}</th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
@@ -4017,7 +4012,7 @@ const InventoryDispatchComponent = React.memo(({ data, handleDataAction, showToa
                                 <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">الموظف المستلم</th>
                                 <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">عدد المواد</th>
                                 <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">التكلفة الإجمالية (د.ع.)</th>
-                                <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">{t('procedures')}</th>
+                                <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">{'الإجراءات'}</th>
                             </tr>
                         </thead>
                         <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
@@ -4053,7 +4048,7 @@ const InventoryDispatchComponent = React.memo(({ data, handleDataAction, showToa
                             بيانات الصرف
                         </h4>
                         <p className="font-medium text-gray-700 dark:text-gray-300">**الموظف:** {currentDispatch.employeeName}</p>
-                        <p className="font-medium text-gray-700 dark:text-gray-300">**{t('dateAndTime')}:** {new Date(currentDispatch.date).toLocaleString('en-US')}</p>
+                        <p className="font-medium text-gray-700 dark:text-gray-300">**{'التاريخ والوقت'}:** {new Date(currentDispatch.date).toLocaleString('en-US')}</p>
                         <p className="font-medium text-gray-700 dark:text-gray-300">**الملاحظات:** {currentDispatch.notes || 'لا توجد ملاحظات.'}</p>
                         
                         <h5 className="text-lg font-bold text-gray-800 dark:text-gray-200 border-b pb-2 pt-4">المواد المصروفة:</h5>
@@ -4133,7 +4128,6 @@ const AboutSystemModal = ({ onClose }) => (
 const AccountingApp = () => {
     // 1. Toaster Handler (Moved to the top to fix ReferenceError)
     // Language Hook
-    const { language, setLanguage, t, dir } = useLanguage();
 
     const [toast, setToast] = useState({ message: '', type: '', id: null });
     const showToast = useCallback((message, type) => {
@@ -4185,10 +4179,6 @@ const AccountingApp = () => {
     };
     
     // Toggle Language
-    const toggleLanguage = () => {
-        const newLang = language === 'ar' ? 'en' : 'ar';
-        setLanguage(newLang);
-    };
 
     const toggleSidebarCollapse = () => {
         const newCollapse = !isSidebarCollapsed;
@@ -4381,18 +4371,18 @@ const AccountingApp = () => {
 
 
     // 7. Routing and Navigation
-    const navItems = useMemo(() => [
-        { key: 'dashboard', label: t('dashboard'), icon: Home, component: DashboardComponent },
-        { key: 'revenues', label: t('revenues'), icon: TrendingUp, component: DataPageComponent, props: { title: t('revenues'), type: 'revenue', collectionName: 'revenues', categories: data.settings.revenueCategories, fields: [{ key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'category', label: 'فئة الإيراد', type: 'select', required: true }, { key: 'description', label: 'الوصف/المصدر', type: 'textarea' }], handleRefresh } },
-        { key: 'expenses', label: t('expenses'), icon: TrendingDown, component: DataPageComponent, props: { title: t('expenses'), type: 'expense', collectionName: 'expenses', categories: data.settings.expenseCategories, fields: [{ key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'category', label: 'فئة المصروف', type: 'select', required: true }, { key: 'description', label: 'الوصف المفصل', type: 'textarea', required: true }], handleRefresh } },
-        { key: 'advances', label: t('advances'), icon: Coins, component: DataPageComponent, props: { title: t('advances'), type: 'advance', collectionName: 'advances', categories: data.settings.advanceCategories, fields: [{ key: 'employeeName', label: 'الموظف المعني', type: 'select', required: true }, { key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'category', label: 'فئة السلفة', type: 'select', required: true }, { key: 'notes', label: 'ملاحظات', type: 'textarea' }], handleRefresh } },
-        { key: 'suspended', label: t('suspended'), icon: RotateCcw, component: DataPageComponent, props: { title: t('suspended'), type: 'suspended', collectionName: 'suspended', fields: [{ key: 'recipientName', label: 'اسم المستلم', required: true }, { key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'notes', label: 'ملاحظات', type: 'textarea' }], handleRefresh } },
-        { key: 'employees', label: t('employees'), icon: Users, component: EmployeePageComponent, props: { handleRefresh } },
-        { key: 'payroll', label: t('payroll'), icon: Calculator, component: PayrollPageComponent, props: { handleRefresh } },
-        { key: 'inventoryEntry', label: t('inventoryEntry'), icon: ClipboardCheck, component: InventoryEntryComponent, props: { handleRefresh } },
-        { key: 'inventory', label: t('inventory'), icon: Package, component: InventoryPageComponent, props: { handleRefresh, handleDataAction } },
-        { key: 'settings', label: t('settings'), icon: Settings, component: SettingsPage, props: { handleSettingsUpdate } },
-    ], [t, data.settings, handleRefresh, handleDataAction, handleSettingsUpdate]);
+    const navItems = [
+        { key: 'dashboard', label: 'الرئيسية', icon: Home, component: DashboardComponent },
+        { key: 'revenues', label: 'الإيرادات', icon: TrendingUp, component: DataPageComponent, props: { title: 'الإيرادات', type: 'revenue', collectionName: 'revenues', categories: data.settings.revenueCategories, fields: [{ key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'category', label: 'فئة الإيراد', type: 'select', required: true }, { key: 'description', label: 'الوصف/المصدر', type: 'textarea' }], handleRefresh } },
+        { key: 'expenses', label: 'الصرفيات', icon: TrendingDown, component: DataPageComponent, props: { title: 'الصرفيات', type: 'expense', collectionName: 'expenses', categories: data.settings.expenseCategories, fields: [{ key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'category', label: 'فئة المصروف', type: 'select', required: true }, { key: 'description', label: 'الوصف المفصل', type: 'textarea', required: true }], handleRefresh } },
+        { key: 'advances', label: 'السلف', icon: Coins, component: DataPageComponent, props: { title: 'السلف', type: 'advance', collectionName: 'advances', categories: data.settings.advanceCategories, fields: [{ key: 'employeeName', label: 'الموظف المعني', type: 'select', required: true }, { key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'category', label: 'فئة السلفة', type: 'select', required: true }, { key: 'notes', label: 'ملاحظات', type: 'textarea' }], handleRefresh } },
+        { key: 'suspended', label: 'المعلقة (قيد التسوية)', icon: RotateCcw, component: DataPageComponent, props: { title: 'المعلقة (قيد التسوية)', type: 'suspended', collectionName: 'suspended', fields: [{ key: 'recipientName', label: 'اسم المستلم', required: true }, { key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'notes', label: 'ملاحظات', type: 'textarea' }], handleRefresh } },
+        { key: 'employees', label: 'الموظفين', icon: Users, component: EmployeePageComponent, props: { handleRefresh } },
+        { key: 'payroll', label: 'الرواتب', icon: Calculator, component: PayrollPageComponent, props: { handleRefresh } },
+        { key: 'inventoryEntry', label: 'الإدخال المخزني', icon: ClipboardCheck, component: InventoryEntryComponent, props: { handleRefresh } },
+        { key: 'inventory', label: 'المخزن والمواد', icon: Package, component: InventoryPageComponent, props: { handleRefresh, handleDataAction } },
+        { key: 'settings', label: 'الإعدادات', icon: Settings, component: SettingsPage, props: { handleSettingsUpdate } },
+    ];
     
     // فلترة عناصر القائمة حسب صلاحيات المستخدم
     const visibleNavItems = useMemo(() => {
@@ -4693,35 +4683,25 @@ const AccountingApp = () => {
                     {/* زر حول النظام */}
                     <button
                         onClick={() => { setIsAboutModalOpen(true); setIsSidebarOpen(false); }}
-                        title={isSidebarCollapsed ? t('aboutSystem') : ''}
+                        title={isSidebarCollapsed ? 'حول النظام' : ''}
                         className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center p-2' : 'text-right p-3'} rounded-xl transition-all duration-200 hover:bg-blue-800/50 dark:hover:bg-gray-700/50 mt-4 border-t-2 border-blue-600 dark:border-gray-700 pt-4 hover:scale-102`}
                     >
                         <Info className={`w-5 h-5 ${!isSidebarCollapsed && 'ml-3'}`} />
-                        {!isSidebarCollapsed && <span className="text-lg">{ t('aboutSystem') }</span>}
+                        {!isSidebarCollapsed && <span className="text-lg">{ 'حول النظام' }</span>}
                     </button>
                     
                     {/* زر الوضع الداكن/الفاتح */}
                     <button
                         onClick={toggleDarkMode}
                         data-testid="button-toggle-theme"
-                        title={isSidebarCollapsed ? (isDarkMode ? t('lightMode') : t('darkMode')) : ''}
+                        title={isSidebarCollapsed ? (isDarkMode ? 'وضع فاتح' : 'وضع داكن') : ''}
                         className={`w-full flex items-center ${isSidebarCollapsed ? "justify-center p-2" : "text-right p-3"} rounded-xl transition-all duration-200 hover:bg-blue-800/50 dark:hover:bg-gray-700/50 hover:scale-102`}
                     >
                         {isDarkMode ? <Sun className={`w-5 h-5 ${!isSidebarCollapsed && "ml-3"}`} /> : <Moon className={`w-5 h-5 ${!isSidebarCollapsed && "ml-3"}`} />}
-                        {!isSidebarCollapsed && <span className="text-lg">{isDarkMode ? t("lightMode") : t("darkMode")}</span>}
+                        {!isSidebarCollapsed && <span className="text-lg">{isDarkMode ? 'وضع فاتح' : 'وضع داكن'}</span>}
                     </button>
                     
-                    {/* زر تبديل اللغة */}
-                    <button
-                        onClick={toggleLanguage}
-                        data-testid="button-toggle-language"
-                        title={isSidebarCollapsed ? (language === 'ar' ? 'English' : 'العربية') : ''}
-                        className={`w-full flex items-center ${isSidebarCollapsed ? "justify-center p-2" : "text-right p-3"} rounded-xl transition-all duration-200 hover:bg-blue-800/50 dark:hover:bg-gray-700/50 hover:scale-102`}
-                    >
-                        <Languages className={`w-5 h-5 ${!isSidebarCollapsed && "ml-3"}`} />
-                        {!isSidebarCollapsed && <span className="text-lg">{t("languageSwitch")}</span>}
-                    </button>
-                </nav>
+                </nav>
             </div>
 
             {/* Main Content Area */}
@@ -4735,9 +4715,6 @@ const AccountingApp = () => {
                 <div className="flex items-center space-x-2 space-x-reverse">
                         <button onClick={toggleDarkMode} className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 hover:scale-110 text-gray-700 dark:text-gray-200">
                             {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-                        </button>
-                        <button onClick={toggleLanguage} data-testid="button-toggle-language-mobile" title={language === 'ar' ? 'English' : 'العربية'} className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 hover:scale-110 text-gray-700 dark:text-gray-200">
-                            <Languages className="w-5 h-5" />
                         </button>
                     </div>
                 </header>
