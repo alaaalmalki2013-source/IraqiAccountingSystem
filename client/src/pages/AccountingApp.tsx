@@ -4673,7 +4673,7 @@ const AccountingApp = () => {
                         <X className="w-6 h-6" />
                     </button>
                 </div>
-                <nav className={`flex-grow ${isSidebarCollapsed ? 'p-2' : 'p-4'} space-y-2 overflow-y-auto transition-all duration-300`}>
+                <nav className={`flex-grow ${isSidebarCollapsed ? 'p-2' : 'p-4'} space-y-2 overflow-y-auto transition-all duration-300 sidebar-scroll`}>
                     {visibleNavItems.map(item => (
                         <button
                             key={item.key}
