@@ -10,7 +10,7 @@ I prefer simple, clear language in explanations. I appreciate an iterative devel
 The system is built as a single-page application with a modern and professional UI/UX, supporting full RTL and responsive design.
 
 ### UI/UX Decisions
--   **Language Support:** Bilingual system supporting Arabic and English with infrastructure for easy switching. Language preference saved in `localStorage`.
+-   **Language Support:** Full bilingual system supporting Arabic and English with real-time language switching via `LanguageContext` and `useLanguage()` hook. Translation function `t(key)` is used throughout all components for seamless UI text translation. Comprehensive translation keys defined in `client/src/translations.ts`. Language preference saved in `localStorage` with proper RTL/LTR direction switching.
 -   **Dark/Light Mode:** Fully functional dark mode with comprehensive support across all components. Toggle switch saves user preference.
 -   **Color Scheme:** Utilizes a modern color palette with primary, secondary, and accent colors, along with functional colors for revenues, expenses, and warnings. All colors include dark mode variants.
 -   **Gradients:** Modern gradients are used for dashboard cards, sidebar, and active buttons.
@@ -41,3 +41,29 @@ The system is built as a single-page application with a modern and professional 
     -   Express.js: Web server.
     -   TypeScript: Programming language.
     -   OpenAI GPT-5 (via Replit AI Integrations): For the intelligent assistant "Alaa" (accessible via `/api/chat` REST API endpoint).
+
+## Recent Updates (October 20, 2025)
+### Comprehensive Bilingual System Implementation
+-   **Translation Infrastructure:** Expanded `client/src/translations.ts` with comprehensive English translation keys matching all Arabic keys (100+ translation pairs)
+-   **Component Architecture:** Updated all React.memo components to receive `t` function as prop for proper translation access:
+    -   `DataPageComponent`: Financial list pages (revenues, expenses, advances, suspended)
+    -   `EmployeePageComponent`: Employee management with full translation support
+    -   `InventoryPageComponent`: Inventory listing with bilingual interface
+    -   `InventoryEntryComponent`: Purchase entry system with translations
+-   **Translation Keys Added:**
+    -   Page titles: `employeesManagement`, `inventoryManagement`, `inventoryEntryManagement`, `payrollManagement`
+    -   UI elements: `globalSearch`, `dateAndTime`, `procedures`, `vendorAndRep`, `stockCount`, `stockQuantity`
+    -   Filter labels: `filterByCategory`, `tableFilters`, `dateFrom`, `dateTo`, `filteredTotal`
+    -   Action buttons: `addRevenue2`, `addExpense2`, `addAdvance2`, `printAll`, `exportAll`, `details`
+    -   Material details: `materialDetails`, `currentUnitPrice`, `purchaseHistoryTitle`, `printBarcodeSticker`
+    -   Messages: `noDataToExport`, `noDataToPrint`, `exportedSuccessfully`, `mustSelectVendorRep`
+-   **Technical Fixes:**
+    -   Fixed computed property names for dynamic object keys using `[t('key')]` syntax
+    -   Corrected template literal usage with translation calls
+    -   Added `t` prop passing through PageComponent to all child components
+    -   Verified LSP compliance with zero errors
+-   **Testing:** Comprehensive E2E testing completed successfully:
+    -   Language toggle functionality verified across all pages
+    -   Employee and Inventory pages load correctly in both languages
+    -   All UI elements translate properly
+    -   No runtime errors or blocking issues

@@ -156,7 +156,7 @@ const InputField = React.memo(({ label, type = 'text', value, onChange, placehol
     </div>
 ));
 
-// زر الإجراءات
+// زر {t('procedures')}
 const ActionButton = ({ onClick, children, className = 'bg-teal-600 hover:bg-teal-700', type = 'button', disabled = false }) => ( 
     <button
         onClick={onClick}
@@ -299,7 +299,7 @@ const PrintInvoice = React.memo(({ item, onClose, companyName, companyLogoUrl, e
                                 رقم الفاتورة: <span style={{ fontWeight: 'bold' }}>{item.invoiceNumber}</span>
                             </p>
                             <p style={{ fontSize: paperSize === 'A4' ? '12px' : '10px', margin: '0' }}>
-                                التاريخ والوقت: <span style={{ fontWeight: 'bold' }}>{formatDate(item.date)}</span>
+                                {t('dateAndTime')}: <span style={{ fontWeight: 'bold' }}>{formatDate(item.date)}</span>
                             </p>
                         </div>
                     </div>
@@ -787,7 +787,7 @@ const DataPageComponent = React.memo(({ 
         
         // تحقق إضافي لحقول المصروفات
         if (collectionName === 'expenses' && (!itemToSave.vendor || !itemToSave.representative)) {
-            showToast('يجب اختيار المورد والمندوب للمصروف.', 'error');
+            showToast(t('mustSelectVendorRep'), 'error');
             return;
         }
 
@@ -811,12 +811,12 @@ const DataPageComponent = React.memo(({ 
     
     const handlePrintAll = () => {
         if (filteredList.length === 0) {
-             showToast('لا توجد بيانات لطباعة التقرير.', "error");
+             showToast(t('noDataToPrint'), "error");
              return;
         }
         const exportContent = filteredList.map(item => {
             const baseItem = {
-                'التاريخ والوقت': new Date(item.date).toLocaleString('en-US'),
+                [t('dateAndTime')]: new Date(item.date).toLocaleString('en-US'),
                 'رقم الفاتورة': item.invoiceNumber || 'N/A',
                 'المبلغ (د.ع.)': formatCurrencyDisplay(item.amount || 0),
                 'الجهة المعنية': item.category || (item.employeeId ? data.employees.find(e => e.id === item.employeeId)?.name : item.recipientName) || 'N/A',
@@ -825,7 +825,7 @@ const DataPageComponent = React.memo(({ 
             if (collectionName === 'expenses') {
                 return {
                     ...baseItem,
-                    'المورد والمندوب': `${item.vendor || 'N/A'} (${item.representative || 'N/A'})`,
+                    [t('vendorAndRep')]: `${item.vendor || 'N/A'} (${item.representative || 'N/A'})`,
                 };
             }
             return baseItem;
@@ -837,13 +837,13 @@ const DataPageComponent = React.memo(({ 
 
     const handleExportAll = () => {
         if (filteredList.length === 0) {
-             showToast('لا توجد بيانات للتصدير.', "error");
+             showToast(t('noDataToExport'), "error");
              return;
         }
         
         const exportContent = filteredList.map(item => {
             const baseItem = {
-                'التاريخ والوقت': new Date(item.date).toLocaleString('en-US'),
+                [t('dateAndTime')]: new Date(item.date).toLocaleString('en-US'),
                 'رقم الفاتورة': item.invoiceNumber || 'N/A',
                 'المبلغ (د.ع.)': parseFloat(item.amount || 0), // يتم التصدير كرقم ليسهل الحساب
                 'الجهة المعنية': item.category || (item.employeeId ? data.employees.find(e => e.id === item.employeeId)?.name : item.recipientName) || 'N/A',
@@ -862,7 +862,7 @@ const DataPageComponent = React.memo(({ 
         });
 
         exportToCsv(exportContent, `${title}_تقرير`);
-        showToast('تم تصدير البيانات إلى Excel بنجاح!', "success");
+        showToast(t('exportedSuccessfully'), "success");
     };
 
     const filteredReps = data.settings.representatives.filter(rep => rep.vendor === selectedVendor);
@@ -875,8 +875,8 @@ const DataPageComponent = React.memo(({ 
             <div className="flex justify-between items-center">
                  <ActionButton onClick={() => openModal()} className="bg-green-600 hover:bg-green-700" disabled={!!initialExpenseState && collectionName === 'expenses' && isModalOpen}>
                     <Plus className="w-5 h-5 ml-2" />
-                    {type === 'suspended' ? 'إضافة مبلغ معلق' : type === 'revenue' ? 'إضافة إيراد' : type === 'expense' ? 'إضافة مصروف' : 'إضافة سلفة'}
-                    {!!initialExpenseState && collectionName === 'expenses' && ' (معلومات من المخزن)'}
+                    {type === 'suspended' ? 'إضافة مبلغ معلق' : type === 'revenue' ? t('addRevenue2') : type === 'expense' ? t('addExpense2') : t('addAdvance2')}
+                    {!!initialExpenseState && collectionName === 'expenses' && t('infoFromInventory')}
                 </ActionButton>
                 
                 <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
@@ -922,18 +922,18 @@ const DataPageComponent = React.memo(({ 
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 items-center">
                     <div className="col-span-1 text-xl font-bold p-4 rounded-xl bg-teal-50 dark:bg-teal-900/30 text-teal-800 dark:text-teal-200 flex flex-col items-center justify-center shadow-md border-t-4 border-teal-600 dark:border-teal-400">
                         <Calculator className="w-6 h-6 mb-1" />
-                        <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">المجموع المفلتر:</span>
+                        <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t('filteredTotal')}:</span>
                         <span className="font-extrabold text-2xl mt-1">
                             {formatCurrencyDisplay(totalFilteredAmount)}
                         </span>
                     </div>
 
                     <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-xl bg-gray-50 dark:bg-gray-700 shadow-inner">
-                        <h3 className="md:col-span-3 w-full text-lg font-semibold text-gray-700 dark:text-gray-300 flex items-center border-b pb-2 mb-2"><Filter className="w-5 h-5 ml-2" /> فلاتر الجدول</h3>
+                        <h3 className="md:col-span-3 w-full text-lg font-semibold text-gray-700 dark:text-gray-300 flex items-center border-b pb-2 mb-2"><Filter className="w-5 h-5 ml-2" /> {t('tableFilters')}</h3>
                         
                         {(type === 'expense' || type === 'suspended' || type === 'revenue' || type === 'advance') && (
                             <div className="md:col-span-3 flex flex-col space-y-1 relative">
-                                <label className="text-sm font-medium text-gray-600 dark:text-gray-400">البحث الشامل</label>
+                                <label className="text-sm font-medium text-gray-600 dark:text-gray-400">{t('globalSearch')}</label>
                                 <input
                                     type="text"
                                     value={globalSearch}
@@ -948,7 +948,7 @@ const DataPageComponent = React.memo(({ 
                         {collectionName !== 'suspended' && (
                             <>
                                 <div className="flex flex-col space-y-1">
-                                    <label className="text-sm font-medium text-gray-600 dark:text-gray-400">التاريخ من</label>
+                                    <label className="text-sm font-medium text-gray-600 dark:text-gray-400">{t('dateFrom')}</label>
                                     <input
                                         type="date"
                                         value={filterDateFrom}
@@ -958,7 +958,7 @@ const DataPageComponent = React.memo(({ 
                                 </div>
 
                                 <div className="flex flex-col space-y-1">
-                                    <label className="text-sm font-medium text-gray-600 dark:text-gray-400">التاريخ إلى</label>
+                                    <label className="text-sm font-medium text-gray-600 dark:text-gray-400">{t('dateTo')}</label>
                                     <input
                                         type="date"
                                         value={filterDateTo}
@@ -1003,18 +1003,18 @@ const DataPageComponent = React.memo(({ 
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50 dark:bg-gray-600 rounded-t-xl">
                         <tr>
-                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">التاريخ والوقت</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">{t('dateAndTime')}</th>
                             {fields.map(field => (
                                 <th key={field.key} className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">{field.label}</th>
                             ))}
-                            {collectionName === 'expenses' && <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">المورد والمندوب</th>}
+                            {collectionName === 'expenses' && <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">{t('vendorAndRep')}</th>}
                             <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">رقم الفاتورة</th>
-                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">الإجراءات</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">{t('procedures')}</th>
                         </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
                         {filteredList.length === 0 ? (
-                            <tr><td colSpan={fields.length + (collectionName === 'expenses' ? 4 : 3)} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">لا توجد سجلات متاحة تتوافق مع الفلاتر.</td></tr>
+                            <tr><td colSpan={fields.length + (collectionName === 'expenses' ? 4 : 3)} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">{t('noRecordsMatch')}.</td></tr>
                         ) : (
                             filteredList.map(item => (
                                 <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150">
@@ -1229,7 +1229,7 @@ const DataPageComponent = React.memo(({ 
 /**
  * 3.3. EmployeePage Component
  */
-const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete, setPrintReportData, setIsReportModalOpen, showToast, handleRefresh }) => {
+const EmployeePageComponent = React.memo(({ data, handleDataAction, t, handleDelete, setPrintReportData, setIsReportModalOpen, showToast, handleRefresh }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     const [currentEmployee, setCurrentEmployee] = useState(null);
@@ -1300,7 +1300,7 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
 
     const handlePrintAll = () => {
              if (filteredList.length === 0) {
-                 showToast('لا توجد بيانات لطباعة التقرير.', "error");
+                 showToast(t('noDataToPrint'), "error");
                  return;
              }
             
@@ -1319,7 +1319,7 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
     
     const handleExportAll = () => {
         if (filteredList.length === 0) {
-             showToast('لا توجد بيانات للتصدير.', "error");
+             showToast(t('noDataToExport'), "error");
              return;
            }
             
@@ -1333,17 +1333,17 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
             'رابط المستندات': item.docUrl || 'N/A',
         }));
 
-        exportToCsv(exportContent, `تقرير_الموظفين`);
-        showToast('تم تصدير البيانات إلى Excel بنجاح!', "success");
+        exportToCsv(exportContent, t('employeeReport'));
+        showToast(t('exportedSuccessfully'), "success");
     };
 
 
     return (
         <div className="p-6 space-y-6 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl">
-            <h2 className="text-4xl font-extrabold text-gray-800 dark:text-gray-200 border-b-2 border-teal-500 pb-3">إدارة الموظفين </h2>
+            <h2 className="text-4xl font-extrabold text-gray-800 dark:text-gray-200 border-b-2 border-teal-500 pb-3">{t('employeesManagement')}</h2>
             
             <div className="bg-white dark:bg-gray-700 p-4 rounded-xl shadow-lg border border-teal-100 dark:border-teal-700 relative">
-                 <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">البحث الشامل</label>
+                 <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">{t('globalSearch')}</label>
                 <input
                     type="text"
                     value={globalSearch}
@@ -1381,7 +1381,7 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
                             <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">تاريخ الميلاد</th>
                             <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">القسم</th>
                             <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">الراتب الأساسي (د.ع.)</th>
-                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">الإجراءات</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">{t('procedures')}</th>
                         </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
@@ -1777,7 +1777,7 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                             <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">السلف</th>
                             <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">الراتب الصافي</th>
                             <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">الحالة</th>
-                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">الإجراءات</th>
+                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">{t('procedures')}</th>
                         </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
@@ -1997,7 +1997,7 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                                 data-testid="button-print-payslip"
                             >
                                 <Printer className="w-5 h-5" />
-                                🖨️ طباعة الآن
+                                🖨️ {t('printNow')}
                             </button>
                         </div>
 
@@ -2050,7 +2050,7 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
 /**
  * 3.4. InventoryPage Component (عرض المخزون)
  */
-const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, handleDataAction }) => {
+const InventoryPageComponent = React.memo(({ data, showToast, t, handleRefresh, handleDataAction }) => {
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     const [currentItem, setCurrentItem] = useState(null);
     const [globalSearch, setGlobalSearch] = useState('');
@@ -2204,12 +2204,12 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
     const formatPurchaseHistory = (history) => (
         <div className="space-y-3 max-h-48 overflow-y-auto mt-2 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600">
             {history.length === 0 ? (
-                <p className="text-gray-500 dark:text-gray-400 italic">لا يوجد سجل مشتريات لهذه المادة.</p>
+                <p className="text-gray-500 dark:text-gray-400 italic">{t('noPurchaseHistory')}.</p>
             ) : (
                 <table className="min-w-full text-sm">
                     <thead>
                         <tr className="bg-gray-100 dark:bg-gray-600">
-                            <th className="px-2 py-1 text-right font-bold text-gray-700 dark:text-gray-300">تاريخ الشراء</th>
+                            <th className="px-2 py-1 text-right font-bold text-gray-700 dark:text-gray-300">{t('purchaseDate')}</th>
                             <th className="px-2 py-1 text-right font-bold text-gray-700 dark:text-gray-300">السعر</th>
                             <th className="px-2 py-1 text-right font-bold text-gray-700 dark:text-gray-300">الكمية</th>
                             <th className="px-2 py-1 text-right font-bold text-gray-700 dark:text-gray-300">المورد</th>
@@ -2232,11 +2232,11 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
     
     return (
         <div className="p-6 space-y-6 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl">
-            <h2 className="text-4xl font-extrabold text-gray-800 dark:text-gray-200 border-b-2 border-teal-500 pb-3">المخزن (المواد المتوفرة) </h2>
+            <h2 className="text-4xl font-extrabold text-gray-800 dark:text-gray-200 border-b-2 border-teal-500 pb-3">{t('inventoryManagement')}</h2>
 
-            {/* البحث الشامل */}
+            {/* {t('globalSearch')} */}
             <div className="bg-white dark:bg-gray-700 p-4 rounded-xl shadow-lg border border-teal-100 dark:border-teal-700 relative">
-                 <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">البحث الشامل</label>
+                 <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">{t('globalSearch')}</label>
                 <input
                     type="text"
                     value={globalSearch}
@@ -2262,13 +2262,13 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
                             <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">الفئة</th>
                             <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">الباركود</th>
                             <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">سعر القطعة (د.ع.)</th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">العدد في المخزن</th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">الإجراءات</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">{t('stockCount')}</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">{t('procedures')}</th>
                         </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
                         {filteredList.length === 0 ? (
-                            <tr><td colSpan="6" className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">لا توجد مواد مضافة في المخزن.</td></tr>
+                            <tr><td colSpan="6" className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">{t('noMaterialsInInventory')}.</td></tr>
                         ) : (
                             filteredList.map(item => (
                                 <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150" data-testid={`row-inventory-${item.id}`}>
@@ -2291,11 +2291,11 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
                 </table>
             </div>
             
-            {/* Modal تفاصيل المادة */}
+            {/* Modal {t('materialDetails')} */}
             {isDetailsModalOpen && currentItem && (
-                <Modal title={`تفاصيل المادة: ${currentItem.name}`} onClose={() => setIsDetailsModalOpen(false)} size="xl">
+                <Modal title={`{t('materialDetails')}: ${currentItem.name}`} onClose={() => setIsDetailsModalOpen(false)} size="xl">
                     <div className="space-y-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl">
-                        <h4 className="text-xl font-bold text-gray-800 dark:text-gray-200 border-b pb-2 mb-4">معلومات المادة</h4>
+                        <h4 className="text-xl font-bold text-gray-800 dark:text-gray-200 border-b pb-2 mb-4">{t('materialInfo')}</h4>
                         
                         {currentItem.invoiceImageUrl && (
                             <div className="text-center mb-4">
@@ -2306,10 +2306,10 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
 
                         <p className="flex items-center text-lg dark:text-gray-200"><List className="w-5 h-5 ml-2 text-indigo-500" /> **الفئة:** {currentItem.category}</p>
                         <p className="flex items-center text-lg dark:text-gray-200"><List className="w-5 h-5 ml-2 text-indigo-500" /> **الباركود:** {currentItem.barcode || 'N/A'}</p>
-                        <p className="flex items-center text-lg dark:text-gray-200"><Coins className="w-5 h-5 ml-2 text-indigo-500" /> **سعر الوحدة الحالي:** {formatCurrencyDisplay(currentItem.price)}</p>
-                        <p className="flex items-center text-lg dark:text-gray-200"><Package className="w-5 h-5 ml-2 text-indigo-500" /> **الكمية في المخزن:** <span className="font-bold text-teal-600 dark:text-teal-400">{currentItem.count}</span></p>
+                        <p className="flex items-center text-lg dark:text-gray-200"><Coins className="w-5 h-5 ml-2 text-indigo-500" /> **{t('currentUnitPrice')}:** {formatCurrencyDisplay(currentItem.price)}</p>
+                        <p className="flex items-center text-lg dark:text-gray-200"><Package className="w-5 h-5 ml-2 text-indigo-500" /> **{t('stockQuantity')}:** <span className="font-bold text-teal-600 dark:text-teal-400">{currentItem.count}</span></p>
                         
-                        {/* زر معاينة ستكر الباركود */}
+                        {/* زر {t('barcodePreview')} */}
                         <div className="pt-3 pb-2">
                             <ActionButton 
                                 onClick={() => openPrintPreview(currentItem)} 
@@ -2321,7 +2321,7 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
                             </ActionButton>
                         </div>
                         
-                        <h4 className="text-xl font-bold text-gray-800 dark:text-gray-200 border-b pb-2 pt-4 mb-2 flex items-center"><CalendarCheck className="w-5 h-5 ml-2 text-teal-600" /> سجل الشراء (تاريخ وسعر التكلفة)</h4>
+                        <h4 className="text-xl font-bold text-gray-800 dark:text-gray-200 border-b pb-2 pt-4 mb-2 flex items-center"><CalendarCheck className="w-5 h-5 ml-2 text-teal-600" /> {t('purchaseHistoryTitle')}</h4>
                         {formatPurchaseHistory(currentItem.purchaseHistory || [])}
 
                     </div>
@@ -2334,7 +2334,7 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
                     <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto transform transition-all duration-300 scale-100" onClick={e => e.stopPropagation()}>
                         {/* رأس المودال */}
                         <div className="flex justify-between items-center p-4 border-b border-indigo-100 dark:border-indigo-700 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-t-3xl">
-                            <h3 className="text-xl font-bold text-white flex-grow text-center">معاينة ستكر الباركود 🏷️</h3> 
+                            <h3 className="text-xl font-bold text-white flex-grow text-center">{t('barcodePreview')} 🏷️</h3> 
                             <button onClick={() => setIsPrintPreviewOpen(false)} className="text-white hover:text-gray-200 transition p-1 bg-white/20 rounded-full">
                                 <X className="w-6 h-6" />
                             </button>
@@ -2348,7 +2348,7 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
                                 data-testid="button-print-now"
                             >
                                 <Printer className="w-5 h-5" />
-                                🖨️ طباعة الآن
+                                🖨️ {t('printNow')}
                             </button>
                         </div>
                         
@@ -2411,7 +2411,7 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
                         
                         {/* معلومات الأبعاد */}
                         <div className="p-4 print:hidden text-center text-sm text-gray-600 dark:text-gray-400">
-                            📏 الأبعاد: 50mm × 30mm
+                            📏 {t('stickerDimensions')}
                         </div>
                     </div>
                 </div>
@@ -2424,7 +2424,7 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
 /**
  * 3.5. InventoryEntryComponent (الادخال المخزني)
  */
-const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDelete, setCurrentPage, showToast, setInitialExpenseState, handleRefresh }) => {
+const InventoryEntryComponent = React.memo(({ data, handleDataAction, t, handleDelete, setCurrentPage, showToast, setInitialExpenseState, handleRefresh }) => {
     const [isNewInvoiceModalOpen, setIsNewInvoiceModalOpen] = useState(false);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     const [isCancelModalOpen, setIsCancelModalOpen] = useState(false); 
@@ -2664,7 +2664,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
     const filteredInvoices = useMemo(() => {
         let list = data.pendingInvoices.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
         
-        // الفلترة حسب البحث الشامل
+        // الفلترة حسب {t('globalSearch')}
         if (globalSearch) {
             const searchLower = normalizeTextForSearch(globalSearch); 
             const searchNumeric = normalizeTextForSearch(globalSearch, true); 
@@ -2872,7 +2872,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
 
     return (
         <div className="p-6 space-y-6 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl">
-            <h2 className="text-4xl font-extrabold text-gray-800 dark:text-gray-200 border-b-2 border-teal-500 pb-3">إدارة الإدخال المخزني </h2>
+            <h2 className="text-4xl font-extrabold text-gray-800 dark:text-gray-200 border-b-2 border-teal-500 pb-3">{t('inventoryEntryManagement')}</h2>
 
             <div className="flex justify-between items-center flex-wrap gap-4">
                  <ActionButton onClick={() => setIsNewInvoiceModalOpen(true)} className="bg-indigo-600 hover:bg-indigo-700">
@@ -2947,7 +2947,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                         <tr>
                             <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">رقم فاتورة المورد</th>
                             <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">تاريخ الإدخال</th>
-                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">المورد والمندوب</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">{t('vendorAndRep')}</th>
                             <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">عدد المواد</th>
                             <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">الإجمالي (د.ع.)</th>
                             <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">الحالة والإجراء</th>
@@ -3772,7 +3772,7 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
                                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase">اسم المستخدم</th>
                                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase">البريد الإلكتروني</th>
                                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase">الصلاحيات الأساسية</th>
-                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase">الإجراءات</th>
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase">{t('procedures')}</th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
@@ -4017,7 +4017,7 @@ const InventoryDispatchComponent = React.memo(({ data, handleDataAction, showToa
                                 <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">الموظف المستلم</th>
                                 <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">عدد المواد</th>
                                 <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">التكلفة الإجمالية (د.ع.)</th>
-                                <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">الإجراءات</th>
+                                <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">{t('procedures')}</th>
                             </tr>
                         </thead>
                         <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
@@ -4053,7 +4053,7 @@ const InventoryDispatchComponent = React.memo(({ data, handleDataAction, showToa
                             بيانات الصرف
                         </h4>
                         <p className="font-medium text-gray-700 dark:text-gray-300">**الموظف:** {currentDispatch.employeeName}</p>
-                        <p className="font-medium text-gray-700 dark:text-gray-300">**التاريخ والوقت:** {new Date(currentDispatch.date).toLocaleString('en-US')}</p>
+                        <p className="font-medium text-gray-700 dark:text-gray-300">**{t('dateAndTime')}:** {new Date(currentDispatch.date).toLocaleString('en-US')}</p>
                         <p className="font-medium text-gray-700 dark:text-gray-300">**الملاحظات:** {currentDispatch.notes || 'لا توجد ملاحظات.'}</p>
                         
                         <h5 className="text-lg font-bold text-gray-800 dark:text-gray-200 border-b pb-2 pt-4">المواد المصروفة:</h5>
@@ -4761,6 +4761,7 @@ const AccountingApp = () => {
                             handleRefresh={handleRefresh}
                             currentUser={currentUserForApp} // تمرير صلاحيات المستخدم الافتراضي
                             onNavigateAttempt={handleSettingsNavigation} // تمرير دالة التنقل الخاصة بـ SettingsPage
+                            t={t}
                             {...pageProps}
                         />
                     )}

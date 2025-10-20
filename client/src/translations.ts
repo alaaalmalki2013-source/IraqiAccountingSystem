@@ -229,6 +229,71 @@ export const translations = {
     iqd: 'د.ع',
     piece: 'قطعة',
     unit: 'وحدة',
+    
+    // Page Titles & Headers
+    employeesManagement: 'إدارة الموظفين',
+    inventoryManagement: 'المخزن (المواد المتوفرة)',
+    inventoryEntryManagement: 'إدارة الإدخال المخزني',
+    payrollManagement: 'إدارة الرواتب',
+    
+    // Table Headers & Labels
+    dateAndTime: 'التاريخ والوقت',
+    description: 'الوصف',
+    notes: 'ملاحظات',
+    amount: 'المبلغ',
+    category: 'الفئة',
+    vendorAndRep: 'المورد والمندوب',
+    stockCount: 'العدد في المخزن',
+    procedures: 'الإجراءات',
+    noData: 'لا توجد بيانات',
+    noRecordsMatch: 'لا توجد سجلات متاحة تتوافق مع الفلاتر',
+    noMaterialsInInventory: 'لا توجد مواد مضافة في المخزن',
+    stockQuantity: 'الكمية في المخزن',
+    employeeReport: 'تقرير_الموظفين',
+    
+    // Filter & Search
+    globalSearch: 'البحث الشامل',
+    searchPlaceholder: 'اكتب كلمة أو مبلغ للبحث السلس...',
+    searchInventoryPlaceholder: 'ابحث باسم المادة، الباركود، الفئة...',
+    filterByCategory: 'فلترة حسب فئة',
+    revenueCategory2: 'الإيراد',
+    expenseCategory2: 'الصرف',
+    tableFilters: 'فلاتر الجدول',
+    dateFrom: 'التاريخ من',
+    dateTo: 'التاريخ إلى',
+    filteredTotal: 'المجموع المفلتر',
+    
+    // Buttons & Actions  
+    addRevenue2: 'إضافة إيراد',
+    addExpense2: 'إضافة مصروف',
+    addAdvance2: 'إضافة سلفة',
+    addSuspendedAmount: 'إضافة مبلغ معلق',
+    infoFromInventory: '(معلومات من المخزن)',
+    printAll: 'طباعة الكل',
+    exportAll: 'تصدير الكل',
+    refresh: 'تحديث',
+    details: 'تفاصيل',
+    
+    // Material Details
+    materialDetails: 'تفاصيل المادة',
+    materialInfo: 'معلومات المادة',
+    invoiceDocument: 'صورة الفاتورة/المستند',
+    currentUnitPrice: 'سعر الوحدة الحالي',
+    purchaseHistoryTitle: 'سجل الشراء (تاريخ وسعر التكلفة)',
+    noPurchaseHistory: 'لا يوجد سجل مشتريات لهذه المادة',
+    purchaseDate: 'تاريخ الشراء',
+    price: 'السعر',
+    supplier: 'المورد',
+    printBarcodeSticker: 'معاينة و طباعة ستكر الباركود (50mm × 30mm)',
+    barcodePreview: 'معاينة ستكر الباركود',
+    stickerDimensions: 'الأبعاد: 50mm × 30mm',
+    printNow: 'طباعة الآن',
+    
+    // Common Messages
+    noDataToExport: 'لا توجد بيانات للتصدير',
+    noDataToPrint: 'لا توجد بيانات لطباعة التقرير',
+    exportedSuccessfully: 'تم تصدير البيانات إلى Excel بنجاح!',
+    mustSelectVendorRep: 'يجب اختيار المورد والمندوب للمصروف',
   },
   
   en: {
@@ -454,6 +519,71 @@ export const translations = {
     iqd: 'IQD',
     piece: 'Piece',
     unit: 'Unit',
+    
+    // Page Titles & Headers
+    employeesManagement: 'Employee Management',
+    inventoryManagement: 'Inventory (Available Materials)',
+    inventoryEntryManagement: 'Inventory Entry Management',
+    payrollManagement: 'Payroll Management',
+    
+    // Table Headers & Labels
+    dateAndTime: 'Date & Time',
+    description: 'Description',
+    notes: 'Notes',
+    amount: 'Amount',
+    category: 'Category',
+    vendorAndRep: 'Vendor & Representative',
+    stockCount: 'Stock Count',
+    procedures: 'Actions',
+    noData: 'No Data',
+    noRecordsMatch: 'No records match the current filters',
+    noMaterialsInInventory: 'No materials added to inventory',
+    stockQuantity: 'Stock Quantity',
+    employeeReport: 'Employee_Report',
+    
+    // Filter & Search
+    globalSearch: 'Global Search',
+    searchPlaceholder: 'Type a keyword or amount to search...',
+    searchInventoryPlaceholder: 'Search by material name, barcode, category...',
+    filterByCategory: 'Filter by',
+    revenueCategory2: 'Revenue',
+    expenseCategory2: 'Expense',
+    tableFilters: 'Table Filters',
+    dateFrom: 'Date From',
+    dateTo: 'Date To',
+    filteredTotal: 'Filtered Total',
+    
+    // Buttons & Actions  
+    addRevenue2: 'Add Revenue',
+    addExpense2: 'Add Expense',
+    addAdvance2: 'Add Advance',
+    addSuspendedAmount: 'Add Suspended Amount',
+    infoFromInventory: '(Info from Inventory)',
+    printAll: 'Print All',
+    exportAll: 'Export All',
+    refresh: 'Refresh',
+    details: 'Details',
+    
+    // Material Details
+    materialDetails: 'Material Details',
+    materialInfo: 'Material Information',
+    invoiceDocument: 'Invoice/Document Image',
+    currentUnitPrice: 'Current Unit Price',
+    purchaseHistoryTitle: 'Purchase History (Date & Cost Price)',
+    noPurchaseHistory: 'No purchase history for this material',
+    purchaseDate: 'Purchase Date',
+    price: 'Price',
+    supplier: 'Supplier',
+    printBarcodeSticker: 'Preview & Print Barcode Sticker (50mm × 30mm)',
+    barcodePreview: 'Barcode Sticker Preview',
+    stickerDimensions: 'Dimensions: 50mm × 30mm',
+    printNow: 'Print Now',
+    
+    // Common Messages
+    noDataToExport: 'No data to export',
+    noDataToPrint: 'No data to print report',
+    exportedSuccessfully: 'Data exported to Excel successfully!',
+    mustSelectVendorRep: 'Must select vendor and representative for expense',
   }
 };
 
