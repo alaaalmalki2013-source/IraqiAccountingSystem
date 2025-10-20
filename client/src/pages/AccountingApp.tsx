@@ -2977,7 +2977,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                         </h4>
                         
                         {invoiceForm.items.length === 0 ? (
-                            <div className="text-center p-6 bg-yellow-50 dark:bg-yellow-900 border border-yellow-200 rounded-xl text-yellow-800">الرجاء إضافة مواد إلى الفاتورة.</div>
+                            <div className="text-center p-6 bg-yellow-50 dark:bg-yellow-900 border border-yellow-200 dark:border-yellow-600 rounded-xl text-yellow-800 dark:text-yellow-200">الرجاء إضافة مواد إلى الفاتورة.</div>
                         ) : (
                             <div className="overflow-x-auto shadow-md rounded-xl">
                                 <table className="min-w-full divide-y divide-gray-200">
