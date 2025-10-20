@@ -2787,7 +2787,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                     <div 
                         onClick={() => handleFilterClick('Pending')}
                         className={`text-xl font-bold p-4 rounded-xl shadow-md border-t-4 cursor-pointer transition transform hover:scale-[1.03] min-w-[150px] flex flex-col items-center justify-center 
-                        ${isFilterActive('Pending') ? 'bg-yellow-200 border-yellow-800 ring-4 ring-yellow-400' : 'bg-yellow-50 dark:bg-yellow-900 text-yellow-800 border-yellow-600'}`}
+                        ${isFilterActive('Pending') ? 'bg-yellow-200 dark:bg-yellow-700 text-yellow-900 dark:text-yellow-200 border-yellow-800 ring-4 ring-yellow-400' : 'bg-yellow-50 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 border-yellow-600'}`}
                     >
                         <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 ml-1">معلقة:</span>
                         <span className="font-extrabold text-2xl">{stats.pendingCount}</span>
@@ -2796,7 +2796,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                     <div 
                         onClick={() => handleFilterClick('Dispatched')}
                         className={`text-xl font-bold p-4 rounded-xl shadow-md border-t-4 cursor-pointer transition transform hover:scale-[1.03] min-w-[150px] flex flex-col items-center justify-center 
-                         ${isFilterActive('Dispatched') ? 'bg-green-200 border-green-800 ring-4 ring-green-400' : 'bg-green-50 dark:bg-green-900 text-green-800 border-green-600'}`}
+                         ${isFilterActive('Dispatched') ? 'bg-green-200 dark:bg-green-700 text-green-900 dark:text-green-200 border-green-800 ring-4 ring-green-400' : 'bg-green-50 dark:bg-green-900 text-green-800 dark:text-green-200 border-green-600'}`}
                     >
                          <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 ml-1">معتمدة كاش:</span>
                         <span className="font-extrabold text-2xl">{stats.cashCount}</span>
@@ -2805,7 +2805,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                     <div 
                         onClick={() => handleFilterClick('CreditApproved')}
                         className={`text-xl font-bold p-4 rounded-xl shadow-md border-t-4 cursor-pointer transition transform hover:scale-[1.03] min-w-[150px] flex flex-col items-center justify-center 
-                         ${isFilterActive('CreditApproved') ? 'bg-blue-200 border-blue-800 ring-4 ring-blue-400' : 'bg-blue-50 dark:bg-blue-900 text-blue-800 border-blue-600'}`}
+                         ${isFilterActive('CreditApproved') ? 'bg-blue-200 dark:bg-blue-700 text-blue-900 dark:text-blue-200 border-blue-800 ring-4 ring-blue-400' : 'bg-blue-50 dark:bg-blue-900 text-blue-800 dark:text-blue-200 border-blue-600'}`}
                     >
                          <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 ml-1">معتمدة آجل:</span>
                         <span className="font-extrabold text-2xl">{stats.creditCount}</span>
@@ -2814,7 +2814,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                     <div 
                         onClick={() => handleFilterClick('Cancelled')}
                         className={`text-xl font-bold p-4 rounded-xl shadow-md border-t-4 cursor-pointer transition transform hover:scale-[1.03] min-w-[150px] flex flex-col items-center justify-center 
-                         ${isFilterActive('Cancelled') ? 'bg-red-200 border-red-800 ring-4 ring-red-400' : 'bg-red-50 dark:bg-red-900 text-red-800 border-red-600'}`}
+                         ${isFilterActive('Cancelled') ? 'bg-red-200 dark:bg-red-700 text-red-900 dark:text-red-200 border-red-800 ring-4 ring-red-400' : 'bg-red-50 dark:bg-red-900 text-red-800 dark:text-red-200 border-red-600'}`}
                     >
                         <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 ml-1">ملغاة:</span>
                         <span className="font-extrabold text-2xl">{stats.cancelledCount}</span>
