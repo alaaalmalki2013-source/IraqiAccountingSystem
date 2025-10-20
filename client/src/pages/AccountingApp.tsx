@@ -1148,7 +1148,7 @@ const DataPageComponent = React.memo(({ 
                                     value={globalSearch}
                                     onChange={(e) => setGlobalSearch(e.target.value)}
                                     placeholder="اكتب كلمة أو مبلغ للبحث السلس..."
-                                    className="p-3 border border-gray-300 dark:border-gray-600 rounded-xl pr-10 focus:ring-amber-500 focus:border-amber-500"
+                                    className="p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl pr-10 focus:ring-amber-500 focus:border-amber-500"
                                 />
                                 <Search className="w-5 h-5 absolute right-3 top-1/2 transform translate-y-1/2 text-gray-400 mt-2" />
                             </div>
@@ -1162,7 +1162,7 @@ const DataPageComponent = React.memo(({ 
                                         type="date"
                                         value={filterDateFrom}
                                         onChange={(e) => setFilterDateFrom(e.target.value)}
-                                        className="p-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-teal-500 focus:border-teal-500"
+                                        className="p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500"
                                     />
                                 </div>
 
@@ -1172,7 +1172,7 @@ const DataPageComponent = React.memo(({ 
                                         type="date"
                                         value={filterDateTo}
                                         onChange={(e) => setFilterDateTo(e.target.value)}
-                                        className="p-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-teal-500 focus:border-teal-500"
+                                        className="p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500"
                                     />
                                 </div>
 
@@ -1183,7 +1183,7 @@ const DataPageComponent = React.memo(({ 
                                         <select
                                             value={filterCategory}
                                             onChange={(e) => setFilterCategory(e.target.value)}
-                                            className="p-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-teal-500 focus:border-teal-500"
+                                            className="p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500"
                                         >
                                             <option value="الكل">الكل</option>
                                             {categories.map(cat => (
@@ -2353,7 +2353,7 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
                     value={globalSearch}
                     onChange={(e) => setGlobalSearch(e.target.value)}
                     placeholder="ابحث باسم المادة، الباركود، الفئة..."
-                    className="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 rounded-xl pr-10 focus:ring-amber-500 focus:border-amber-500"
+                    className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl pr-10 focus:ring-amber-500 focus:border-amber-500"
                     data-testid="input-inventory-search"
                 />
                 <Search className="w-5 h-5 absolute right-3 top-1/2 transform translate-y-1/2 text-gray-400 mt-2" />
