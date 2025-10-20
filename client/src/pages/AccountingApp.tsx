@@ -2120,35 +2120,34 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
                         height: 30mm;
                         display: flex;
                         flex-direction: column;
-                        justify-content: space-between;
+                        justify-content: center;
                         align-items: center;
+                        gap: 2mm;
                         border: 2px solid #000;
-                        padding: 2mm;
+                        padding: 3mm;
                         background: white;
                     }
                     
                     .item-name {
-                        font-size: 10pt;
                         font-weight: bold;
                         text-align: center;
-                        max-height: 8mm;
-                        overflow: hidden;
-                        line-height: 1.2;
                         width: 100%;
-                    }
-                    
-                    .barcode-display {
-                        font-size: 16pt;
-                        font-family: 'Courier New', monospace;
-                        font-weight: bold;
-                        letter-spacing: 2px;
-                        text-align: center;
-                        margin: 1mm 0;
+                        word-wrap: break-word;
+                        overflow-wrap: break-word;
+                        hyphens: auto;
+                        line-height: 1.3;
+                        flex-shrink: 1;
+                        font-size: clamp(8pt, 2.5vw, 12pt);
+                        max-height: 14mm;
+                        overflow: hidden;
+                        display: -webkit-box;
+                        -webkit-line-clamp: 3;
+                        -webkit-box-orient: vertical;
                     }
                     
                     .barcode-visual {
-                        width: 90%;
-                        height: 10mm;
+                        width: 100%;
+                        height: 8mm;
                         background: repeating-linear-gradient(
                             90deg,
                             #000 0px,
@@ -2156,13 +2155,17 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
                             #fff 1px,
                             #fff 2px
                         );
-                        margin: 1mm 0;
+                        flex-shrink: 0;
                     }
                     
-                    .price {
-                        font-size: 9pt;
+                    .barcode-display {
+                        font-family: 'Courier New', monospace;
                         font-weight: bold;
+                        letter-spacing: 1px;
                         text-align: center;
+                        width: 100%;
+                        font-size: clamp(10pt, 3vw, 14pt);
+                        flex-shrink: 0;
                     }
                     
                     .print-button {
@@ -2229,7 +2232,6 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
                         <div class="item-name">${item.name}</div>
                         <div class="barcode-visual"></div>
                         <div class="barcode-display">${item.barcode || 'N/A'}</div>
-                        <div class="price">${formatCurrencyDisplay(item.price)}</div>
                     </div>
                 </div>
                 
