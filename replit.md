@@ -4,22 +4,33 @@
 This project is a comprehensive Iraqi accounting system designed to manage revenues, expenses, inventory, employees, and payroll. It features a full Arabic RTL interface with a professional design, dark/light mode support, and aims to be a complete solution for financial management tailored for the Iraqi market. The system operates offline, storing data locally, and provides an intelligent AI assistant named "Alaa" specialized in guiding users through the system's functionalities.
 
 ### Recent Changes (October 20, 2025)
+**Modal Dark Mode Fixes (v5.6 - Complete):**
+- ✅ Fixed employee details modal to fully adapt to dark mode
+  - Background: `bg-gray-50 dark:bg-gray-700` 
+  - Borders: Added `dark:border-gray-600` to section dividers
+  - Document link button: Enhanced with dark mode variants
+- ✅ Fixed inventory dispatch details modal for dark mode
+  - Background: `bg-gray-50 dark:bg-gray-700`
+  - All text elements properly adapted
+- **Total:** 2 modal components now fully support dark mode
+
+**Barcode Print Preview Modal (v5.5.1 - Complete):**
+- ✅ Converted barcode printing from external window to internal modal
+- ✅ Professional preview modal with gradient header (blue-purple)
+- ✅ Live preview of sticker (50mm × 30mm) inside modal
+- ✅ Shows item name, barcode visualization, and barcode number
+- ✅ Displays dimensions information: "📏 الأبعاد: 50mm × 30mm"
+- ✅ "🖨️ طباعة الآن" button triggers print dialog
+- ✅ Modal background adapts to dark mode (gray-100 → gray-700)
+- ✅ Sticker itself remains white for proper printing
+- ✅ Improved user experience with in-app preview before printing
+
 **Inventory Management Workflow Enhancement (v5.5 - Complete):**
 - ✅ Removed direct "Add Item" functionality from Inventory page
 - ✅ All inventory items must now be added through the Inventory Entry (الإدخال المخزني) workflow
 - ✅ Ensures proper purchase tracking and invoice management for all inventory items
 - ✅ Simplified Inventory page to focus on viewing and managing existing items only
 - ✅ Maintains data integrity by requiring all items to have associated purchase records
-
-**Barcode Sticker Printing Feature (v5.4 - Complete):**
-- ✅ Added barcode sticker printing button in inventory item details modal
-- ✅ Implemented `printBarcodeSticker()` function for generating printable sticker labels
-- ✅ Sticker format optimized for label printers (50mm × 30mm size)
-- ✅ Sticker includes: Item name, visual barcode representation, barcode number, and price
-- ✅ Professional print preview window with gradient header and styling
-- ✅ User can review sticker before printing with dedicated "طباعة الآن" button
-- ✅ CSS configured with `@page` size directive for precise label printer output
-- ✅ Purple button with Printer icon positioned between item details and purchase history
 
 **Sidebar Utility Buttons Enhancement (v5.3.2 - Complete):**
 - ✅ Added text labels to all utility buttons in sidebar (Dark Mode, Language Switch, About System)

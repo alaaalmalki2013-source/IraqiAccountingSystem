@@ -1518,7 +1518,7 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
 
             {isDetailsModalOpen && currentEmployee && (
                 <Modal title={`تفاصيل الموظف: ${currentEmployee.name}`} onClose={() => setIsDetailsModalOpen(false)} size="sm">
-                    <div className="space-y-4 p-4 bg-gray-50 rounded-xl">
+                    <div className="space-y-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl">
                         <h4 className="text-xl font-bold text-gray-800 dark:text-gray-200 border-b pb-2 mb-4">معلومات أساسية</h4>
                         <p className="flex items-center text-lg dark:text-gray-200"><CalendarCheck className="w-5 h-5 ml-2 text-indigo-500" /> **تاريخ الميلاد:** {formatDOB(currentEmployee.dateOfBirth)}</p>
                         <p className="flex items-center text-lg dark:text-gray-200"><Briefcase className="w-5 h-5 ml-2 text-indigo-500" /> **القسم:** {currentEmployee.department}</p>
@@ -1526,7 +1526,7 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
                         <p className="flex items-center text-lg dark:text-gray-200"><Phone className="w-5 h-5 ml-2 text-indigo-500" /> **الهاتف:** {currentEmployee.phone || 'غير متوفر'}</p>
                         
                         {currentEmployee.docUrl && (
-                            <a href={currentEmployee.docUrl} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center p-3 text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition space-x-2 space-x-reverse font-semibold mt-4">
+                            <a href={currentEmployee.docUrl} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center p-3 text-white bg-indigo-600 dark:bg-indigo-700 rounded-xl hover:bg-indigo-700 dark:hover:bg-indigo-600 transition space-x-2 space-x-reverse font-semibold mt-4">
                                 <ExternalLink className="w-5 h-5 ml-2" />
                                 عرض المستندات الشخصية
                             </a>
@@ -4020,8 +4020,8 @@ const InventoryDispatchComponent = React.memo(({ data, handleDataAction, showToa
             {/* مودال عرض تفاصيل الصرف (الجدول السفلي) */}
             {isDispatchDetailsModalOpen && currentDispatch && (
                 <Modal title={`تفاصيل صرف ${currentDispatch.employeeName}`} onClose={() => setIsDispatchDetailsModalOpen(false)} size="lg">
-                    <div className="space-y-4 p-4 bg-gray-50 rounded-xl">
-                        <h4 className="text-xl font-bold text-gray-800 dark:text-gray-200 border-b pb-2 mb-4 flex items-center">
+                    <div className="space-y-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl">
+                        <h4 className="text-xl font-bold text-gray-800 dark:text-gray-200 border-b dark:border-gray-600 pb-2 mb-4 flex items-center">
                             <List className="w-5 h-5 ml-2 text-indigo-500" />
                             بيانات الصرف
                         </h4>
