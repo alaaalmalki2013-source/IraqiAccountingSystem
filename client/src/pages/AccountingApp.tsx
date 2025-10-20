@@ -78,7 +78,7 @@ import {
 // مكون التنبيه المنبثق
 const NotificationToast = React.memo(({ message, type, onClose }) => {
     const isSuccess = type === 'success';
-    const bgColor = isSuccess ? 'bg-green-50 dark:bg-green-9000' : (type === 'error' ? 'bg-red-50 dark:bg-red-9000' : 'bg-amber-500');
+    const bgColor = isSuccess ? 'bg-green-50 dark:bg-green-900' : (type === 'error' ? 'bg-red-50 dark:bg-red-900' : 'bg-amber-500');
     const Icon = isSuccess ? CheckCircle : AlertTriangle;
 
     useEffect(() => {
@@ -169,11 +169,11 @@ const Modal = ({ title, children, onClose, size = 'lg', isPrintModal = false }) 
     <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
         <div className={`bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-h-[90vh] overflow-y-auto transform transition-all duration-300 scale-100 
             ${size === 'lg' ? 'max-w-md md:max-w-xl' : size === 'xl' ? 'max-w-3xl' : 'max-w-4xl'} 
-            ${isPrintModal ? 'bg-white/90 backdrop-filter backdrop-blur-sm' : ''}
+            ${isPrintModal ? 'bg-white/90 dark:bg-gray-800/90 backdrop-filter backdrop-blur-sm' : ''}
         `} onClick={e => e.stopPropagation()}>
-            <div className="flex justify-between items-center p-4 border-b border-teal-100 bg-teal-50 rounded-t-3xl">
+            <div className="flex justify-between items-center p-4 border-b border-teal-100 dark:border-teal-700 bg-teal-50 dark:bg-teal-900/30 rounded-t-3xl">
                 <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200 flex-grow text-center">{title}</h3> 
-                <button onClick={onClose} className="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition p-1 bg-white rounded-full">
+                <button onClick={onClose} className="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition p-1 bg-white dark:bg-gray-700 rounded-full">
                     <X className="w-6 h-6" />
                 </button>
             </div>
@@ -3613,10 +3613,10 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
                 </div>
 
                 {/* إدارة المندوبين */}
-                <div className="space-y-6 p-6 rounded-xl shadow-lg border-l-4 border-blue-500 bg-gray-50">
+                <div className="space-y-6 p-6 rounded-xl shadow-lg border-l-4 border-blue-500 bg-gray-50 dark:bg-gray-800">
                     <h3 className="text-2xl font-bold text-blue-800 dark:text-blue-300 flex items-center"><User className="w-6 h-6 ml-2" /> إدارة المندوبين (للشركات الموردة)</h3>
 
-                    <form onSubmit={handleAddRep} className="space-y-3 p-3 border rounded-xl bg-white">
+                    <form onSubmit={handleAddRep} className="space-y-3 p-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800">
                         <h4 className="font-semibold text-gray-700 dark:text-gray-300 border-b pb-2">إضافة مندوب جديد</h4>
                         <InputField 
                             label="اسم المندوب" 
