@@ -102,7 +102,7 @@ const NotificationToast = React.memo(({ message, type, onClose }) => {
 // حقل إدخال موحد
 const InputField = React.memo(({ label, type = 'text', value, onChange, placeholder, required = false, currency = false, children, inputKey = label, readOnly = false, textarea = false, onBlur, className = '' }) => ( 
     <div className="flex flex-col space-y-1 text-right">
-        <label className="text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300">{label}</label>
+        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{label}</label>
         <div className="relative">
             {textarea ? (
                 <textarea
@@ -173,7 +173,7 @@ const Modal = ({ title, children, onClose, size = 'lg', isPrintModal = false }) 
         `} onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center p-4 border-b border-teal-100 bg-teal-50 rounded-t-3xl">
                 <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200 flex-grow text-center">{title}</h3> 
-                <button onClick={onClose} className="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:text-gray-200 transition p-1 bg-white rounded-full">
+                <button onClick={onClose} className="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition p-1 bg-white rounded-full">
                     <X className="w-6 h-6" />
                 </button>
             </div>
@@ -257,7 +257,7 @@ const PrintInvoice = React.memo(({ item, onClose, companyName, companyLogoUrl, e
         <Modal title="معاينة سند الصرف" onClose={onClose} size={paperSize === 'A4' ? 'xl' : 'sm'} isPrintModal={true}>
             <div className="flex justify-between items-center mb-4 print:hidden">
                 <div className="flex items-center space-x-2 space-x-reverse">
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300">قياس الورق:</label>
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">قياس الورق:</label>
                     <select
                         value={paperSize}
                         onChange={(e) => setPaperSize(e.target.value)}
@@ -1116,7 +1116,7 @@ const DataPageComponent = React.memo(({ 
                         {collectionName === 'expenses' && (
                             <>
                                 <div className="flex flex-col space-y-1 text-right">
-                                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300">الشركة الموردة</label>
+                                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">الشركة الموردة</label>
                                     <select
                                         value={selectedVendor}
                                         onChange={(e) => {
@@ -1138,7 +1138,7 @@ const DataPageComponent = React.memo(({ 
                                 </div>
                                 
                                 <div className="flex flex-col space-y-1 text-right">
-                                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300">المندوب المسؤول</label>
+                                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">المندوب المسؤول</label>
                                     <select
                                         value={formState.representative || ''}
                                         onChange={(e) => setFormState({ ...formState, representative: e.target.value })}
@@ -1164,7 +1164,7 @@ const DataPageComponent = React.memo(({ 
                             if (field.type === 'select' && categories && field.key !== 'employeeName') {
                                 return (
                                     <div key={field.key} className="flex flex-col space-y-1 text-right">
-                                        <label className="text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300">{field.label}</label>
+                                        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{field.label}</label>
                                         <select
                                             value={formState[field.key] || ''}
                                             onChange={(e) => setFormState({ ...formState, [field.key]: e.target.value })}
@@ -1185,7 +1185,7 @@ const DataPageComponent = React.memo(({ 
                             if (field.key === 'employeeName') {
                                 return (
                                     <div key={field.key} className="flex flex-col space-y-1 text-right">
-                                        <label className="text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300">{field.label}</label>
+                                        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{field.label}</label>
                                         <select
                                             value={formState.employeeId || ''} 
                                             onChange={(e) => {
@@ -1448,7 +1448,7 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
                         />
                         
                         <div className="flex flex-col space-y-1 text-right">
-                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300">القسم</label>
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">القسم</label>
                             <select
                                 value={formState.department || ''}
                                 onChange={(e) => setFormState({ ...formState, department: e.target.value })}
@@ -1465,7 +1465,7 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
                         </div>
                         
                         <div className="flex flex-col space-y-1 text-right">
-                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300">المنصب/العمل</label>
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">المنصب/العمل</label>
                             <select
                                 value={formState.jobTitle || ''}
                                 onChange={(e) => setFormState({ ...formState, jobTitle: e.target.value })}
@@ -2906,7 +2906,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                             />
                             
                             <div className="flex flex-col space-y-1 text-right">
-                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300">المورد</label>
+                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">المورد</label>
                                 <select
                                     value={invoiceForm.vendor}
                                     onChange={(e) => {
@@ -2928,7 +2928,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                             </div>
                             
                             <div className="flex flex-col space-y-1 text-right">
-                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300">المندوب المسؤول</label>
+                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">المندوب المسؤول</label>
                                 <select
                                     value={invoiceForm.representative || ''}
                                     onChange={(e) => setInvoiceForm({ ...invoiceForm, representative: e.target.value })}
@@ -2954,7 +2954,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                             </div>
 
                              <div className="flex flex-col space-y-1 text-right md:col-span-2">
-                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300">فئة المصروف المرتبطة (لتسجيلها كمصروف لاحقاً)</label>
+                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">فئة المصروف المرتبطة (لتسجيلها كمصروف لاحقاً)</label>
                                 <select
                                     value={invoiceForm.expenseCategory}
                                     onChange={(e) => setInvoiceForm({ ...invoiceForm, expenseCategory: e.target.value })}
@@ -3111,7 +3111,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                             />
                         </div>
                         <div className="flex flex-col space-y-1 text-right">
-                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300">فئة المادة (لتصنيف المخزون)</label>
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">فئة المادة (لتصنيف المخزون)</label>
                             <select
                                 value={itemForm.category}
                                 onChange={(e) => setItemForm(prev => ({ ...prev, category: e.target.value }))}
@@ -3598,8 +3598,8 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
                         </InputField>
                     </form>
 
-                    <div className="space-y-2 max-h-60 overflow-y-auto p-2 border rounded-lg bg-white">
-                        <h4 className="font-semibold text-gray-700 dark:text-gray-300 border-b pb-1">القائمة الحالية:</h4>
+                    <div className="space-y-2 max-h-60 overflow-y-auto p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800">
+                        <h4 className="font-semibold text-gray-700 dark:text-gray-300 border-b border-gray-300 dark:border-gray-600 pb-1">القائمة الحالية:</h4>
                         {currentItems.map(item => (
                             <div key={item} className="flex justify-between items-center p-2 bg-gray-100 dark:bg-gray-600 rounded-lg shadow-sm">
                                 <span className="font-medium text-gray-800 dark:text-gray-200">{item}</span>
@@ -3614,7 +3614,7 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
 
                 {/* إدارة المندوبين */}
                 <div className="space-y-6 p-6 rounded-xl shadow-lg border-l-4 border-blue-500 bg-gray-50">
-                    <h3 className="text-2xl font-bold text-blue-800 flex items-center"><User className="w-6 h-6 ml-2" /> إدارة المندوبين (للشركات الموردة)</h3>
+                    <h3 className="text-2xl font-bold text-blue-800 dark:text-blue-300 flex items-center"><User className="w-6 h-6 ml-2" /> إدارة المندوبين (للشركات الموردة)</h3>
 
                     <form onSubmit={handleAddRep} className="space-y-3 p-3 border rounded-xl bg-white">
                         <h4 className="font-semibold text-gray-700 dark:text-gray-300 border-b pb-2">إضافة مندوب جديد</h4>
@@ -3625,7 +3625,7 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
                             required
                         />
                         <div className="flex flex-col space-y-1 text-right">
-                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300">تابع لشركة</label>
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">تابع لشركة</label>
                             <select
                                 value={newRep.vendor}
                                 onChange={(e) => setNewRep({ ...newRep, vendor: e.target.value })}
@@ -3644,10 +3644,10 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
                         </ActionButton>
                     </form>
 
-                    <div className="space-y-2 max-h-60 overflow-y-auto p-2 border rounded-lg bg-white">
-                        <h4 className="font-semibold text-gray-700 dark:text-gray-300 border-b pb-1">قائمة المندوبين:</h4>
+                    <div className="space-y-2 max-h-60 overflow-y-auto p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800">
+                        <h4 className="font-semibold text-gray-700 dark:text-gray-300 border-b border-gray-300 dark:border-gray-600 pb-1">قائمة المندوبين:</h4>
                         {settings.representatives.map((rep, index) => (
-                            <div key={index} className="flex justify-between items-center p-2 bg-blue-100 rounded-lg shadow-sm">
+                            <div key={index} className="flex justify-between items-center p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg shadow-sm">
                                 <span className="font-medium text-gray-800 dark:text-gray-200">{rep.name} <span className="text-xs text-gray-500 dark:text-gray-400">({rep.vendor})</span></span>
                                 <button onClick={() => handleDeleteRep(rep)} className="text-red-500 hover:text-red-700 p-1">
                                     <Trash2 className="w-4 h-4" />
@@ -3659,8 +3659,8 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
                 </div>
                 
                 {/* إدارة المستخدمين والصلاحيات */}
-                <div className="lg:col-span-2 space-y-6 p-6 rounded-xl shadow-lg border-l-4 border-purple-500 bg-gray-50">
-                    <h3 className="text-2xl font-bold text-purple-800 flex items-center"><Users className="w-6 h-6 ml-2" /> إدارة المستخدمين والصلاحيات</h3>
+                <div className="lg:col-span-2 space-y-6 p-6 rounded-xl shadow-lg border-l-4 border-purple-500 bg-gray-50 dark:bg-gray-800">
+                    <h3 className="text-2xl font-bold text-purple-800 dark:text-purple-300 flex items-center"><Users className="w-6 h-6 ml-2" /> إدارة المستخدمين والصلاحيات</h3>
                     
                     <ActionButton onClick={() => openUserModal()} className="bg-purple-600 hover:bg-purple-700 px-4 py-2 text-base">
                         <UserPlus className="w-5 h-5 ml-2" />
@@ -3669,7 +3669,7 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
                     
                     <div className="overflow-x-auto shadow-md rounded-xl">
                         <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-purple-100">
+                            <thead className="bg-purple-100 dark:bg-purple-900/30">
                                 <tr>
                                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-400 uppercase">اسم المستخدم</th>
                                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-400 uppercase">البريد الإلكتروني</th>
@@ -3913,7 +3913,7 @@ const InventoryDispatchComponent = React.memo(({ data, handleDataAction, showToa
 
                 <div className="overflow-x-auto shadow-md rounded-xl">
                     <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-indigo-100">
+                        <thead className="bg-indigo-100 dark:bg-indigo-900/30">
                             <tr>
                                 <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">التاريخ</th>
                                 <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">الموظف المستلم</th>
