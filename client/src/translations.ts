@@ -25,11 +25,13 @@ export const translations = {
     settings: 'الإعدادات',
     
     // Dashboard
-    totalRevenues: 'إجمالي الإيرادات',
-    totalExpenses: 'إجمالي المصروفات',
+    currentCashFund: 'رصيد الصندوق الحالي',
+    totalRevenues: 'الإيرادات الإجمالية',
+    totalExpenses: 'الصرفيات الإجمالية',
     netProfit: 'صافي الربح',
-    totalSalaries: 'إجمالي الرواتب',
-    totalAdvances: 'إجمالي السلف',
+    totalSalaries: 'إجمالي رواتب الموظفين',
+    totalAdvances: 'مجموع السلف',
+    totalSuspended: 'مجموع المبالغ المعلقة',
     totalEmployees: 'عدد الموظفين',
     inventoryValue: 'قيمة المخزون',
     pendingInvoices: 'الفواتير المعلقة',
@@ -40,6 +42,12 @@ export const translations = {
     birthdayToday: 'عيد ميلاده اليوم!',
     turnYears: 'يصبح عمره',
     yearsOld: 'سنة',
+    financialSummary: 'الملخص المالي الرئيسي',
+    categoryStatistics: 'إحصائيات حسب الفئة',
+    revenuesByCategory: 'إجمالي الإيرادات لكل فئة',
+    expensesByCategory: 'إجمالي الصرفيات لكل فئة',
+    upcomingBirthdaysReminder: 'تذكير أعياد الميلاد القادمة!',
+    birthdayOn: 'عيد ميلاده في',
     
     // Common Actions
     add: 'إضافة',

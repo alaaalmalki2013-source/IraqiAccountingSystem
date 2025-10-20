@@ -469,6 +469,7 @@ const PrintReportModal = React.memo(({ reportData, title, onClose, companyName, 
  */
 const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
     const { revenues, expenses, suspended, advances, employees } = data;
+    const { t } = useLanguage();
 
     // استخدام useMemo لضمان عدم إعادة الحساب إلا عند الضرورة
     const summaryData = useMemo(() => {
@@ -508,7 +509,7 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
 
     const primaryCards = [
         { 
-            title: 'رصيد الصندوق الحالي', 
+            title: t('currentCashFund'), 
             value: formatCurrencyDisplay(summaryData.totalCashFund), 
             icon: DollarSign, 
             color: summaryData.totalCashFund >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-rose-600 dark:text-rose-400', 
@@ -517,7 +518,7 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
             gradient: true
         },
         { 
-            title: 'الإيرادات الإجمالية', 
+            title: t('totalRevenues'), 
             value: formatCurrencyDisplay(summaryData.totalRevenues), 
             icon: TrendingUp, 
             color: 'text-emerald-600 dark:text-emerald-400', 
@@ -526,7 +527,7 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
             gradient: true
         },
         { 
-            title: 'الصرفيات الإجمالية', 
+            title: t('totalExpenses'), 
             value: formatCurrencyDisplay(summaryData.totalExpenses), 
             icon: TrendingDown, 
             color: 'text-rose-600 dark:text-rose-400', 
@@ -538,7 +539,7 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
     
     const secondaryCards = [
         { 
-            title: 'مجموع السلف', 
+            title: t('totalAdvances'), 
             value: formatCurrencyDisplay(summaryData.totalAdvances), 
             icon: Coins, 
             color: 'text-violet-600 dark:text-violet-400', 
@@ -547,7 +548,7 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
             gradient: true
         },
         { 
-            title: 'مجموع المبالغ المعلقة', 
+            title: t('totalSuspended'), 
             value: formatCurrencyDisplay(summaryData.totalSuspended), 
             icon: RotateCcw, 
             color: 'text-amber-600 dark:text-amber-400', 
@@ -556,7 +557,7 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
             gradient: true
         },
         { 
-            title: 'إجمالي رواتب الموظفين', 
+            title: t('totalSalaries'), 
             value: formatCurrencyDisplay(summaryData.totalSalaries), 
             icon: Users, 
             color: 'text-purple-600 dark:text-purple-400', 
@@ -569,25 +570,25 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
 
     return (
         <div className="space-y-8 p-8 bg-gradient-to-br from-white to-gray-50 dark:from-gray-900 dark:to-gray-800 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700">
-            <h2 className="text-4xl font-extrabold bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent border-b-2 border-blue-500 dark:border-blue-400 pb-3">الرئيسية</h2>
+            <h2 className="text-4xl font-extrabold bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent border-b-2 border-blue-500 dark:border-blue-400 pb-3">{ t("dashboard") }</h2>
 
             {upcomingBirthdays.length > 0 && (
                 <div className="bg-gradient-to-r from-pink-100 to-rose-100 dark:from-pink-950/50 dark:to-rose-950/50 border-l-4 border-pink-500 dark:border-pink-400 p-6 rounded-2xl shadow-xl">
                     <h3 className="text-2xl font-bold text-pink-800 dark:text-pink-200 flex items-center mb-2">
                         <Gift className="w-6 h-6 ml-2" />
-                        تذكير أعياد الميلاد القادمة!
+                        { t("upcomingBirthdaysReminder") }
                     </h3>
                     <ul className="list-disc list-inside space-y-1 text-gray-700 dark:text-gray-300">
                         {upcomingBirthdays.map((b, index) => (
                             <li key={index} className="font-semibold">
-                                الموظف **{b.name}** عيد ميلاده في **{b.date}**.
+                                {t("employee")} **{b.name}** {t("birthdayOn")} **{b.date}**.
                             </li>
                         ))}
                     </ul>
                 </div>
             )}
             
-            <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 border-b-2 border-gradient-to-r from-blue-500 to-purple-500 pb-2">الملخص المالي الرئيسي</h3>
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 border-b-2 border-gradient-to-r from-blue-500 to-purple-500 pb-2">{ t("financialSummary") }</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {primaryCards.map((card, index) => (
                     <div key={index} className={`p-6 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-[1.02] border dark:border-gray-200/10 ${card.bg}`}>
@@ -620,14 +621,14 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
                 ))}
             </div>
 
-            <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-200 border-b border-gray-300 dark:border-gray-600 pb-2 pt-4">إحصائيات حسب الفئة</h3>
+            <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-200 border-b border-gray-300 dark:border-gray-600 pb-2 pt-4">{ t("categoryStatistics") }</h3>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* كروت الإيرادات حسب الفئة */}
                 <div className="p-6 rounded-2xl shadow-xl bg-gradient-to-br from-emerald-50 to-green-100 dark:from-emerald-950/50 dark:to-green-900/50 border-l-4 border-emerald-500 dark:border-emerald-400">
                     <h4 className="text-xl font-bold text-emerald-700 dark:text-emerald-300 mb-4 flex items-center">
                         <TrendingUp className="w-5 h-5 ml-2" />
-                        إجمالي الإيرادات لكل فئة
+                        { t("revenuesByCategory") }
                     </h4>
                     <ul className="space-y-2">
                         {Object.keys(summaryData.revenueByCategory).map(category => (
@@ -643,7 +644,7 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
                 <div className="p-6 rounded-2xl shadow-xl bg-gradient-to-br from-rose-50 to-red-100 dark:from-rose-950/50 dark:to-red-900/50 border-l-4 border-rose-500 dark:border-rose-400">
                     <h4 className="text-xl font-bold text-rose-700 dark:text-rose-300 mb-4 flex items-center">
                         <TrendingDown className="w-5 h-5 ml-2" />
-                        إجمالي الصرفيات لكل فئة
+                        { t("expensesByCategory") }
                     </h4>
                     <ul className="space-y-2">
                         {Object.keys(summaryData.expenseByCategory).map(category => (
