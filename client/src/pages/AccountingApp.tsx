@@ -906,7 +906,7 @@ const DataPageComponent = React.memo(({ 
                     {!!initialExpenseState && collectionName === 'expenses' && ' (معلومات من المخزن)'}
                 </ActionButton>
                 
-                <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:text-gray-200 shadow-lg transition duration-200">
+                <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
                     <RotateCcw className="w-6 h-6" />
                 </button>
             </div>
@@ -1394,7 +1394,7 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
                        <button onClick={handleExportAll} className="p-3 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg transition duration-200">
                            <Download className="w-6 h-6" />
                        </button>
-                       <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:text-gray-200 shadow-lg transition duration-200">
+                       <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
                             <RotateCcw className="w-6 h-6" />
                         </button>
                    </div>
@@ -2840,7 +2840,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
             </div>
             
             <div className="flex justify-end">
-                <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:text-gray-200 shadow-lg transition duration-200">
+                <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
                     <RotateCcw className="w-6 h-6" />
                 </button>
             </div>
@@ -3910,7 +3910,7 @@ const InventoryDispatchComponent = React.memo(({ data, handleDataAction, showToa
                         />
                         <Search className="w-5 h-5 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                     </div>
-                    <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:text-gray-200 shadow-lg transition duration-200">
+                    <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
                         <RotateCcw className="w-6 h-6" />
                     </button>
                 </div>
