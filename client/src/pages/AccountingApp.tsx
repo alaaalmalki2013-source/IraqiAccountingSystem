@@ -2330,16 +2330,30 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
             
             {/* Modal معاينة طباعة الباركود */}
             {isPrintPreviewOpen && itemToPrint && (
-                <Modal title="معاينة ستكر الباركود" onClose={() => setIsPrintPreviewOpen(false)} size="lg">
-                    <div className="space-y-6 p-6">
-                        {/* رأس المعاينة */}
-                        <div className="text-center bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-700 dark:to-purple-700 text-white p-4 rounded-xl shadow-lg">
-                            <h3 className="text-xl font-bold mb-1">📋 معاينة قبل الطباعة</h3>
-                            <p className="text-sm opacity-90">تأكد من الإعدادات قبل الطباعة</p>
+                <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setIsPrintPreviewOpen(false)}>
+                    <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto transform transition-all duration-300 scale-100" onClick={e => e.stopPropagation()}>
+                        {/* رأس المودال */}
+                        <div className="flex justify-between items-center p-4 border-b border-indigo-100 dark:border-indigo-700 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-t-3xl">
+                            <h3 className="text-xl font-bold text-white flex-grow text-center">معاينة ستكر الباركود 🏷️</h3> 
+                            <button onClick={() => setIsPrintPreviewOpen(false)} className="text-white hover:text-gray-200 transition p-1 bg-white/20 rounded-full">
+                                <X className="w-6 h-6" />
+                            </button>
+                        </div>
+
+                        {/* زر الطباعة */}
+                        <div className="p-4 print:hidden flex justify-center">
+                            <button
+                                onClick={() => { printBarcodeSticker(); setIsPrintPreviewOpen(false); }}
+                                className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl font-semibold shadow-lg transition flex items-center gap-2"
+                                data-testid="button-print-now"
+                            >
+                                <Printer className="w-5 h-5" />
+                                🖨️ طباعة الآن
+                            </button>
                         </div>
                         
                         {/* معاينة الستكر */}
-                        <div className="bg-gray-100 dark:bg-gray-700 p-8 rounded-xl flex justify-center items-center">
+                        <div className="p-4 bg-gray-100 dark:bg-gray-700 m-4 rounded-xl flex justify-center items-center">
                             <div id="barcode-sticker-content" className="sticker-container bg-white border-2 border-black" style={{
                                 width: '50mm',
                                 height: '30mm',
@@ -2396,23 +2410,11 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
                         </div>
                         
                         {/* معلومات الأبعاد */}
-                        <div className="text-center text-sm text-gray-600 dark:text-gray-400">
-                            📏 الأبعاد: 50mm × 30mm (مناسب لطابعات الستكرات)
-                        </div>
-                        
-                        {/* زر الطباعة */}
-                        <div className="pt-3">
-                            <ActionButton 
-                                onClick={printBarcodeSticker} 
-                                className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
-                                data-testid="button-print-now"
-                            >
-                                <Printer className="w-5 h-5 ml-2" />
-                                🖨️ طباعة الآن
-                            </ActionButton>
+                        <div className="p-4 print:hidden text-center text-sm text-gray-600 dark:text-gray-400">
+                            📏 الأبعاد: 50mm × 30mm
                         </div>
                     </div>
-                </Modal>
+                </div>
             )}
         </div>
     );
