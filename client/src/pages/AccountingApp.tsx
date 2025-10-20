@@ -401,7 +401,7 @@ const ActionButton = ({ onClick, children, className = 'bg-teal-600 hover:bg-tea
 // نافذة المودال
 const Modal = ({ title, children, onClose, size = 'lg', isPrintModal = false }) => (
     <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
-        <div className={`bg-white rounded-3xl shadow-2xl w-full max-h-[90vh] overflow-y-auto transform transition-all duration-300 scale-100 
+        <div className={`bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-h-[90vh] overflow-y-auto transform transition-all duration-300 scale-100 
             ${size === 'lg' ? 'max-w-md md:max-w-xl' : size === 'xl' ? 'max-w-3xl' : 'max-w-4xl'} 
             ${isPrintModal ? 'bg-white/90 backdrop-filter backdrop-blur-sm' : ''}
         `} onClick={e => e.stopPropagation()}>
@@ -1078,7 +1078,7 @@ const DataPageComponent = React.memo(({ 
 
 
     return (
-        <div className="p-6 space-y-6 bg-white rounded-3xl app-main-content">
+        <div className="p-6 space-y-6 bg-white dark:bg-gray-800 rounded-3xl app-main-content">
             <h2 className="text-4xl font-extrabold text-gray-800 dark:text-gray-200 border-b-2 border-teal-500 pb-3">{title}</h2>
 
             <div className="flex justify-between items-center">
@@ -1095,7 +1095,7 @@ const DataPageComponent = React.memo(({ 
             
             {/* **جديد:** كروت الفئات (Multiple Select) */}
             {categoryTotals.length > 0 && (
-                <div className="p-4 rounded-xl shadow-lg border border-gray-200 bg-white">
+                <div className="p-4 rounded-xl shadow-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700">
                     <h3 className="text-lg font-bold text-gray-700 dark:text-gray-300 mb-3 flex items-center">
                         <Filter className="w-5 h-5 ml-2" />
                         فلترة حسب فئة {type === 'revenue' ? 'الإيراد' : 'الصرف'}
@@ -1127,11 +1127,11 @@ const DataPageComponent = React.memo(({ 
             )}
 
 
-            <div className="bg-white p-6 rounded-xl shadow-lg border border-teal-100">
+            <div className="bg-white dark:bg-gray-700 p-6 rounded-xl shadow-lg border border-teal-100 dark:border-teal-700">
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 items-center">
                     <div className="col-span-1 text-xl font-bold p-4 rounded-xl bg-teal-50 text-teal-800 flex flex-col items-center justify-center shadow-md border-t-4 border-teal-600">
                         <Calculator className="w-6 h-6 mb-1" />
-                        <span className="text-sm font-semibold text-gray-700">المجموع المفلتر:</span>
+                        <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">المجموع المفلتر:</span>
                         <span className="font-extrabold text-2xl mt-1">
                             {formatCurrencyDisplay(totalFilteredAmount)}
                         </span>
@@ -1234,7 +1234,7 @@ const DataPageComponent = React.memo(({ 
                                         if (field.key === 'employeeName' && item.employeeId) {
                                             const employee = data.employees.find(e => e.id === item.employeeId);
                                             return (
-                                                <td key={field.key} className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                                <td key={field.key} className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
                                                     {highlightText(employee?.name || 'موظف محذوف', globalSearch)}
                                                 </td>
                                             );
@@ -1242,26 +1242,26 @@ const DataPageComponent = React.memo(({ 
                                         
                                         if (field.key === 'amount') {
                                             return (
-                                                <td key={field.key} className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                                    <span className="font-semibold text-gray-700">{highlightText(formatCurrencyDisplay(itemValue), globalSearch)}</span>
+                                                <td key={field.key} className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                                                    <span className="font-semibold text-gray-700 dark:text-gray-300">{highlightText(formatCurrencyDisplay(itemValue), globalSearch)}</span>
                                                 </td>
                                             );
                                         }
 
                                         return (
-                                            <td key={field.key} className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                            <td key={field.key} className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
                                                 {highlightText(itemValue, globalSearch)}
                                             </td>
                                         );
                                     })}
                                     
                                     {collectionName === 'expenses' && (
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
                                             {item.vendor && <span className="font-semibold">{highlightText(item.vendor, globalSearch)}</span>}
-                                            {item.vendor && item.representative && <span className="text-gray-400"> (</span>}
+                                            {item.vendor && item.representative && <span className="text-gray-400 dark:text-gray-500"> (</span>}
                                             {item.representative && <span className="text-sm italic">{highlightText(item.representative, globalSearch)}</span>}
-                                            {item.vendor && item.representative && <span className="text-gray-400">)</span>}
-                                            {!item.vendor && <span className="text-gray-400">N/A</span>}
+                                            {item.vendor && item.representative && <span className="text-gray-400 dark:text-gray-500">)</span>}
+                                            {!item.vendor && <span className="text-gray-400 dark:text-gray-500">N/A</span>}
                                         </td>
                                     )}
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300 font-mono">{highlightText(item.invoiceNumber || 'N/A', globalSearch)}</td>
@@ -1993,7 +1993,7 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
             </div>
 
             {/* البحث */}
-            <div className="bg-white p-4 rounded-xl shadow-lg border border-purple-100 relative">
+            <div className="bg-white dark:bg-gray-700 p-4 rounded-xl shadow-lg border border-purple-100 dark:border-purple-700 relative">
                 <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">البحث عن موظف</label>
                 <input
                     type="text"
@@ -2127,7 +2127,7 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                                                         {adj.type === 'overtime' && '⏰ أوفرتايم'}
                                                     </p>
                                                     <p className="text-sm text-gray-600 dark:text-gray-400">{adj.description}</p>
-                                                    <p className="text-xs text-gray-400">{new Date(adj.date).toLocaleDateString('ar-IQ')}</p>
+                                                    <p className="text-xs text-gray-400 dark:text-gray-500">{new Date(adj.date).toLocaleDateString('ar-IQ')}</p>
                                                 </div>
                                                 <p className={`font-bold ${adj.type === 'bonus' || adj.type === 'overtime' ? 'text-green-600' : 'text-red-600'}`}>
                                                     {adj.type === 'bonus' || adj.type === 'overtime' ? '+' : '-'}{formatCurrencyDisplay(adj.amount)}
@@ -2159,7 +2159,7 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                                                 <div>
                                                     <p className="font-semibold">{adv.category}</p>
                                                     <p className="text-sm text-gray-600 dark:text-gray-400">{adv.notes}</p>
-                                                    <p className="text-xs text-gray-400">{new Date(adv.date).toLocaleDateString('ar-IQ')}</p>
+                                                    <p className="text-xs text-gray-400 dark:text-gray-500">{new Date(adv.date).toLocaleDateString('ar-IQ')}</p>
                                                 </div>
                                                 <p className="font-bold text-red-600">-{formatCurrencyDisplay(adv.amount)}</p>
                                             </div>
@@ -3051,9 +3051,9 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                                     onClick={() => openDetailsModal(invoice)}
                                 >
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900 dark:text-gray-100">{highlightText(invoice.invoiceNumber, globalSearch)}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{new Date(invoice.date).toLocaleDateString('en-US')}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{highlightText(`${invoice.vendor} (${invoice.representative})`, globalSearch)}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{invoice.items.length}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{new Date(invoice.date).toLocaleDateString('en-US')}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{highlightText(`${invoice.vendor} (${invoice.representative})`, globalSearch)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{invoice.items.length}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-red-600">{formatCurrencyDisplay(invoice.totalAmount)}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                         {/* عرض الحالة */}
@@ -3239,12 +3239,12 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                             
                             {/* قائمة الاقتراحات */}
                             {showSuggestions && suggestions.length > 0 && (
-                                <div className="absolute z-50 w-full mt-1 bg-white border border-teal-300 rounded-xl shadow-2xl max-h-60 overflow-y-auto">
+                                <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-700 border border-teal-300 dark:border-teal-600 rounded-xl shadow-2xl max-h-60 overflow-y-auto">
                                     {suggestions.map((item, index) => (
                                         <div
                                             key={index}
                                             onClick={() => selectSuggestion(item)}
-                                            className="p-3 hover:bg-teal-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition"
+                                            className="p-3 hover:bg-teal-50 dark:hover:bg-teal-900 cursor-pointer border-b border-gray-100 dark:border-gray-600 last:border-b-0 transition dark:text-gray-200"
                                         >
                                             <div className="flex justify-between items-center">
                                                 <div>
@@ -3344,11 +3344,11 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
             {isDetailsModalOpen && currentInvoice && (
                 <Modal title={`تفاصيل الفاتورة المعلقة #${currentInvoice.invoiceNumber}`} onClose={() => setIsDetailsModalOpen(false)} size="xl">
                     <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-xl border border-gray-200">
-                            <p className="font-medium text-gray-700">المورد: <span className="font-bold">{currentInvoice.vendor}</span></p>
-                            <p className="font-medium text-gray-700">المندوب: <span className="font-bold">{currentInvoice.representative}</span></p>
-                            <p className="font-medium text-gray-700">تاريخ الفاتورة: <span className="font-bold">{new Date(currentInvoice.date).toLocaleString('en-US')}</span></p>
-                            <p className="font-medium text-gray-700">فئة المصروف: <span className="font-bold">{currentInvoice.expenseCategory}</span></p>
+                        <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl border border-gray-200 dark:border-gray-600">
+                            <p className="font-medium text-gray-700 dark:text-gray-300">المورد: <span className="font-bold">{currentInvoice.vendor}</span></p>
+                            <p className="font-medium text-gray-700 dark:text-gray-300">المندوب: <span className="font-bold">{currentInvoice.representative}</span></p>
+                            <p className="font-medium text-gray-700 dark:text-gray-300">تاريخ الفاتورة: <span className="font-bold">{new Date(currentInvoice.date).toLocaleString('en-US')}</span></p>
+                            <p className="font-medium text-gray-700 dark:text-gray-300">فئة المصروف: <span className="font-bold">{currentInvoice.expenseCategory}</span></p>
                         </div>
                         
                         {currentInvoice.invoiceImageUrl && (
@@ -4116,7 +4116,7 @@ const InventoryDispatchComponent = React.memo(({ data, handleDataAction, showToa
                                     <tr key={dispatch.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150 cursor-pointer" onClick={() => openDispatchDetails(dispatch)}>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{new Date(dispatch.date).toLocaleString('en-US')}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-indigo-600 font-semibold">{highlightText(dispatch.employeeName, globalSearchHistory)}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{dispatch.items.reduce((sum, item) => sum + item.count, 0)}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{dispatch.items.reduce((sum, item) => sum + item.count, 0)}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-red-600">{highlightText(formatCurrencyDisplay(dispatch.totalCost), globalSearchHistory)}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                              <button onClick={(e) => { e.stopPropagation(); handleDelete('inventoryDispatches', dispatch.id); }} className="text-red-600 hover:text-red-900">
@@ -4140,9 +4140,9 @@ const InventoryDispatchComponent = React.memo(({ data, handleDataAction, showToa
                             <List className="w-5 h-5 ml-2 text-indigo-500" />
                             بيانات الصرف
                         </h4>
-                        <p className="font-medium text-gray-700">**الموظف:** {currentDispatch.employeeName}</p>
-                        <p className="font-medium text-gray-700">**التاريخ والوقت:** {new Date(currentDispatch.date).toLocaleString('en-US')}</p>
-                        <p className="font-medium text-gray-700">**الملاحظات:** {currentDispatch.notes || 'لا توجد ملاحظات.'}</p>
+                        <p className="font-medium text-gray-700 dark:text-gray-300">**الموظف:** {currentDispatch.employeeName}</p>
+                        <p className="font-medium text-gray-700 dark:text-gray-300">**التاريخ والوقت:** {new Date(currentDispatch.date).toLocaleString('en-US')}</p>
+                        <p className="font-medium text-gray-700 dark:text-gray-300">**الملاحظات:** {currentDispatch.notes || 'لا توجد ملاحظات.'}</p>
                         
                         <h5 className="text-lg font-bold text-gray-800 dark:text-gray-200 border-b pb-2 pt-4">المواد المصروفة:</h5>
                         <div className="overflow-x-auto shadow-md rounded-xl">
