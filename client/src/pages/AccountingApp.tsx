@@ -951,7 +951,7 @@ const DataPageComponent = React.memo(({ 
                         </span>
                     </div>
 
-                    <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-xl bg-gray-50 shadow-inner">
+                    <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-xl bg-gray-50 dark:bg-gray-700 shadow-inner">
                         <h3 className="md:col-span-3 w-full text-lg font-semibold text-gray-700 dark:text-gray-300 flex items-center border-b pb-2 mb-2"><Filter className="w-5 h-5 ml-2" /> فلاتر الجدول</h3>
                         
                         {(type === 'expense' || type === 'suspended' || type === 'revenue' || type === 'advance') && (
@@ -3888,8 +3888,8 @@ const InventoryDispatchComponent = React.memo(({ data, handleDataAction, showToa
                 سجل عمليات الصرف المخزني
             </h2>
 
-            <div className="p-6 space-y-4 rounded-xl shadow-lg border-l-4 border-indigo-500 bg-gray-50">
-                <h3 className="text-2xl font-bold text-indigo-800 flex items-center border-b pb-2">
+            <div className="p-6 space-y-4 rounded-xl shadow-lg border-l-4 border-indigo-500 bg-gray-50 dark:bg-gray-800">
+                <h3 className="text-2xl font-bold text-indigo-800 dark:text-indigo-200 flex items-center border-b dark:border-gray-600 pb-2">
                     <List className="w-5 h-5 ml-2" />
                     سجل عمليات الصرف التاريخية (للمراجعة)
                 </h3>
