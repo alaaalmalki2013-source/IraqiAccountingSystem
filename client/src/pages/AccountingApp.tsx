@@ -3532,7 +3532,7 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
     );
 
     return (
-        <div className="p-6 space-y-8 bg-white rounded-3xl shadow-2xl">
+        <div className="p-6 space-y-8 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl">
             <h2 className="text-4xl font-extrabold text-gray-800 dark:text-gray-200 border-b-2 border-teal-500 pb-3">الإعدادات {isDirty && <span className='text-red-500 text-base mr-3'>(لم يتم الحفظ)</span>}</h2>
             
             {/* **التعامل مع الخروج بدون حفظ** */}
@@ -3551,7 +3551,7 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
                         </ActionButton>
                         <ActionButton 
                             onClick={confirmDiscardAndExit} 
-                            className="bg-gray-400 hover:bg-gray-50 dark:hover:bg-gray-7000 flex-1"
+                            className="bg-gray-400 hover:bg-gray-50 dark:bg-gray-600 dark:hover:bg-gray-700 flex-1"
                         >
                             <Trash2 className="w-5 h-5 ml-2" />
                             تجاهل التغييرات
@@ -3562,21 +3562,21 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
 
             {/* إعدادات الشركة */}
             <form className="space-y-6 p-6 rounded-xl shadow-lg border-l-4 border-indigo-500 bg-indigo-50 dark:bg-indigo-900">
-                <h3 className="text-2xl font-bold text-indigo-800 flex items-center"><Building className="w-6 h-6 ml-2" /> إعدادات الشركة الأساسية</h3>
+                <h3 className="text-2xl font-bold text-indigo-800 dark:text-indigo-300 flex items-center"><Building className="w-6 h-6 ml-2" /> إعدادات الشركة الأساسية</h3>
                 {renderCompanySettings()}
             </form>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* إدارة القوائم (الفئات والموردين) */}
                 <div className="space-y-6 p-6 rounded-xl shadow-lg border-l-4 border-teal-500 dark:border-teal-400 bg-gray-50 dark:bg-gray-700">
-                    <h3 className="text-2xl font-bold text-teal-800 flex items-center"><List className="w-6 h-6 ml-2" /> إدارة الفئات والأقسام والمناصب</h3>
+                    <h3 className="text-2xl font-bold text-teal-800 dark:text-teal-300 flex items-center"><List className="w-6 h-6 ml-2" /> إدارة الفئات والأقسام والمناصب</h3>
 
                     <div className="flex space-x-2 space-x-reverse overflow-x-auto pb-2">
                         {['expenseCategories', 'revenueCategories', 'advanceCategories', 'departments', 'jobTitles', 'vendors'].map(key => (
                             <button
                                 key={key}
                                 onClick={() => setCurrentList(key)}
-                                className={`px-4 py-2 rounded-lg text-sm font-semibold transition whitespace-nowrap ${currentList === key ? 'bg-teal-600 text-white shadow-md' : 'bg-white border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-teal-50'}`}
+                                className={`px-4 py-2 rounded-lg text-sm font-semibold transition whitespace-nowrap ${currentList === key ? 'bg-teal-600 text-white shadow-md' : 'bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-teal-50 dark:hover:bg-gray-600'}`}
                             >
                                 {key === 'expenseCategories' ? 'مصروفات' : key === 'revenueCategories' ? 'إيرادات' : key === 'advanceCategories' ? 'سلف' : key === 'departments' ? 'أقسام' : key === 'jobTitles' ? 'مناصب' : 'الموردين'}
                             </button>
@@ -3584,7 +3584,7 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
                     </div>
 
                     <form onSubmit={handleAddItem} className="space-y-3">
-                        <h4 className="font-semibold text-gray-700">إضافة عنصر جديد ({currentList === 'vendors' ? 'مورد' : 'فئة'})</h4>
+                        <h4 className="font-semibold text-gray-700 dark:text-gray-300">إضافة عنصر جديد ({currentList === 'vendors' ? 'مورد' : 'فئة'})</h4>
                         <InputField 
                             value={newItem} 
                             onChange={(e) => setNewItem(e.target.value)} 
@@ -3669,7 +3669,7 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
                     
                     <div className="overflow-x-auto shadow-md rounded-xl">
                         <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-purple-100 dark:bg-purple-900/30">
+                            <thead className="bg-purple-100 dark:bg-purple-900">
                                 <tr>
                                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-400 uppercase">اسم المستخدم</th>
                                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-400 uppercase">البريد الإلكتروني</th>
@@ -3682,7 +3682,7 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
                                     <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-bold">{user.username}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{user.email}</td>
-                                        <td className="px-6 py-4 text-sm text-gray-700">
+                                        <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
                                             {user.permissions.revenues?.view ? 'إيرادات، ' : ''}
                                             {user.permissions.expenses?.view ? 'صرفيات، ' : ''}
                                             {user.permissions.inventoryEntry?.view ? 'إدخال مخزني' : ''}
