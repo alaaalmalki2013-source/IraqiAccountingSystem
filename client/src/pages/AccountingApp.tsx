@@ -2055,14 +2055,14 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
     
     // دالة طباعة ستكر الباركود
     const printBarcodeSticker = (item) => {
-        const printWindow = window.open('', '_blank', 'width=400,height=300');
+        const printWindow = window.open('', '_blank', 'width=600,height=500');
         
         const htmlContent = `
             <!DOCTYPE html>
             <html dir="rtl">
             <head>
                 <meta charset="UTF-8">
-                <title>طباعة باركود - ${item.name}</title>
+                <title>معاينة الباركود - ${item.name}</title>
                 <style>
                     @page {
                         size: 50mm 30mm;
@@ -2077,25 +2077,55 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
                     
                     body {
                         font-family: 'Cairo', 'Arial', sans-serif;
+                        background: #f3f4f6;
+                        padding: 20px;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        gap: 20px;
+                    }
+                    
+                    .preview-header {
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white;
+                        padding: 15px 30px;
+                        border-radius: 10px;
+                        text-align: center;
+                        width: 100%;
+                        max-width: 500px;
+                        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                    }
+                    
+                    .preview-header h1 {
+                        font-size: 18pt;
+                        margin-bottom: 5px;
+                    }
+                    
+                    .preview-header p {
+                        font-size: 10pt;
+                        opacity: 0.9;
+                    }
+                    
+                    .sticker-preview-wrapper {
+                        background: white;
+                        padding: 30px;
+                        border-radius: 15px;
+                        box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                    }
+                    
+                    .sticker-container {
                         width: 50mm;
                         height: 30mm;
                         display: flex;
                         flex-direction: column;
-                        justify-content: center;
-                        align-items: center;
-                        padding: 2mm;
-                        background: white;
-                    }
-                    
-                    .sticker-container {
-                        width: 100%;
-                        height: 100%;
-                        display: flex;
-                        flex-direction: column;
                         justify-content: space-between;
                         align-items: center;
-                        border: 1px solid #000;
-                        padding: 1mm;
+                        border: 2px solid #000;
+                        padding: 2mm;
+                        background: white;
                     }
                     
                     .item-name {
@@ -2136,29 +2166,81 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
                         text-align: center;
                     }
                     
+                    .print-button {
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white;
+                        border: none;
+                        padding: 12px 40px;
+                        font-size: 14pt;
+                        font-weight: bold;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                        transition: all 0.3s ease;
+                        font-family: 'Cairo', 'Arial', sans-serif;
+                    }
+                    
+                    .print-button:hover {
+                        transform: translateY(-2px);
+                        box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+                    }
+                    
+                    .print-button:active {
+                        transform: translateY(0);
+                    }
+                    
+                    .dimensions-info {
+                        color: #6b7280;
+                        font-size: 10pt;
+                        text-align: center;
+                        margin-top: 10px;
+                    }
+                    
                     @media print {
                         body {
+                            background: white;
+                            padding: 0;
                             -webkit-print-color-adjust: exact;
                             print-color-adjust: exact;
+                        }
+                        
+                        .preview-header,
+                        .print-button,
+                        .dimensions-info,
+                        .sticker-preview-wrapper {
+                            display: none !important;
+                        }
+                        
+                        .sticker-container {
+                            border: 1px solid #000;
+                            width: 50mm;
+                            height: 30mm;
                         }
                     }
                 </style>
             </head>
             <body>
-                <div class="sticker-container">
-                    <div class="item-name">${item.name}</div>
-                    <div class="barcode-visual"></div>
-                    <div class="barcode-display">${item.barcode || 'N/A'}</div>
-                    <div class="price">${formatCurrencyDisplay(item.price)}</div>
+                <div class="preview-header">
+                    <h1>📋 معاينة ستكر الباركود</h1>
+                    <p>معاينة قبل الطباعة - تأكد من الإعدادات قبل الطباعة</p>
                 </div>
-                <script>
-                    window.onload = function() {
-                        setTimeout(() => {
-                            window.print();
-                            setTimeout(() => window.close(), 500);
-                        }, 250);
-                    };
-                </script>
+                
+                <div class="sticker-preview-wrapper">
+                    <div class="sticker-container">
+                        <div class="item-name">${item.name}</div>
+                        <div class="barcode-visual"></div>
+                        <div class="barcode-display">${item.barcode || 'N/A'}</div>
+                        <div class="price">${formatCurrencyDisplay(item.price)}</div>
+                    </div>
+                </div>
+                
+                <div class="dimensions-info">
+                    📏 الأبعاد: 50mm × 30mm (مناسب لطابعات الستكرات)
+                </div>
+                
+                <button class="print-button" onclick="window.print()">
+                    🖨️ طباعة الآن
+                </button>
             </body>
             </html>
         `;
