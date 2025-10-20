@@ -2444,6 +2444,7 @@ const InventoryDispatchPage = React.memo(({ data, handleDataAction, handleDelete
     const [materialSuggestions, setMaterialSuggestions] = useState([]);
     const [showMaterialSuggestions, setShowMaterialSuggestions] = useState(false);
     const [currentMaterialInput, setCurrentMaterialInput] = useState('');
+    const [currentBarcodeInput, setCurrentBarcodeInput] = useState('');
     const [currentQuantityInput, setCurrentQuantityInput] = useState('');
     
     // معالجة تغيير اسم الموظف مع autocomplete
@@ -2477,6 +2478,16 @@ const InventoryDispatchPage = React.memo(({ data, handleDataAction, handleDelete
     const handleMaterialNameChange = (value) => {
         setCurrentMaterialInput(value);
         
+        // البحث عن المادة لملء الباركود تلقائياً
+        const exactMatch = data.inventory.find(item => 
+            item.name.toLowerCase() === value.toLowerCase()
+        );
+        if (exactMatch) {
+            setCurrentBarcodeInput(exactMatch.barcode || '');
+        } else {
+            setCurrentBarcodeInput('');
+        }
+        
         if (value.trim()) {
             const filtered = data.inventory.filter(item => 
                 item.name.toLowerCase().includes(value.toLowerCase()) && item.count > 0
@@ -2485,6 +2496,20 @@ const InventoryDispatchPage = React.memo(({ data, handleDataAction, handleDelete
             setShowMaterialSuggestions(true);
         } else {
             setMaterialSuggestions([]);
+            setShowMaterialSuggestions(false);
+        }
+    };
+    
+    // معالجة تغيير الباركود
+    const handleBarcodeChange = (value) => {
+        setCurrentBarcodeInput(value);
+        
+        // البحث عن المادة لملء الاسم تلقائياً
+        const exactMatch = data.inventory.find(item => 
+            item.barcode === value
+        );
+        if (exactMatch) {
+            setCurrentMaterialInput(exactMatch.name);
             setShowMaterialSuggestions(false);
         }
     };
@@ -2531,6 +2556,7 @@ const InventoryDispatchPage = React.memo(({ data, handleDataAction, handleDelete
         
         // إعادة تعيين الحقول
         setCurrentMaterialInput('');
+        setCurrentBarcodeInput('');
         setCurrentQuantityInput('');
         setShowMaterialSuggestions(false);
     };
@@ -2605,6 +2631,7 @@ const InventoryDispatchPage = React.memo(({ data, handleDataAction, handleDelete
             notes: ''
         });
         setCurrentMaterialInput('');
+        setCurrentBarcodeInput('');
         setCurrentQuantityInput('');
     };
     
@@ -2769,14 +2796,14 @@ const InventoryDispatchPage = React.memo(({ data, handleDataAction, handleDelete
                         <div className="border-t pt-4 mt-4">
                             <h4 className="text-lg font-bold text-gray-800 dark:text-gray-200 mb-3">إضافة مواد</h4>
                             
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                 {/* اسم المادة مع autocomplete */}
-                                <div className="relative md:col-span-2">
+                                <div className="relative">
                                     <InputField
                                         label="اسم المادة *"
                                         value={currentMaterialInput}
                                         onChange={(e) => handleMaterialNameChange(e.target.value)}
-                                        placeholder="ابحث عن مادة..."
+                                        placeholder="ابحث عن مادة أو اكتب اسمها..."
                                         data-testid="input-material-name"
                                     />
                                     {showMaterialSuggestions && materialSuggestions.length > 0 && (
@@ -2786,18 +2813,30 @@ const InventoryDispatchPage = React.memo(({ data, handleDataAction, handleDelete
                                                     key={material.id}
                                                     onClick={() => {
                                                         setCurrentMaterialInput(material.name);
+                                                        setCurrentBarcodeInput(material.barcode || '');
                                                         setShowMaterialSuggestions(false);
                                                     }}
                                                     className="p-3 hover:bg-teal-50 dark:hover:bg-teal-900 cursor-pointer border-b border-gray-200 dark:border-gray-600 last:border-b-0"
                                                 >
                                                     <div className="font-semibold text-gray-800 dark:text-gray-200">{material.name}</div>
-                                                    <div className="text-sm text-gray-600 dark:text-gray-400">الكمية المتوفرة: {material.count}</div>
+                                                    <div className="text-sm text-gray-600 dark:text-gray-400">باركود: {material.barcode || 'غير محدد'} | متوفر: {material.count}</div>
                                                 </div>
                                             ))}
                                         </div>
                                     )}
                                 </div>
                                 
+                                {/* الباركود */}
+                                <InputField
+                                    label="الباركود"
+                                    value={currentBarcodeInput}
+                                    onChange={(e) => handleBarcodeChange(e.target.value)}
+                                    placeholder="أو امسح/اكتب الباركود..."
+                                    data-testid="input-barcode"
+                                />
+                            </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
                                 {/* الكمية */}
                                 <InputField
                                     label="الكمية *"
