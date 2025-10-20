@@ -1797,7 +1797,7 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                         className={`px-6 py-2 rounded-xl font-semibold transition ${
                             statusFilter === status
                                 ? 'bg-purple-600 text-white shadow-lg'
-                                : 'bg-gray-200 text-gray-700 dark:text-gray-300 hover:bg-gray-300'
+                                : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
                         }`}
                         data-testid={`filter-${status}`}
                     >
