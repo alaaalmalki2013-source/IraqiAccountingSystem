@@ -2051,205 +2051,111 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     const [currentItem, setCurrentItem] = useState(null);
     const [globalSearch, setGlobalSearch] = useState('');
+    const [isPrintPreviewOpen, setIsPrintPreviewOpen] = useState(false);
+    const [itemToPrint, setItemToPrint] = useState(null);
     
-    // دالة طباعة ستكر الباركود
-    const printBarcodeSticker = (item) => {
-        // التحقق من حالة الوضع الداكن من document.documentElement
-        const isDark = document.documentElement.classList.contains('dark');
-        const printWindow = window.open('', '_blank', 'width=600,height=500');
-        
-        const htmlContent = `
-            <!DOCTYPE html>
-            <html dir="rtl">
-            <head>
-                <meta charset="UTF-8">
-                <title>معاينة الباركود - ${item.name}</title>
-                <style>
-                    @page {
-                        size: 50mm 30mm;
-                        margin: 0;
-                    }
-                    
-                    * {
-                        margin: 0;
-                        padding: 0;
-                        box-sizing: border-box;
-                    }
-                    
-                    body {
-                        font-family: 'Cairo', 'Arial', sans-serif;
-                        background: ${isDark ? '#1f2937' : '#f3f4f6'};
-                        padding: 20px;
-                        display: flex;
-                        flex-direction: column;
-                        align-items: center;
-                        gap: 20px;
-                    }
-                    
-                    .preview-header {
-                        background: linear-gradient(135deg, ${isDark ? '#4f46e5' : '#667eea'} 0%, ${isDark ? '#7c3aed' : '#764ba2'} 100%);
-                        color: white;
-                        padding: 15px 30px;
-                        border-radius: 10px;
-                        text-align: center;
-                        width: 100%;
-                        max-width: 500px;
-                        box-shadow: 0 4px 6px rgba(0,0,0,${isDark ? '0.3' : '0.1'});
-                    }
-                    
-                    .preview-header h1 {
-                        font-size: 18pt;
-                        margin-bottom: 5px;
-                    }
-                    
-                    .preview-header p {
-                        font-size: 10pt;
-                        opacity: 0.9;
-                    }
-                    
-                    .sticker-preview-wrapper {
-                        background: ${isDark ? '#374151' : 'white'};
-                        padding: 30px;
-                        border-radius: 15px;
-                        box-shadow: 0 10px 25px rgba(0,0,0,${isDark ? '0.4' : '0.15'});
-                        display: flex;
-                        justify-content: center;
-                        align-items: center;
-                    }
-                    
-                    .sticker-container {
-                        width: 50mm;
-                        height: 30mm;
-                        display: flex;
-                        flex-direction: column;
-                        justify-content: center;
-                        align-items: center;
-                        gap: 2mm;
-                        border: 2px solid #000;
-                        padding: 3mm;
-                        background: white;
-                    }
-                    
-                    .item-name {
-                        font-weight: bold;
-                        text-align: center;
-                        width: 100%;
-                        word-wrap: break-word;
-                        overflow-wrap: break-word;
-                        hyphens: auto;
-                        line-height: 1.3;
-                        flex-shrink: 1;
-                        font-size: clamp(8pt, 2.5vw, 12pt);
-                        max-height: 14mm;
-                        overflow: hidden;
-                        display: -webkit-box;
-                        -webkit-line-clamp: 3;
-                        -webkit-box-orient: vertical;
-                    }
-                    
-                    .barcode-visual {
-                        width: 100%;
-                        height: 8mm;
-                        background: repeating-linear-gradient(
-                            90deg,
-                            #000 0px,
-                            #000 1px,
-                            #fff 1px,
-                            #fff 2px
-                        );
-                        flex-shrink: 0;
-                    }
-                    
-                    .barcode-display {
-                        font-family: 'Courier New', monospace;
-                        font-weight: bold;
-                        letter-spacing: 1px;
-                        text-align: center;
-                        width: 100%;
-                        font-size: clamp(10pt, 3vw, 14pt);
-                        flex-shrink: 0;
-                    }
-                    
-                    .print-button {
-                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                        color: white;
-                        border: none;
-                        padding: 12px 40px;
-                        font-size: 14pt;
-                        font-weight: bold;
-                        border-radius: 8px;
-                        cursor: pointer;
-                        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-                        transition: all 0.3s ease;
-                        font-family: 'Cairo', 'Arial', sans-serif;
-                    }
-                    
-                    .print-button:hover {
-                        transform: translateY(-2px);
-                        box-shadow: 0 6px 12px rgba(0,0,0,0.15);
-                    }
-                    
-                    .print-button:active {
-                        transform: translateY(0);
-                    }
-                    
-                    .dimensions-info {
-                        color: ${isDark ? '#9ca3af' : '#6b7280'};
-                        font-size: 10pt;
-                        text-align: center;
-                        margin-top: 10px;
-                    }
-                    
-                    @media print {
+    // دالة فتح معاينة الطباعة
+    const openPrintPreview = (item) => {
+        setItemToPrint(item);
+        setIsPrintPreviewOpen(true);
+    };
+    
+    // دالة طباعة الستكر
+    const printBarcodeSticker = () => {
+        const printContent = document.getElementById('barcode-sticker-content');
+        if (printContent) {
+            const printWindow = window.open('', '_blank');
+            const htmlContent = `
+                <!DOCTYPE html>
+                <html dir="rtl">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>طباعة باركود</title>
+                    <style>
+                        @page {
+                            size: 50mm 30mm;
+                            margin: 0;
+                        }
+                        
+                        * {
+                            margin: 0;
+                            padding: 0;
+                            box-sizing: border-box;
+                        }
+                        
                         body {
+                            font-family: 'Cairo', 'Arial', sans-serif;
                             background: white;
                             padding: 0;
                             -webkit-print-color-adjust: exact;
                             print-color-adjust: exact;
                         }
                         
-                        .preview-header,
-                        .print-button,
-                        .dimensions-info,
-                        .sticker-preview-wrapper {
-                            display: none !important;
-                        }
-                        
                         .sticker-container {
-                            border: 1px solid #000;
                             width: 50mm;
                             height: 30mm;
+                            display: flex;
+                            flex-direction: column;
+                            justify-content: center;
+                            align-items: center;
+                            gap: 2mm;
+                            border: 1px solid #000;
+                            padding: 3mm;
+                            background: white;
                         }
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="preview-header">
-                    <h1>📋 معاينة ستكر الباركود</h1>
-                    <p>معاينة قبل الطباعة - تأكد من الإعدادات قبل الطباعة</p>
-                </div>
-                
-                <div class="sticker-preview-wrapper">
-                    <div class="sticker-container">
-                        <div class="item-name">${item.name}</div>
-                        <div class="barcode-visual"></div>
-                        <div class="barcode-display">${item.barcode || 'N/A'}</div>
-                    </div>
-                </div>
-                
-                <div class="dimensions-info">
-                    📏 الأبعاد: 50mm × 30mm (مناسب لطابعات الستكرات)
-                </div>
-                
-                <button class="print-button" onclick="window.print()">
-                    🖨️ طباعة الآن
-                </button>
-            </body>
-            </html>
-        `;
-        
-        printWindow.document.write(htmlContent);
-        printWindow.document.close();
+                        
+                        .item-name {
+                            font-weight: bold;
+                            text-align: center;
+                            width: 100%;
+                            word-wrap: break-word;
+                            overflow-wrap: break-word;
+                            hyphens: auto;
+                            line-height: 1.3;
+                            flex-shrink: 1;
+                            font-size: clamp(8pt, 2.5vw, 12pt);
+                            max-height: 14mm;
+                            overflow: hidden;
+                            display: -webkit-box;
+                            -webkit-line-clamp: 3;
+                            -webkit-box-orient: vertical;
+                        }
+                        
+                        .barcode-visual {
+                            width: 100%;
+                            height: 8mm;
+                            background: repeating-linear-gradient(
+                                90deg,
+                                #000 0px,
+                                #000 1px,
+                                #fff 1px,
+                                #fff 2px
+                            );
+                            flex-shrink: 0;
+                        }
+                        
+                        .barcode-display {
+                            font-family: 'Courier New', monospace;
+                            font-weight: bold;
+                            letter-spacing: 1px;
+                            text-align: center;
+                            width: 100%;
+                            font-size: clamp(10pt, 3vw, 14pt);
+                            flex-shrink: 0;
+                        }
+                    </style>
+                </head>
+                <body>
+                    ${printContent.innerHTML}
+                </body>
+                </html>
+            `;
+            
+            printWindow.document.write(htmlContent);
+            printWindow.document.close();
+            printWindow.print();
+            printWindow.close();
+        }
     };
 
     const filteredList = useMemo(() => {
@@ -2385,21 +2291,101 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
                         <p className="flex items-center text-lg dark:text-gray-200"><Coins className="w-5 h-5 ml-2 text-indigo-500" /> **سعر الوحدة الحالي:** {formatCurrencyDisplay(currentItem.price)}</p>
                         <p className="flex items-center text-lg dark:text-gray-200"><Package className="w-5 h-5 ml-2 text-indigo-500" /> **الكمية في المخزن:** <span className="font-bold text-teal-600 dark:text-teal-400">{currentItem.count}</span></p>
                         
-                        {/* زر طباعة ستكر الباركود */}
+                        {/* زر معاينة ستكر الباركود */}
                         <div className="pt-3 pb-2">
                             <ActionButton 
-                                onClick={() => printBarcodeSticker(currentItem)} 
+                                onClick={() => openPrintPreview(currentItem)} 
                                 className="w-full bg-purple-600 hover:bg-purple-700"
-                                data-testid="button-print-barcode-sticker"
+                                data-testid="button-preview-barcode-sticker"
                             >
                                 <Printer className="w-5 h-5 ml-2" />
-                                طباعة ستكر الباركود (50mm × 30mm)
+                                معاينة و طباعة ستكر الباركود (50mm × 30mm)
                             </ActionButton>
                         </div>
                         
                         <h4 className="text-xl font-bold text-gray-800 dark:text-gray-200 border-b pb-2 pt-4 mb-2 flex items-center"><CalendarCheck className="w-5 h-5 ml-2 text-teal-600" /> سجل الشراء (تاريخ وسعر التكلفة)</h4>
                         {formatPurchaseHistory(currentItem.purchaseHistory || [])}
 
+                    </div>
+                </Modal>
+            )}
+            
+            {/* Modal معاينة طباعة الباركود */}
+            {isPrintPreviewOpen && itemToPrint && (
+                <Modal title="معاينة ستكر الباركود" onClose={() => setIsPrintPreviewOpen(false)} size="lg">
+                    <div className="space-y-6 p-6">
+                        {/* رأس المعاينة */}
+                        <div className="text-center bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-700 dark:to-purple-700 text-white p-4 rounded-xl shadow-lg">
+                            <h3 className="text-xl font-bold mb-1">📋 معاينة قبل الطباعة</h3>
+                            <p className="text-sm opacity-90">تأكد من الإعدادات قبل الطباعة</p>
+                        </div>
+                        
+                        {/* معاينة الستكر */}
+                        <div className="bg-gray-100 dark:bg-gray-700 p-8 rounded-xl flex justify-center items-center">
+                            <div id="barcode-sticker-content" className="sticker-container bg-white border-2 border-black" style={{
+                                width: '50mm',
+                                height: '30mm',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                gap: '2mm',
+                                padding: '3mm'
+                            }}>
+                                <div className="item-name" style={{
+                                    fontWeight: 'bold',
+                                    textAlign: 'center',
+                                    width: '100%',
+                                    wordWrap: 'break-word',
+                                    overflowWrap: 'break-word',
+                                    hyphens: 'auto',
+                                    lineHeight: '1.3',
+                                    flexShrink: 1,
+                                    fontSize: 'clamp(8pt, 2.5vw, 12pt)',
+                                    maxHeight: '14mm',
+                                    overflow: 'hidden',
+                                    display: '-webkit-box',
+                                    WebkitLineClamp: 3,
+                                    WebkitBoxOrient: 'vertical'
+                                }}>
+                                    {itemToPrint.name}
+                                </div>
+                                <div className="barcode-visual" style={{
+                                    width: '100%',
+                                    height: '8mm',
+                                    background: 'repeating-linear-gradient(90deg, #000 0px, #000 1px, #fff 1px, #fff 2px)',
+                                    flexShrink: 0
+                                }}></div>
+                                <div className="barcode-display" style={{
+                                    fontFamily: "'Courier New', monospace",
+                                    fontWeight: 'bold',
+                                    letterSpacing: '1px',
+                                    textAlign: 'center',
+                                    width: '100%',
+                                    fontSize: 'clamp(10pt, 3vw, 14pt)',
+                                    flexShrink: 0
+                                }}>
+                                    {itemToPrint.barcode || 'N/A'}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {/* معلومات الأبعاد */}
+                        <div className="text-center text-sm text-gray-600 dark:text-gray-400">
+                            📏 الأبعاد: 50mm × 30mm (مناسب لطابعات الستكرات)
+                        </div>
+                        
+                        {/* زر الطباعة */}
+                        <div className="pt-3">
+                            <ActionButton 
+                                onClick={printBarcodeSticker} 
+                                className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+                                data-testid="button-print-now"
+                            >
+                                <Printer className="w-5 h-5 ml-2" />
+                                🖨️ طباعة الآن
+                            </ActionButton>
+                        </div>
                     </div>
                 </Modal>
             )}
