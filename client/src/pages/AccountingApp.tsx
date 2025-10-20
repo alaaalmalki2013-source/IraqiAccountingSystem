@@ -277,8 +277,8 @@ const PrintInvoice = React.memo(({ item, onClose, companyName, companyLogoUrl, e
                 </ActionButton>
             </div>
             
-            <div id="print-invoice-content" className="p-4 print:p-0 print:block" style={invoiceStyle}>
-                <div className="invoice-container">
+            <div id="print-invoice-content" className="p-4 print:p-0 print:block bg-gray-50 dark:bg-gray-700 rounded-xl" style={invoiceStyle}>
+                <div className="invoice-container bg-white p-4 rounded-lg" style={{ color: "#000" }}>
                     {/* رأس السند (العنوان، الشعار، التاريخ/الفاتورة) */}
                     <div style={{ paddingBottom: '10px', marginBottom: '15px', borderBottom: paperSize === 'A4' ? '2px solid #1f2937' : '1px dashed #333' }}>
                         
@@ -388,7 +388,7 @@ const PrintReportModal = React.memo(({ reportData, title, onClose, companyName, 
             </div>
             
             {/* تم نقل المحتوى ليتم عرضه مباشرة في المودال وليس فقط للطباعة */}
-            <div id="print-report-content" className="p-0 max-w-full mx-auto" style={{ fontSize: '10pt', fontFamily: 'sans-serif' }}>
+            <div id="print-report-content" className="p-0 max-w-full mx-auto bg-gray-50 dark:bg-gray-700 rounded-xl p-4" style={{ fontSize: '10pt', fontFamily: 'sans-serif' }}>
                 
                 {/* تم تعديل الـ CSS ليتناسب مع العرض داخل المودال */}
                 <style>{`
@@ -396,11 +396,11 @@ const PrintReportModal = React.memo(({ reportData, title, onClose, companyName, 
                     .report-table th { background-color: #f2f2f2; }
                 `}</style>
                 
-                <div className="report-header text-center mb-5">
+                <div className="report-header text-center mb-5 bg-white p-4 rounded-lg">
                     {companyLogoUrl && <img src={companyLogoUrl} alt="Logo" style={{ maxHeight: '60px', margin: '0 auto 10px' }} onError={(e) => { e.target.style.display = 'none'; }} />}
-                    <h1 className="text-2xl font-bold">{companyName}</h1>
-                    <h2 className="text-xl font-semibold mt-1">تقرير {title} المفصل</h2>
-                    <p className="text-sm">تاريخ التقرير: {formatDate(new Date())}</p>
+                    <h1 className="text-2xl font-bold" style={{ color: "#000" }}>{companyName}</h1>
+                    <h2 className="text-xl font-semibold mt-1" style={{ color: "#000" }}>تقرير {title} المفصل</h2>
+                    <p className="text-sm" style={{ color: "#333" }}>تاريخ التقرير: {formatDate(new Date())}</p>
                 </div>
 
                 <div className="mb-4">
@@ -408,7 +408,7 @@ const PrintReportModal = React.memo(({ reportData, title, onClose, companyName, 
                     <p className="text-sm">عدد السجلات: {reportData.length}</p>
                 </div>
 
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto bg-white p-4 rounded-lg">
                     <table className="report-table w-full border-collapse">
                         <thead>
                             <tr>
@@ -430,7 +430,7 @@ const PrintReportModal = React.memo(({ reportData, title, onClose, companyName, 
                         </tbody>
                     </table>
                 </div>
-                <p className="text-center text-xs mt-10">--- نهاية التقرير ---</p>
+                <p className="text-center text-xs mt-10 text-gray-700 dark:text-gray-300">--- نهاية التقرير ---</p>
             </div>
         </Modal>
     );
