@@ -248,13 +248,19 @@ export const translations = {
     inventoryEntry: 'Inventory Entry',
     inventory: 'Inventory & Materials',
     settings: 'Settings',
+    aboutSystem: 'About System',
+    darkMode: 'Dark Mode',
+    lightMode: 'Light Mode',
+    languageSwitch: 'Switch Language',
     
     // Dashboard
+    currentCashFund: 'Current Cash Fund',
     totalRevenues: 'Total Revenues',
     totalExpenses: 'Total Expenses',
     netProfit: 'Net Profit',
     totalSalaries: 'Total Salaries',
     totalAdvances: 'Total Advances',
+    totalSuspended: 'Total Suspended Payments',
     totalEmployees: 'Number of Employees',
     inventoryValue: 'Inventory Value',
     pendingInvoices: 'Pending Invoices',
@@ -265,6 +271,12 @@ export const translations = {
     birthdayToday: 'Birthday today!',
     turnYears: 'turns',
     yearsOld: 'years old',
+    financialSummary: 'Main Financial Summary',
+    categoryStatistics: 'Statistics by Category',
+    revenuesByCategory: 'Total Revenues by Category',
+    expensesByCategory: 'Total Expenses by Category',
+    upcomingBirthdaysReminder: 'Upcoming Birthdays Reminder!',
+    birthdayOn: 'birthday on',
     
     // Common Actions
     add: 'Add',
