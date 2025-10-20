@@ -639,7 +639,7 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
 const DataPageComponent = React.memo(({ 
     type, title, collectionName, fields, categories, data, 
     handleDataAction, handleDelete, setPrintItem, setPrintReportData, 
-    setIsReportModalOpen, showToast, initialExpenseState, handleRefresh // <--- Added handleRefresh
+    setIsReportModalOpen, showToast, initialExpenseState, handleRefresh, t // <--- Added handleRefresh
 }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [currentItem, setCurrentItem] = useState(null);
@@ -4381,18 +4381,18 @@ const AccountingApp = () => {
 
 
     // 7. Routing and Navigation
-    const navItems = [
-        { key: 'dashboard', label: 'الرئيسية', icon: Home, component: DashboardComponent },
-        { key: 'revenues', label: 'الإيرادات', icon: TrendingUp, component: DataPageComponent, props: { title: 'الإيرادات', type: 'revenue', collectionName: 'revenues', categories: data.settings.revenueCategories, fields: [{ key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'category', label: 'فئة الإيراد', type: 'select', required: true }, { key: 'description', label: 'الوصف/المصدر', type: 'textarea' }], handleRefresh } },
-        { key: 'expenses', label: 'الصرفيات', icon: TrendingDown, component: DataPageComponent, props: { title: 'الصرفيات', type: 'expense', collectionName: 'expenses', categories: data.settings.expenseCategories, fields: [{ key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'category', label: 'فئة المصروف', type: 'select', required: true }, { key: 'description', label: 'الوصف المفصل', type: 'textarea', required: true }], handleRefresh } },
-        { key: 'advances', label: 'السلف', icon: Coins, component: DataPageComponent, props: { title: 'السلف', type: 'advance', collectionName: 'advances', categories: data.settings.advanceCategories, fields: [{ key: 'employeeName', label: 'الموظف المعني', type: 'select', required: true }, { key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'category', label: 'فئة السلفة', type: 'select', required: true }, { key: 'notes', label: 'ملاحظات', type: 'textarea' }], handleRefresh } },
-        { key: 'suspended', label: 'المعلقة (قيد التسوية)', icon: RotateCcw, component: DataPageComponent, props: { title: 'المعلقة (قيد التسوية)', type: 'suspended', collectionName: 'suspended', fields: [{ key: 'recipientName', label: 'اسم المستلم', required: true }, { key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'notes', label: 'ملاحظات', type: 'textarea' }], handleRefresh } },
-        { key: 'employees', label: 'الموظفين', icon: Users, component: EmployeePageComponent, props: { handleRefresh } },
-        { key: 'payroll', label: 'الرواتب', icon: Calculator, component: PayrollPageComponent, props: { handleRefresh } },
-        { key: 'inventoryEntry', label: 'الإدخال المخزني', icon: ClipboardCheck, component: InventoryEntryComponent, props: { handleRefresh } },
-        { key: 'inventory', label: 'المخزن والمواد', icon: Package, component: InventoryPageComponent, props: { handleRefresh, handleDataAction } },
-        { key: 'settings', label: 'الإعدادات', icon: Settings, component: SettingsPage, props: { handleSettingsUpdate } },
-    ];
+    const navItems = useMemo(() => [
+        { key: 'dashboard', label: t('dashboard'), icon: Home, component: DashboardComponent },
+        { key: 'revenues', label: t('revenues'), icon: TrendingUp, component: DataPageComponent, props: { title: t('revenues'), type: 'revenue', collectionName: 'revenues', categories: data.settings.revenueCategories, fields: [{ key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'category', label: 'فئة الإيراد', type: 'select', required: true }, { key: 'description', label: 'الوصف/المصدر', type: 'textarea' }], handleRefresh } },
+        { key: 'expenses', label: t('expenses'), icon: TrendingDown, component: DataPageComponent, props: { title: t('expenses'), type: 'expense', collectionName: 'expenses', categories: data.settings.expenseCategories, fields: [{ key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'category', label: 'فئة المصروف', type: 'select', required: true }, { key: 'description', label: 'الوصف المفصل', type: 'textarea', required: true }], handleRefresh } },
+        { key: 'advances', label: t('advances'), icon: Coins, component: DataPageComponent, props: { title: t('advances'), type: 'advance', collectionName: 'advances', categories: data.settings.advanceCategories, fields: [{ key: 'employeeName', label: 'الموظف المعني', type: 'select', required: true }, { key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'category', label: 'فئة السلفة', type: 'select', required: true }, { key: 'notes', label: 'ملاحظات', type: 'textarea' }], handleRefresh } },
+        { key: 'suspended', label: t('suspended'), icon: RotateCcw, component: DataPageComponent, props: { title: t('suspended'), type: 'suspended', collectionName: 'suspended', fields: [{ key: 'recipientName', label: 'اسم المستلم', required: true }, { key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'notes', label: 'ملاحظات', type: 'textarea' }], handleRefresh } },
+        { key: 'employees', label: t('employees'), icon: Users, component: EmployeePageComponent, props: { handleRefresh } },
+        { key: 'payroll', label: t('payroll'), icon: Calculator, component: PayrollPageComponent, props: { handleRefresh } },
+        { key: 'inventoryEntry', label: t('inventoryEntry'), icon: ClipboardCheck, component: InventoryEntryComponent, props: { handleRefresh } },
+        { key: 'inventory', label: t('inventory'), icon: Package, component: InventoryPageComponent, props: { handleRefresh, handleDataAction } },
+        { key: 'settings', label: t('settings'), icon: Settings, component: SettingsPage, props: { handleSettingsUpdate } },
+    ], [t, data.settings, handleRefresh, handleDataAction, handleSettingsUpdate]);
     
     // فلترة عناصر القائمة حسب صلاحيات المستخدم
     const visibleNavItems = useMemo(() => {
