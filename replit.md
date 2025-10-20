@@ -1,219 +1,50 @@
 # نظام المحاسبة العراقي - Iraqi Accounting System
 
-## نظرة عامة
+### Overview
+This project is a comprehensive Iraqi accounting system designed to manage revenues, expenses, inventory, employees, and payroll. It features a full Arabic RTL interface with a professional design, dark/light mode support, and aims to be a complete solution for financial management tailored for the Iraqi market. The system operates offline, storing data locally, and provides an intelligent AI assistant named "Alaa" specialized in guiding users through the system's functionalities.
 
-نظام محاسبة عراقي متكامل مصمم لإدارة الإيرادات والمصروفات والمخزون والموظفين والرواتب. يتميز النظام بواجهة عربية كاملة RTL مع تصميم احترافي ودعم للوضع الداكن/الفاتح.
+### User Preferences
+I prefer simple, clear language in explanations. I appreciate an iterative development approach. Please ask before making any major architectural changes or introducing new external dependencies. When implementing features, prioritize a modern, professional aesthetic with full RTL support and responsive design. Ensure the system remains functional offline. I prefer detailed explanations of new features and changes, especially regarding performance and code structure.
 
-## المميزات الرئيسية
+### System Architecture
+The system is built as a single-page application with a modern and professional UI/UX, supporting full RTL and responsive design.
 
-### 1. **لوحة التحكم (Dashboard)**
-- عرض الإحصائيات المالية الشاملة
-- رسوم بيانية تفاعلية للإيرادات والمصروفات
-- تنبيهات أعياد الميلاد (قبل يومين حتى نهاية يوم عيد الميلاد)
-- ملخص الحالة المالية الحالية
+**UI/UX Decisions:**
+- **Dark/Light Mode:** Seamless switching with user preference saved.
+- **Color Scheme:** Utilizes a modern color palette with primary (vibrant blue), secondary (purple), and accent (turquoise) colors, along with functional colors for revenues (green), expenses (red), and warnings (amber).
+- **Gradients:** Modern gradients are used for dashboard cards, sidebar, and active buttons.
+- **Typography & Icons:** Clear, colored icons and legible Arabic typography.
+- **Layout:** Collapsible sidebar with state saving.
+- **Accessibility:** Designed with a 4.5:1 contrast ratio for enhanced accessibility, adhering to Material Design 3 principles.
 
-### 2. **الشكل العام والتصميم**
-- **Dark/Light Mode:** تبديل بين الوضع الداكن والفاتح مع حفظ التفضيل لكل مستخدم
-- **Sidebar Collapse:** قائمة جانبية قابلة للطي/التوسيع مع حفظ الحالة
-- **RTL Support:** دعم كامل للغة العربية من اليمين لليسار
-- **Responsive Design:** تصميم متجاوب يعمل على جميع الأجهزة
+**Technical Implementations & Feature Specifications:**
+- **Dashboard:** Displays comprehensive financial statistics, interactive charts, and birthday alerts.
+- **Financial Management:**
+    - **Revenues:** Add, edit, delete, categorize, advanced filtering, search (supports Arabic numerals), print, and export to CSV.
+    - **Expenses:** Record expenses with vendor/representative details, link to inventory purchases, advanced invoicing, print vouchers (80mm & A4).
+    - **Suspended Payments:** Track and manage outstanding payments and debts.
+- **Employee Management:**
+    - **Employees:** Full database, birthday tracking, basic salary management, personal document storage.
+    - **Advances:** Manage employee financial advances (personal, emergency, medical, family, other categories), track payments, print vouchers, filter by category.
+    - **Payroll:** Comprehensive payroll table including basic salary, bonuses, deductions, absences, overtime, advances, net salary calculation, status tracking, and 80mm payslip printing. Supports monthly payroll selection.
+- **Inventory Management:**
+    - **Inventory Entry:** Purchase invoice entry with smart autocomplete for items, ability to modify/delete items from invoices, RTL quantity input, cash/credit invoice approval, cancellation with reason, status tracking.
+    - **Inventory:** Full material database, direct item addition (without invoice), duplicate name prevention, automatic barcode generation, stock tracking, material expenditure, and full purchase history for each item.
+- **Settings:** Manage categories (revenues, expenses, advances), departments, job titles, vendors, representatives, user permissions, and company details.
+- **AI Assistant "Alaa":** A GPT-5-mini powered intelligent assistant integrated into the system, specialized in guiding users on how to use the Iraqi Accounting System specifically, providing accurate and context-aware responses in Arabic.
 
-### 3. **إدارة الإيرادات (Revenues)**
-- إضافة وتعديل وحذف الإيرادات
-- تصنيف الإيرادات حسب الفئات
-- فلترة متقدمة حسب التاريخ والفئة
-- بحث شامل يدعم الأرقام العربية
-- طباعة وتصدير التقارير إلى CSV
+**System Design Choices:**
+- **Offline First:** Designed to function without an internet connection, storing all data in `localStorage` under `IRAQI_ACCOUNTING_DATA_V3_LOCAL`.
+- **Modularity:** Codebase structured with utilities and types separated for better maintainability and performance using code splitting, `React.memo`, `useMemo`, and `useCallback`.
+- **Permissions System:** Robust user permissions for different functionalities (e.g., add, edit, delete for inventory).
 
-### 4. **إدارة المصروفات (Expenses)**
-- تسجيل المصروفات مع تفاصيل الموردين والمندوبين
-- ربط المصروفات بالمشتريات المخزنية
-- نظام فواتير متقدم
-- طباعة سندات الصرف (80mm و A4)
-
-### 5. **إدارة الموظفين (Employees)**
-- قاعدة بيانات كاملة للموظفين
-- تتبع أعياد الميلاد
-- إدارة الرواتب الأساسية
-- تخزين المستندات الشخصية
-
-### 6. **نظام السلف (Advances)**
-- إدارة السلف المالية للموظفين
-- **فئات السلف:** سلفة شخصية، سلفة طارئة، سلفة علاجية، سلفة عائلية، أخرى
-- تتبع المدفوعات والمستحقات
-- طباعة سندات السلف
-- فلترة حسب الفئة
-
-### 7. **المبالغ المعلقة (Suspended)**
-- تتبع المدفوعات المعلقة
-- إدارة الذمم والديون
-
-### 8. **الإدخال المخزني (Inventory Entry)** ⭐ محدّث
-- إدخال فواتير المشتريات
-- **Autocomplete ذكي:** اقتراحات تلقائية لأسماء المواد من المخزون
-- **تعديل المواد:** إمكانية تعديل وحذف المواد بعد إضافتها للفاتورة
-- **حقل الكمية RTL:** كتابة الكمية من اليمين
-- اعتماد الفواتير (كاش أو آجل)
-- إلغاء الفواتير مع تسجيل السبب
-- تتبع حالات الفواتير (معلقة، معتمدة كاش، معتمدة آجل، ملغاة)
-
-### 9. **إدارة المخزون (Inventory)** ⭐ محدّث
-- قاعدة بيانات كاملة للمواد
-- **إضافة مواد مباشرة:** إمكانية إضافة مواد جديدة مباشرة من صفحة المخزون (بدون فاتورة) ⭐ جديد
-- **منع التكرار:** النظام يمنع إضافة مواد بنفس الاسم
-- **توليد باركود تلقائي:** إذا لم يتم إدخال باركود، يتم توليده تلقائياً
-- نظام باركود متكامل
-- تتبع سجل المشتريات لكل مادة
-- صرف المواد من المخزون
-- تتبع المخزون الحالي
-- عرض تفاصيل المواد مع سجل الشراء الكامل
-
-### 10. **نظام الرواتب (Payroll)** ⭐ جديد
-- **جدول الرواتب الشامل:** عرض جميع الموظفين مع تفاصيل الراتب
-- **الأعمدة:** الاسم، الراتب الأساسي، المكافآت، الخصومات، الغياب، الأوفرتايم، السلف، الراتب الصافي، الحالة، الإجراءات
-- **إضافة تعديلات:** مكافآت، خصومات، غياب، أوفرتايم
-- **سجل السلف:** عرض تلقائي للسلف المستحقة من قسم السلف
-- **حساب تلقائي:** حساب الراتب الصافي تلقائياً
-- **طباعة كشف راتب 80mm:** تنسيق احترافي للطابعة الحرارية
-- **دفع الراتب:** تتبع حالة الدفع (مستلم/غير مستلم)
-- **فلترة:** الكل، مدفوعة، غير مدفوعة
-- **اختيار الشهر والسنة:** عرض الرواتب لشهر معين
-
-### 11. **الإعدادات (Settings)**
-- إدارة الفئات (إيرادات ومصروفات)
-- **إدارة فئات السلف** ⭐ جديد
-- إدارة الأقسام والمناصب الوظيفية
-- إدارة الموردين والمندوبين
-- نظام صلاحيات المستخدمين
-- إعدادات الشركة (الاسم، الشعار)
-
-### 12. **المساعد الذكي "علاء"** ⭐ جديد
-- **اسمه علاء:** مساعد ذكي شخصي يعمل بـ GPT-5-mini
-- **متخصص في النظام:** يشرح كيفية استخدام نظام المحاسبة العراقي فقط (لا يقدم نصائح محاسبية عامة)
-- **إجابات دقيقة:** يركز على الخطوات العملية داخل النظام بالتحديد
-- **واجهة "اسأل علاء":** نافذة محادثة عائمة في أسفل الصفحة
-- **تصميم عربي RTL:** دعم كامل للغة العربية
-- **دعم Dark Mode:** يتكامل مع وضع النظام الداكن/الفاتح
-- **سياق النظام:** يفهم جميع أقسام ومميزات النظام بالتفصيل
-- **سجل المحادثة:** يحفظ سياق المحادثة للإجابات الأفضل
-
-## التقنيات المستخدمة
-
-### Frontend
-- **React** - مكتبة واجهة المستخدم
-- **Tailwind CSS** - تصميم الواجهة
-- **Lucide React** - الأيقونات
-- **LocalStorage** - تخزين البيانات محلياً
-
-### Backend
-- **Express.js** - خادم الويب
-- **TypeScript** - لغة البرمجة
-- **OpenAI GPT-5** - المساعد الذكي (عبر Replit AI Integrations)
-- **REST API** - نقطة نهاية /api/chat للمساعد الذكي
-
-## الحالة الحالية
-
-- ✅ جميع المكونات الأساسية تعمل
-- ✅ التخزين المحلي (localStorage) نشط
-- ✅ الواجهة العربية الكاملة
-- ✅ نظام الطباعة والتصدير
-- ✅ البحث المتقدم والفلترة
-- ✅ الإحصائيات والرسوم البيانية
-- ✅ Dark/Light Mode
-- ✅ Sidebar Collapse/Expand
-- ✅ نظام الرواتب الكامل
-- ✅ فئات السلف
-- ✅ Inventory Autocomplete
-- ✅ إضافة مواد مباشرة للمخزون ⭐ جديد
-- ✅ المساعد الذكي "علاء" (متخصص في شرح النظام)
-- ✅ الوضع الداكن الشامل مع dark: variants
-
-## الملاحظات المهمة
-
-- البيانات محفوظة في `localStorage` تحت المفتاح: `IRAQI_ACCOUNTING_DATA_V3_LOCAL`
-- يمكن تصدير/استيراد البيانات عبر نسخ localStorage
-- النظام مصمم للعمل بدون اتصال بالإنترنت
-- تفضيلات Dark Mode و Sidebar Collapse محفوظة لكل مستخدم
-- أعياد الميلاد تظهر قبل يومين من عيد الميلاد حتى نهاية اليوم
-- نظام الرواتب متكامل مع قسم السلف
-- المواد المضافة مباشرة للمخزون لا يكون لها سجل شراء (purchaseHistory فارغ)
-
-## التحديثات الأخيرة
-
-### الإصدار 4.0 - التصميم العصري الكامل (2025-10-20) ⭐ جديد
-
-**تحديث شامل للتصميم بنظام ألوان عصري واحترافي**
-
-1. **نظام الألوان العصري:**
-   - **Primary (أزرق زاهي):** 220° 90% 56% (وضع فاتح) | 220° 85% 65% (وضع داكن)
-   - **Secondary (بنفسجي):** 280° 65% 60% (وضع فاتح) | 280° 60% 68% (وضع داكن)
-   - **Accent (تركواز):** 180° 70% 50% (وضع فاتح) | 180° 65% 58% (وضع داكن)
-   - ألوان وظيفية: أخضر للإيرادات، أحمر للمصروفات، كهرماني للتحذيرات
-
-2. **تحسينات الوضع الداكن:**
-   - خلفيات داكنة أنيقة (220° 15% 8%)
-   - كروت داكنة محسنة (220° 12% 12%)
-   - نصوص فاتحة عالية التباين (98% بياض)
-   - حدود وفواصل واضحة للوضع الداكن
-   - ظلال محسنة مع توهج خفيف
-
-3. **تدرجات لونية حديثة:**
-   - Dashboard Cards: تدرجات زرقاء، بنفسجية، وتركواز
-   - Sidebar: تدرج from-blue-900 via-blue-800 to-blue-900 (فاتح)
-   - Sidebar Dark Mode: from-gray-900 via-gray-800 to-gray-900
-   - أزرار نشطة: from-blue-600 to-purple-600
-   - خلفية التطبيق: from-gray-50 to-gray-100 (فاتح) / from-gray-900 to-gray-950 (داكن)
-
-4. **تحسينات التصميم:**
-   - أيقونات ملونة واضحة في كلا الوضعين
-   - كروت فلاتر عصرية مع ظلال ناعمة وتدرجات
-   - حقول بحث محسنة مع حلقات تركيز ملونة (focus:ring-primary)
-   - جداول بتصميم أنيق مع تأثيرات hover محسّنة
-   - أزرار بتدرجات لونية وظلال محسنة
-   - صفوف المجاميع (Total Rows) بتدرجات لونية
-   - Sidebar navigation بتأثيرات hover وscale
-
-5. **سكريبتات التحديث الآلية:**
-   - `update-modern-design.cjs`: تطبيق التصميم على Dashboard Cards
-   - `update-filters-search.cjs`: تطبيق التصميم على الفلاتر والجداول
-   - `update-sidebar.cjs`: تطبيق التصميم على القائمة الجانبية
-
-6. **مستند التصميم:**
-   - إنشاء `design_guidelines.md` شامل
-   - مبني على Material Design 3
-   - نظام ألوان ديناميكي كامل
-   - معايير إمكانية الوصول (تباين 4.5:1)
-
-7. **الاختبارات:**
-   - اختبار E2E شامل للتصميم الجديد
-   - التحقق من Dark Mode على جميع العناصر
-   - التحقق من التدرجات اللونية والأيقونات
-   - التحقق من Sidebar والفلاتر والبحث
-
-### الإصدار 3.3 - إضافة مواد مباشرة للمخزون (2025-10-19)
-
-1. **ميزة إضافة مواد مباشرة:**
-   - زر "إضافة مادة جديدة" في صفحة المخزون
-   - Modal شامل لإضافة المواد مع جميع الحقول
-   - دعم كامل لإضافة: الاسم، الباركود، السعر، الكمية، الفئة
-   - توليد باركود تلقائي إذا لم يتم إدخاله
-   - منع التكرار: رفض إضافة مواد بنفس الاسم
-   - حفظ تلقائي في localStorage
-   - عرض فوري في جدول المخزون
-   - المواد المضافة يدوياً لها purchaseHistory فارغ
-
-2. **الإصلاحات التقنية:**
-   - تحديث BASE_PERMISSIONS لإضافة صلاحيات add, edit, delete للمخزون
-   - تعديل handleDataAction لدعم المواد المخزنية (بدون invoiceNumber)
-   - الحفاظ على id الموجود بدلاً من توليد واحد جديد للمواد
-   - تحسين نظام الصلاحيات لدعم المخزون
-
-3. **الاختبارات:**
-   - اختبار e2e كامل لإضافة مواد جديدة
-   - التحقق من الحفظ في localStorage
-   - التحقق من الاستمرارية بعد إعادة التحميل
-
----
-
-آخر تحديث: 2025-10-20
-الإصدار: 4.0 (Modern Design System)
+### External Dependencies
+- **Frontend:**
+    - **React:** UI library.
+    - **Tailwind CSS:** For styling.
+    - **Lucide React:** For icons.
+    - **LocalStorage:** For local data storage.
+- **Backend:**
+    - **Express.js:** Web server.
+    - **TypeScript:** Programming language.
+    - **OpenAI GPT-5 (via Replit AI Integrations):** For the intelligent assistant "Alaa" (accessible via `/api/chat` REST API endpoint).
