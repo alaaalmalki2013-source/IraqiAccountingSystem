@@ -2418,6 +2418,515 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
 
 
 /**
+ * 3.5. InventoryDispatchPage (الاستخراج المخزني)
+ */
+const InventoryDispatchPage = React.memo(({ data, handleDataAction, handleDelete, showToast, handleRefresh }) => {
+    const [isAddDispatchModalOpen, setIsAddDispatchModalOpen] = useState(false);
+    const [globalSearch, setGlobalSearch] = useState('');
+    const [currentDispatch, setCurrentDispatch] = useState(null);
+    const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+    
+    // حالة نموذج الاستخراج
+    const [dispatchForm, setDispatchForm] = useState({
+        employeeName: '',
+        employeeId: '',
+        department: '',
+        items: [],
+        date: getDefaultDateTime(),
+        notes: ''
+    });
+    
+    // حالة autocomplete للموظفين
+    const [employeeSuggestions, setEmployeeSuggestions] = useState([]);
+    const [showEmployeeSuggestions, setShowEmployeeSuggestions] = useState(false);
+    
+    // حالة autocomplete للمواد
+    const [materialSuggestions, setMaterialSuggestions] = useState([]);
+    const [showMaterialSuggestions, setShowMaterialSuggestions] = useState(false);
+    const [currentMaterialInput, setCurrentMaterialInput] = useState('');
+    const [currentQuantityInput, setCurrentQuantityInput] = useState('');
+    
+    // معالجة تغيير اسم الموظف مع autocomplete
+    const handleEmployeeNameChange = (value) => {
+        setDispatchForm(prev => ({ ...prev, employeeName: value, employeeId: '', department: '' }));
+        
+        if (value.trim()) {
+            const filtered = data.employees.filter(emp => 
+                emp.name.toLowerCase().includes(value.toLowerCase())
+            );
+            setEmployeeSuggestions(filtered);
+            setShowEmployeeSuggestions(true);
+        } else {
+            setEmployeeSuggestions([]);
+            setShowEmployeeSuggestions(false);
+        }
+    };
+    
+    // اختيار موظف من الاقتراحات
+    const selectEmployee = (employee) => {
+        setDispatchForm(prev => ({
+            ...prev,
+            employeeName: employee.name,
+            employeeId: employee.id,
+            department: employee.department
+        }));
+        setShowEmployeeSuggestions(false);
+    };
+    
+    // معالجة تغيير اسم المادة مع autocomplete
+    const handleMaterialNameChange = (value) => {
+        setCurrentMaterialInput(value);
+        
+        if (value.trim()) {
+            const filtered = data.inventory.filter(item => 
+                item.name.toLowerCase().includes(value.toLowerCase()) && item.count > 0
+            );
+            setMaterialSuggestions(filtered);
+            setShowMaterialSuggestions(true);
+        } else {
+            setMaterialSuggestions([]);
+            setShowMaterialSuggestions(false);
+        }
+    };
+    
+    // إضافة مادة للاستخراج
+    const addMaterialToDispatch = () => {
+        if (!currentMaterialInput.trim() || !currentQuantityInput) {
+            showToast('يرجى إدخال اسم المادة والكمية', 'error');
+            return;
+        }
+        
+        // التحقق من وجود المادة في المخزن
+        const material = data.inventory.find(item => 
+            item.name.toLowerCase() === currentMaterialInput.toLowerCase()
+        );
+        
+        if (!material) {
+            showToast('المادة غير موجودة في المخزن', 'error');
+            return;
+        }
+        
+        const quantity = parseInt(currentQuantityInput);
+        if (quantity <= 0) {
+            showToast('الكمية يجب أن تكون أكبر من صفر', 'error');
+            return;
+        }
+        
+        if (quantity > material.count) {
+            showToast("الكمية المطلوبة أكبر من المتوفر في المخزن (" + material.count + ")", "error");
+            return;
+        }
+        
+        // إضافة المادة للقائمة
+        setDispatchForm(prev => ({
+            ...prev,
+            items: [...prev.items, {
+                id: Date.now(),
+                materialId: material.id,
+                materialName: material.name,
+                quantity: quantity,
+                availableStock: material.count
+            }]
+        }));
+        
+        // إعادة تعيين الحقول
+        setCurrentMaterialInput('');
+        setCurrentQuantityInput('');
+        setShowMaterialSuggestions(false);
+    };
+    
+    // حذف مادة من الاستخراج
+    const removeMaterialFromDispatch = (itemId) => {
+        setDispatchForm(prev => ({
+            ...prev,
+            items: prev.items.filter(item => item.id !== itemId)
+        }));
+    };
+    
+    // حفظ الاستخراج
+    const saveDispatch = () => {
+        if (!dispatchForm.employeeId) {
+            showToast('يرجى اختيار موظف موجود من القائمة', 'error');
+            return;
+        }
+        
+        if (dispatchForm.items.length === 0) {
+            showToast('يرجى إضافة مادة واحدة على الأقل', 'error');
+            return;
+        }
+        
+        // التحقق من أن الموظف موجود فعلاً
+        const employee = data.employees.find(emp => emp.id === dispatchForm.employeeId);
+        if (!employee) {
+            showToast('الموظف المحدد غير موجود', 'error');
+            return;
+        }
+        
+        // إنشاء الاستخراج
+        const newDispatch = {
+            id: Date.now(),
+            employeeId: dispatchForm.employeeId,
+            employeeName: dispatchForm.employeeName,
+            department: dispatchForm.department,
+            items: dispatchForm.items,
+            date: dispatchForm.date,
+            notes: dispatchForm.notes
+        };
+        
+        // تحديث المخزون (خصم الكميات)
+        const updatedInventory = data.inventory.map(item => {
+            const dispatchItem = dispatchForm.items.find(di => di.materialId === item.id);
+            if (dispatchItem) {
+                return {
+                    ...item,
+                    count: item.count - dispatchItem.quantity
+                };
+            }
+            return item;
+        });
+        
+        // حفظ الاستخراج وتحديث المخزون
+        handleDataAction('inventoryDispatches', newDispatch);
+        handleDataAction('inventory', updatedInventory, 'update-all');
+        
+        showToast('تم حفظ الاستخراج بنجاح', 'success');
+        setIsAddDispatchModalOpen(false);
+        resetDispatchForm();
+    };
+    
+    // إعادة تعيين النموذج
+    const resetDispatchForm = () => {
+        setDispatchForm({
+            employeeName: '',
+            employeeId: '',
+            department: '',
+            items: [],
+            date: getDefaultDateTime(),
+            notes: ''
+        });
+        setCurrentMaterialInput('');
+        setCurrentQuantityInput('');
+    };
+    
+    // حذف استخراج
+    const deleteDispatch = (dispatchId) => {
+        if (confirm('هل أنت متأكد من حذف هذا الاستخراج؟ لن يتم إرجاع المواد للمخزن')) {
+            handleDelete('inventoryDispatches', dispatchId);
+            showToast('تم حذف الاستخراج', 'success');
+        }
+    };
+    
+    // فتح تفاصيل الاستخراج
+    const openDispatchDetails = (dispatch) => {
+        setCurrentDispatch(dispatch);
+        setIsDetailsModalOpen(true);
+    };
+    
+    // تصفية الاستخراجات حسب البحث
+    const filteredDispatches = useMemo(() => {
+        let list = data.inventoryDispatches.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+        
+        if (globalSearch) {
+            const searchLower = normalizeTextForSearch(globalSearch);
+            list = list.filter(dispatch => {
+                const matchesEmployee = normalizeTextForSearch(dispatch.employeeName).includes(searchLower);
+                const matchesDepartment = normalizeTextForSearch(dispatch.department).includes(searchLower);
+                const matchesMaterial = dispatch.items.some(item => 
+                    normalizeTextForSearch(item.materialName).includes(searchLower)
+                );
+                return matchesEmployee || matchesDepartment || matchesMaterial;
+            });
+        }
+        
+        return list;
+    }, [data.inventoryDispatches, globalSearch]);
+    
+    return (
+        <div className="p-6 space-y-6 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl">
+            <h2 className="text-4xl font-extrabold text-gray-800 dark:text-gray-200 border-b-2 border-teal-500 pb-3">الاستخراج المخزني</h2>
+            
+            {/* البحث الشامل */}
+            <div className="bg-white dark:bg-gray-700 p-4 rounded-xl shadow-lg border border-teal-100 dark:border-teal-700 relative">
+                <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">البحث الشامل</label>
+                <input
+                    type="text"
+                    value={globalSearch}
+                    onChange={(e) => setGlobalSearch(e.target.value)}
+                    placeholder="ابحث باسم الموظف، القسم، أو المادة..."
+                    className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl pr-10 focus:ring-amber-500 focus:border-amber-500"
+                    data-testid="input-dispatch-search"
+                />
+                <Search className="w-5 h-5 absolute right-3 top-1/2 transform translate-y-1/2 text-gray-400 mt-2" />
+            </div>
+            
+            {/* أزرار الإجراءات */}
+            <div className="flex justify-between items-center gap-3">
+                <ActionButton 
+                    onClick={() => setIsAddDispatchModalOpen(true)} 
+                    className="bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800"
+                    data-testid="button-add-dispatch"
+                >
+                    <Plus className="w-5 h-5 ml-2" />
+                    إضافة استخراج
+                </ActionButton>
+                
+                <button 
+                    onClick={handleRefresh} 
+                    className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200" 
+                    data-testid="button-refresh-dispatches"
+                >
+                    <RotateCcw className="w-6 h-6" />
+                </button>
+            </div>
+            
+            {/* جدول الاستخراجات */}
+            <div className="bg-white dark:bg-gray-700 p-6 rounded-xl shadow-lg overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-600">
+                    <thead className="bg-gray-50 dark:bg-gray-600">
+                        <tr>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">التاريخ</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">اسم الموظف</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">القسم</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">عدد المواد</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
+                        {filteredDispatches.length === 0 ? (
+                            <tr><td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">لا توجد استخراجات مسجلة</td></tr>
+                        ) : (
+                            filteredDispatches.map(dispatch => (
+                                <tr key={dispatch.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150" data-testid={"row-dispatch-" + dispatch.id}>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                        {new Date(dispatch.date).toLocaleString('ar-IQ', { dateStyle: 'short', timeStyle: 'short' })}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600 dark:text-blue-400 cursor-pointer" onClick={() => openDispatchDetails(dispatch)}>
+                                        {highlightText(dispatch.employeeName, globalSearch)}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                        {highlightText(dispatch.department, globalSearch)}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 font-bold">
+                                        {dispatch.items.length}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                        <div className="flex space-x-3 space-x-reverse">
+                                            <button onClick={() => openDispatchDetails(dispatch)} className="text-teal-600 dark:text-teal-400 hover:text-teal-900 dark:hover:text-teal-300" data-testid={"button-details-" + dispatch.id}>
+                                                <List className="w-5 h-5" />
+                                            </button>
+                                            <button onClick={() => deleteDispatch(dispatch.id)} className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300" data-testid={"button-delete-" + dispatch.id}>
+                                                <Trash2 className="w-5 h-5" />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
+                </table>
+            </div>
+            
+            {/* Modal إضافة استخراج */}
+            {isAddDispatchModalOpen && (
+                <Modal title="إضافة استخراج مخزني جديد" onClose={() => { setIsAddDispatchModalOpen(false); resetDispatchForm(); }} size="xl">
+                    <div className="space-y-4">
+                        {/* اسم الموظف مع autocomplete */}
+                        <div className="relative">
+                            <InputField
+                                label="اسم الموظف *"
+                                value={dispatchForm.employeeName}
+                                onChange={(e) => handleEmployeeNameChange(e.target.value)}
+                                placeholder="ابحث عن موظف..."
+                                required
+                                data-testid="input-employee-name"
+                            />
+                            {showEmployeeSuggestions && employeeSuggestions.length > 0 && (
+                                <div className="absolute z-10 w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto mt-1">
+                                    {employeeSuggestions.map(emp => (
+                                        <div
+                                            key={emp.id}
+                                            onClick={() => selectEmployee(emp)}
+                                            className="p-3 hover:bg-teal-50 dark:hover:bg-teal-900 cursor-pointer border-b border-gray-200 dark:border-gray-600 last:border-b-0"
+                                        >
+                                            <div className="font-semibold text-gray-800 dark:text-gray-200">{emp.name}</div>
+                                            <div className="text-sm text-gray-600 dark:text-gray-400">{emp.department} - {emp.jobTitle}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                        
+                        {/* القسم (تلقائي) */}
+                        <InputField
+                            label="القسم"
+                            value={dispatchForm.department}
+                            readOnly
+                            placeholder="يتم ملؤه تلقائياً عند اختيار الموظف"
+                            data-testid="input-department"
+                        />
+                        
+                        {/* إضافة مادة */}
+                        <div className="border-t pt-4 mt-4">
+                            <h4 className="text-lg font-bold text-gray-800 dark:text-gray-200 mb-3">إضافة مواد</h4>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                {/* اسم المادة مع autocomplete */}
+                                <div className="relative md:col-span-2">
+                                    <InputField
+                                        label="اسم المادة *"
+                                        value={currentMaterialInput}
+                                        onChange={(e) => handleMaterialNameChange(e.target.value)}
+                                        placeholder="ابحث عن مادة..."
+                                        data-testid="input-material-name"
+                                    />
+                                    {showMaterialSuggestions && materialSuggestions.length > 0 && (
+                                        <div className="absolute z-10 w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto mt-1">
+                                            {materialSuggestions.map(material => (
+                                                <div
+                                                    key={material.id}
+                                                    onClick={() => {
+                                                        setCurrentMaterialInput(material.name);
+                                                        setShowMaterialSuggestions(false);
+                                                    }}
+                                                    className="p-3 hover:bg-teal-50 dark:hover:bg-teal-900 cursor-pointer border-b border-gray-200 dark:border-gray-600 last:border-b-0"
+                                                >
+                                                    <div className="font-semibold text-gray-800 dark:text-gray-200">{material.name}</div>
+                                                    <div className="text-sm text-gray-600 dark:text-gray-400">الكمية المتوفرة: {material.count}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                                
+                                {/* الكمية */}
+                                <InputField
+                                    label="الكمية *"
+                                    type="number"
+                                    value={currentQuantityInput}
+                                    onChange={(e) => setCurrentQuantityInput(e.target.value)}
+                                    placeholder="0"
+                                    data-testid="input-quantity"
+                                />
+                            </div>
+                            
+                            <ActionButton
+                                onClick={addMaterialToDispatch}
+                                className="mt-3 bg-blue-600 hover:bg-blue-700"
+                                data-testid="button-add-material"
+                            >
+                                <Plus className="w-5 h-5 ml-2" />
+                                إضافة المادة
+                            </ActionButton>
+                        </div>
+                        
+                        {/* قائمة المواد المضافة */}
+                        {dispatchForm.items.length > 0 && (
+                            <div className="border-t pt-4 mt-4">
+                                <h4 className="text-lg font-bold text-gray-800 dark:text-gray-200 mb-3">المواد المضافة</h4>
+                                <div className="space-y-2">
+                                    {dispatchForm.items.map(item => (
+                                        <div key={item.id} className="flex justify-between items-center bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
+                                            <div>
+                                                <div className="font-semibold text-gray-800 dark:text-gray-200">{item.materialName}</div>
+                                                <div className="text-sm text-gray-600 dark:text-gray-400">الكمية: {item.quantity}</div>
+                                            </div>
+                                            <button
+                                                onClick={() => removeMaterialFromDispatch(item.id)}
+                                                className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                                                data-testid={"button-remove-material-" + item.id}
+                                            >
+                                                <X className="w-5 h-5" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                        
+                        {/* ملاحظات */}
+                        <InputField
+                            label="ملاحظات"
+                            value={dispatchForm.notes}
+                            onChange={(e) => setDispatchForm(prev => ({ ...prev, notes: e.target.value }))}
+                            placeholder="أي ملاحظات إضافية..."
+                            textarea
+                            data-testid="input-notes"
+                        />
+                        
+                        {/* أزرار الحفظ والإلغاء */}
+                        <div className="flex gap-3 justify-end pt-4 border-t">
+                            <ActionButton onClick={saveDispatch} className="bg-teal-600 hover:bg-teal-700" data-testid="button-save-dispatch">
+                                <Save className="w-5 h-5 ml-2" />
+                                حفظ الاستخراج
+                            </ActionButton>
+                            <ActionButton onClick={() => { setIsAddDispatchModalOpen(false); resetDispatchForm(); }} className="bg-gray-600 hover:bg-gray-700" data-testid="button-cancel">
+                                <X className="w-5 h-5 ml-2" />
+                                إلغاء
+                            </ActionButton>
+                        </div>
+                    </div>
+                </Modal>
+            )}
+            
+            {/* Modal تفاصيل الاستخراج */}
+            {isDetailsModalOpen && currentDispatch && (
+                <Modal title={"تفاصيل الاستخراج - " + currentDispatch.employeeName} onClose={() => setIsDetailsModalOpen(false)} size="xl">
+                    <div className="space-y-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <span className="font-semibold text-gray-700 dark:text-gray-300">اسم الموظف:</span>
+                                <p className="text-gray-900 dark:text-gray-100 font-bold">{currentDispatch.employeeName}</p>
+                            </div>
+                            <div>
+                                <span className="font-semibold text-gray-700 dark:text-gray-300">القسم:</span>
+                                <p className="text-gray-900 dark:text-gray-100 font-bold">{currentDispatch.department}</p>
+                            </div>
+                            <div>
+                                <span className="font-semibold text-gray-700 dark:text-gray-300">التاريخ:</span>
+                                <p className="text-gray-900 dark:text-gray-100">{new Date(currentDispatch.date).toLocaleString('ar-IQ', { dateStyle: 'medium', timeStyle: 'short' })}</p>
+                            </div>
+                            <div>
+                                <span className="font-semibold text-gray-700 dark:text-gray-300">عدد المواد:</span>
+                                <p className="text-gray-900 dark:text-gray-100 font-bold">{currentDispatch.items.length}</p>
+                            </div>
+                        </div>
+                        
+                        {currentDispatch.notes && (
+                            <div className="border-t pt-3">
+                                <span className="font-semibold text-gray-700 dark:text-gray-300">ملاحظات:</span>
+                                <p className="text-gray-900 dark:text-gray-100 mt-1">{currentDispatch.notes}</p>
+                            </div>
+                        )}
+                        
+                        <div className="border-t pt-4">
+                            <h5 className="font-bold text-lg text-gray-800 dark:text-gray-200 mb-3">المواد المستخرجة</h5>
+                            <table className="min-w-full text-sm">
+                                <thead>
+                                    <tr className="bg-gray-200 dark:bg-gray-600">
+                                        <th className="px-4 py-2 text-right font-bold text-gray-700 dark:text-gray-300">اسم المادة</th>
+                                        <th className="px-4 py-2 text-right font-bold text-gray-700 dark:text-gray-300">الكمية</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {currentDispatch.items.map((item, index) => (
+                                        <tr key={index} className="border-t border-gray-300 dark:border-gray-600">
+                                            <td className="px-4 py-2">{item.materialName}</td>
+                                            <td className="px-4 py-2 font-semibold">{item.quantity}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </Modal>
+            )}
+        </div>
+    );
+});
+
+
+
+/**
  * 3.5. InventoryEntryComponent (الادخال المخزني)
  */
 const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDelete, setCurrentPage, showToast, setInitialExpenseState, handleRefresh }) => {
@@ -4381,6 +4890,7 @@ const AccountingApp = () => {
         { key: 'payroll', label: 'الرواتب', icon: Calculator, component: PayrollPageComponent, props: { handleRefresh } },
         { key: 'inventoryEntry', label: 'الإدخال المخزني', icon: ClipboardCheck, component: InventoryEntryComponent, props: { handleRefresh } },
         { key: 'inventory', label: 'المخزن والمواد', icon: Package, component: InventoryPageComponent, props: { handleRefresh, handleDataAction } },
+        { key: 'inventoryDispatch', label: 'الاستخراج المخزني', icon: Truck, component: InventoryDispatchPage, props: { handleRefresh, handleDataAction, handleDelete } },
         { key: 'settings', label: 'الإعدادات', icon: Settings, component: SettingsPage, props: { handleSettingsUpdate } },
     ];
     
