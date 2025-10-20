@@ -2053,6 +2053,120 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
     const [currentItem, setCurrentItem] = useState(null);
     const [globalSearch, setGlobalSearch] = useState('');
     
+    // دالة طباعة ستكر الباركود
+    const printBarcodeSticker = (item) => {
+        const printWindow = window.open('', '_blank', 'width=400,height=300');
+        
+        const htmlContent = `
+            <!DOCTYPE html>
+            <html dir="rtl">
+            <head>
+                <meta charset="UTF-8">
+                <title>طباعة باركود - ${item.name}</title>
+                <style>
+                    @page {
+                        size: 50mm 30mm;
+                        margin: 0;
+                    }
+                    
+                    * {
+                        margin: 0;
+                        padding: 0;
+                        box-sizing: border-box;
+                    }
+                    
+                    body {
+                        font-family: 'Cairo', 'Arial', sans-serif;
+                        width: 50mm;
+                        height: 30mm;
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: center;
+                        align-items: center;
+                        padding: 2mm;
+                        background: white;
+                    }
+                    
+                    .sticker-container {
+                        width: 100%;
+                        height: 100%;
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: space-between;
+                        align-items: center;
+                        border: 1px solid #000;
+                        padding: 1mm;
+                    }
+                    
+                    .item-name {
+                        font-size: 10pt;
+                        font-weight: bold;
+                        text-align: center;
+                        max-height: 8mm;
+                        overflow: hidden;
+                        line-height: 1.2;
+                        width: 100%;
+                    }
+                    
+                    .barcode-display {
+                        font-size: 16pt;
+                        font-family: 'Courier New', monospace;
+                        font-weight: bold;
+                        letter-spacing: 2px;
+                        text-align: center;
+                        margin: 1mm 0;
+                    }
+                    
+                    .barcode-visual {
+                        width: 90%;
+                        height: 10mm;
+                        background: repeating-linear-gradient(
+                            90deg,
+                            #000 0px,
+                            #000 1px,
+                            #fff 1px,
+                            #fff 2px
+                        );
+                        margin: 1mm 0;
+                    }
+                    
+                    .price {
+                        font-size: 9pt;
+                        font-weight: bold;
+                        text-align: center;
+                    }
+                    
+                    @media print {
+                        body {
+                            -webkit-print-color-adjust: exact;
+                            print-color-adjust: exact;
+                        }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="sticker-container">
+                    <div class="item-name">${item.name}</div>
+                    <div class="barcode-visual"></div>
+                    <div class="barcode-display">${item.barcode || 'N/A'}</div>
+                    <div class="price">${formatCurrencyDisplay(item.price)}</div>
+                </div>
+                <script>
+                    window.onload = function() {
+                        setTimeout(() => {
+                            window.print();
+                            setTimeout(() => window.close(), 500);
+                        }, 250);
+                    };
+                </script>
+            </body>
+            </html>
+        `;
+        
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+    };
+    
     // نموذج المادة الجديدة
     const [newItemForm, setNewItemForm] = useState({
         name: '',
@@ -2316,6 +2430,18 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
                         <p className="flex items-center text-lg dark:text-gray-200"><List className="w-5 h-5 ml-2 text-indigo-500" /> **الباركود:** {currentItem.barcode || 'N/A'}</p>
                         <p className="flex items-center text-lg dark:text-gray-200"><Coins className="w-5 h-5 ml-2 text-indigo-500" /> **سعر الوحدة الحالي:** {formatCurrencyDisplay(currentItem.price)}</p>
                         <p className="flex items-center text-lg dark:text-gray-200"><Package className="w-5 h-5 ml-2 text-indigo-500" /> **الكمية في المخزن:** <span className="font-bold text-teal-600 dark:text-teal-400">{currentItem.count}</span></p>
+                        
+                        {/* زر طباعة ستكر الباركود */}
+                        <div className="pt-3 pb-2">
+                            <ActionButton 
+                                onClick={() => printBarcodeSticker(currentItem)} 
+                                className="w-full bg-purple-600 hover:bg-purple-700"
+                                data-testid="button-print-barcode-sticker"
+                            >
+                                <Printer className="w-5 h-5 ml-2" />
+                                طباعة ستكر الباركود (50mm × 30mm)
+                            </ActionButton>
+                        </div>
                         
                         <h4 className="text-xl font-bold text-gray-800 dark:text-gray-200 border-b pb-2 pt-4 mb-2 flex items-center"><CalendarCheck className="w-5 h-5 ml-2 text-teal-600" /> سجل الشراء (تاريخ وسعر التكلفة)</h4>
                         {formatPurchaseHistory(currentItem.purchaseHistory || [])}

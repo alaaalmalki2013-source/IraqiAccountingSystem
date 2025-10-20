@@ -4,6 +4,22 @@
 This project is a comprehensive Iraqi accounting system designed to manage revenues, expenses, inventory, employees, and payroll. It features a full Arabic RTL interface with a professional design, dark/light mode support, and aims to be a complete solution for financial management tailored for the Iraqi market. The system operates offline, storing data locally, and provides an intelligent AI assistant named "Alaa" specialized in guiding users through the system's functionalities.
 
 ### Recent Changes (October 20, 2025)
+**Barcode Sticker Printing Feature (v5.4 - Complete):**
+- ✅ Added barcode sticker printing button in inventory item details modal
+- ✅ Implemented `printBarcodeSticker()` function for generating printable sticker labels
+- ✅ Sticker format optimized for label printers (50mm × 30mm size)
+- ✅ Sticker includes: Item name, visual barcode representation, barcode number, and price
+- ✅ Auto-print functionality: Opens print dialog automatically in new window
+- ✅ CSS configured with `@page` size directive for precise label printer output
+- ✅ Purple button with Printer icon positioned between item details and purchase history
+
+**Sidebar Utility Buttons Enhancement (v5.3.2 - Complete):**
+- ✅ Added text labels to all utility buttons in sidebar (Dark Mode, Language Switch, About System)
+- ✅ All utility buttons now follow consistent pattern: icon + text when expanded, icon only when collapsed
+- ✅ Text labels use translation system and switch between Arabic/English
+- ✅ Tooltips display when sidebar is collapsed
+- ✅ Unified styling with navigation items (same padding, hover effects, transitions)
+
 **Language Switching - Dashboard Implementation (v5.3 - Partially Complete):**
 - ✅ Created comprehensive translation system infrastructure:
   - Added `client/src/translations.ts` with complete Arabic/English translation pairs for all UI text
@@ -15,7 +31,7 @@ This project is a comprehensive Iraqi accounting system designed to manage reven
 - ✅ **Dashboard Translation Complete (v5.3.1):**
   - Applied translation system to Dashboard component as proof-of-concept
   - All Dashboard text now switches between Arabic and English
-  - Translation keys: currentCashFund, totalRevenues, totalExpenses, totalAdvances, totalSuspended, totalSalaries, financialSummary, categoryStatistics, revenuesByCategory, expensesByCategory, upcomingBirthdaysReminder, employee, birthdayOn
+  - Translation keys: currentCashFund, totalRevenues, totalExpenses, totalAdvances, totalSuspended, totalSalaries, financialSummary, categoryStatistics, revenuesByCategory, expensesByCategory, upcomingBirthdaysReminder, employee, birthdayOn, aboutSystem, darkMode, lightMode, languageSwitch
   - E2E tested and verified working correctly
 - **Status:** Dashboard complete, remaining pages pending (Revenues, Expenses, Advances, Employees, Inventory, Settings, etc.)
 - **Next Steps:** Apply translation system to remaining components throughout the application
