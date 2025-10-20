@@ -4,6 +4,16 @@
 This project is a comprehensive Iraqi accounting system designed to manage revenues, expenses, inventory, employees, and payroll. It features a full Arabic RTL interface with a professional design, dark/light mode support, and aims to be a complete solution for financial management tailored for the Iraqi market. The system operates offline, storing data locally, and provides an intelligent AI assistant named "Alaa" specialized in guiding users through the system's functionalities.
 
 ### Recent Changes (October 20, 2025)
+**Language Switching Infrastructure (v5.3 - In Progress):**
+- Created comprehensive translation system infrastructure:
+  - Added `client/src/translations.ts` with complete Arabic/English translation pairs for all UI text
+  - Implemented `LanguageContext` and `LanguageProvider` for state management
+  - Added language toggle buttons (Languages icon) in both sidebar and mobile header
+  - Language preference persists in localStorage
+  - Toggle functionality switches between 'ar' (Arabic) and 'en' (English)
+- **Status:** Infrastructure complete, but UI text translation application pending (major task requiring replacement of thousands of text strings throughout the application)
+- **Next Steps:** Apply translation system to all components, implement RTL/LTR direction switching based on language
+
 **Comprehensive Dark Mode Implementation (v5.2 - Complete):**
 - Fixed dark mode application mechanism: Changed from `document.body` to `document.documentElement` for Tailwind CSS compatibility
 - Applied **59 comprehensive dark mode fixes** across all components:
@@ -48,6 +58,7 @@ I prefer simple, clear language in explanations. I appreciate an iterative devel
 The system is built as a single-page application with a modern and professional UI/UX, supporting full RTL and responsive design.
 
 **UI/UX Decisions:**
+- **Language Support:** Bilingual system supporting Arabic and English with infrastructure for easy switching. Language preference saved in localStorage. Currently Arabic UI only (English translation application in progress).
 - **Dark/Light Mode:** Fully functional dark mode with comprehensive support across all components. Toggle switch in header saves user preference. Implemented using Tailwind's class-based strategy with dark class applied to `document.documentElement`.
 - **Color Scheme:** Utilizes a modern color palette with primary (vibrant blue), secondary (purple), and accent (turquoise) colors, along with functional colors for revenues (green), expenses (red), and warnings (amber). All colors include dark mode variants.
 - **Gradients:** Modern gradients are used for dashboard cards, sidebar, and active buttons.
