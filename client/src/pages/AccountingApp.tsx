@@ -916,7 +916,7 @@ const DataPageComponent = React.memo(({ 
                     </h3>
                     <div className="flex flex-wrap gap-3">
                         {categoryTotals.map(cat => {
-                            const customColor = CUSTOM_CATEGORY_COLORS[cat.category] || (cat.color === 'green' ? { bg: 'bg-green-50 dark:bg-green-900', text: 'text-green-800', border: 'border-green-500' } : { bg: 'bg-red-50 dark:bg-red-900', text: 'text-red-800', border: 'border-red-500' });
+                            const customColor = CUSTOM_CATEGORY_COLORS[cat.category] || (cat.color === 'green' ? { bg: 'bg-green-50 dark:bg-green-900', text: 'text-green-800 dark:text-green-200', border: 'border-green-500' } : { bg: 'bg-red-50 dark:bg-red-900', text: 'text-red-800 dark:text-red-200', border: 'border-red-500' });
                             return (
                                 <div 
                                     key={cat.category}
@@ -1082,7 +1082,7 @@ const DataPageComponent = React.memo(({ 
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                         <div className="flex space-x-3 space-x-reverse">
                                             {(type === 'expense' || type === 'advance') && (
-                                                <button onClick={() => handlePrint(item)} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:text-gray-100">
+                                                <button onClick={() => handlePrint(item)} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100">
                                                     <Printer className="w-5 h-5" />
                                                 </button>
                                             )}

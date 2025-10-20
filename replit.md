@@ -4,9 +4,9 @@
 This project is a comprehensive Iraqi accounting system designed to manage revenues, expenses, inventory, employees, and payroll. It features a full Arabic RTL interface with a professional design, dark/light mode support, and aims to be a complete solution for financial management tailored for the Iraqi market. The system operates offline, storing data locally, and provides an intelligent AI assistant named "Alaa" specialized in guiding users through the system's functionalities.
 
 ### Recent Changes (October 20, 2025)
-**Comprehensive Dark Mode Implementation (v4.8 - Complete):**
+**Comprehensive Dark Mode Implementation (v4.9 - Complete):**
 - Fixed dark mode application mechanism: Changed from `document.body` to `document.documentElement` for Tailwind CSS compatibility
-- Applied **52 comprehensive dark mode fixes** across all components:
+- Applied **53 comprehensive dark mode fixes** across all components:
   - **Table headers** (Fixes #41-42): All `<thead>` elements now have `dark:bg-gray-600` (rgb(75, 85, 99))
     - Removed all `bg-gradient` overrides from `<th>` elements for consistent thead background
     - Affects: Revenues, Expenses, Advances, Employees, Payroll, Inventory (purchase/dispatch)
@@ -18,6 +18,10 @@ This project is a comprehensive Iraqi accounting system designed to manage reven
     - All text elements: proper dark:text-* variants
   - **Payroll page** (Fix #51): Status filter buttons (الكل، مدفوعة، غير مدفوعة) now have dark:bg-gray-700
   - **Table header text unification** (Fix #52): All 60+ table headers now use consistent dark:text-gray-300 for better clarity
+  - **Category cards and icons** (Fix #53): Category filter cards and action icons now fully support dark mode
+    - Custom category colors: All 4 categories (الإيجارات, مواد أولية, صيانة, الصالون) now have dark variants
+    - Print icon: Fixed hover state for dark mode (dark:hover:text-gray-100)
+    - Default category cards: Both green and red variants include dark:bg-*-900 and dark:text-*-200
   - Filter panels: All filter backgrounds updated with dark:bg-gray-700 (including main filters container)
   - Modal headers: Updated with dark:bg-teal-900/30
   - Close buttons: Proper dark backgrounds (dark:bg-gray-700)
@@ -28,7 +32,7 @@ This project is a comprehensive Iraqi accounting system designed to manage reven
   - All form elements across all modals now support dark mode
 - Verified with comprehensive E2E testing across all pages and modals (Dashboard, Revenues, Expenses, Employees, Advances, Payroll, Settings, Inventory)
 - Dark mode preference saved in localStorage and persists across sessions
-- Total: **52 fixes** - Complete dark mode coverage with every UI element properly styled for both light and dark themes, including unified table header colors
+- Total: **53 fixes** - Complete dark mode coverage with every UI element properly styled for both light and dark themes, including unified table header colors and category filter cards
 
 ### User Preferences
 I prefer simple, clear language in explanations. I appreciate an iterative development approach. Please ask before making any major architectural changes or introducing new external dependencies. When implementing features, prioritize a modern, professional aesthetic with full RTL support and responsive design. Ensure the system remains functional offline. I prefer detailed explanations of new features and changes, especially regarding performance and code structure.
