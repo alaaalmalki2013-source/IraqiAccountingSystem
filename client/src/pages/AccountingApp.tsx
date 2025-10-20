@@ -1127,7 +1127,7 @@ const DataPageComponent = React.memo(({ 
                                             setFormState(prev => ({ ...prev, representative: defaultRep })); 
                                         }}
                                         required
-                                        className={`w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl transition duration-150 text-right ${!!initialExpenseState && !currentItem ? 'bg-gray-100 dark:bg-gray-600' : 'focus:ring-teal-500 focus:border-teal-500'}`}
+                                        className={`w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl transition duration-150 text-right ${!!initialExpenseState && !currentItem ? 'bg-gray-100 dark:bg-gray-600' : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 focus:ring-teal-500 focus:border-teal-500'}`}
                                         disabled={!!initialExpenseState && !currentItem}
                                     >
                                         <option value="" disabled>-- اختر الشركة --</option>
@@ -1144,7 +1144,7 @@ const DataPageComponent = React.memo(({ 
                                         onChange={(e) => setFormState({ ...formState, representative: e.target.value })}
                                         required
                                         disabled={!selectedVendor || (!!initialExpenseState && !currentItem)}
-                                        className={`w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl transition duration-150 text-right ${!!initialExpenseState && !currentItem ? 'bg-gray-100 dark:bg-gray-600' : 'focus:ring-teal-500 focus:border-teal-500'}`}
+                                        className={`w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl transition duration-150 text-right ${!!initialExpenseState && !currentItem ? 'bg-gray-100 dark:bg-gray-600' : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 focus:ring-teal-500 focus:border-teal-500'}`}
                                     >
                                         <option value="" disabled>-- اختر المندوب --</option>
                                         {filteredReps.map(rep => (
@@ -1171,7 +1171,7 @@ const DataPageComponent = React.memo(({ 
                                             required={field.required}
                                             onInvalid={(e) => e.target.setCustomValidity(field.required ? 'هذا الحقل إجباري، يرجى اختياره.' : '')}
                                             onInput={(e) => e.target.setCustomValidity('')}
-                                            className={`w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl transition duration-150 text-right ${isAutoFilled ? 'bg-gray-100 dark:bg-gray-600' : 'focus:ring-teal-500 focus:border-teal-500'}`}
+                                            className={`w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl transition duration-150 text-right ${isAutoFilled ? 'bg-gray-100 dark:bg-gray-600' : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 focus:ring-teal-500 focus:border-teal-500'}`}
                                             disabled={isAutoFilled}
                                         >
                                             <option value="" disabled>اختر فئة</option>

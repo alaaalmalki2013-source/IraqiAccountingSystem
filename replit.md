@@ -4,9 +4,9 @@
 This project is a comprehensive Iraqi accounting system designed to manage revenues, expenses, inventory, employees, and payroll. It features a full Arabic RTL interface with a professional design, dark/light mode support, and aims to be a complete solution for financial management tailored for the Iraqi market. The system operates offline, storing data locally, and provides an intelligent AI assistant named "Alaa" specialized in guiding users through the system's functionalities.
 
 ### Recent Changes (October 20, 2025)
-**Comprehensive Dark Mode Implementation (v4.3 - Final):**
+**Comprehensive Dark Mode Implementation (v4.4 - Complete):**
 - Fixed dark mode application mechanism: Changed from `document.body` to `document.documentElement` for Tailwind CSS compatibility
-- Applied 37 comprehensive dark mode fixes across all components:
+- Applied 40 comprehensive dark mode fixes across all components:
   - Table headers: All pages now have proper dark backgrounds (dark:bg-purple-900/30, dark:bg-indigo-900/30)
   - Settings page: All sections including representatives management have dark variants
   - Filter panels: All filter backgrounds updated with dark:bg-gray-700 (including main filters container)
@@ -14,10 +14,12 @@ This project is a comprehensive Iraqi accounting system designed to manage reven
   - Close buttons: Proper dark backgrounds (dark:bg-gray-700)
   - Totals cards: Updated with dark:bg-teal-900/30 and appropriate text colors
   - Dispatch history section: dark:bg-gray-800 with proper heading colors
-  - All input fields, select dropdowns, and form elements now support dark mode
-- Verified with comprehensive E2E testing across all pages (Dashboard, Revenues, Expenses, Employees, Advances, Settings, Inventory)
+  - All input fields now support dark mode
+  - All select dropdowns (Vendor, Representative, Category, etc.) now support dark mode with proper backgrounds
+  - All form elements across all modals now support dark mode
+- Verified with comprehensive E2E testing across all pages and modals (Dashboard, Revenues, Expenses, Employees, Advances, Settings, Inventory)
 - Dark mode preference saved in localStorage and persists across sessions
-- Total: 133 dark mode classes throughout the application ensuring complete coverage
+- Total: Complete dark mode coverage - every UI element properly styled for both light and dark themes
 
 ### User Preferences
 I prefer simple, clear language in explanations. I appreciate an iterative development approach. Please ask before making any major architectural changes or introducing new external dependencies. When implementing features, prioritize a modern, professional aesthetic with full RTL support and responsive design. Ensure the system remains functional offline. I prefer detailed explanations of new features and changes, especially regarding performance and code structure.
