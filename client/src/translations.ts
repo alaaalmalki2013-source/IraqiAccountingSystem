@@ -23,6 +23,10 @@ export const translations = {
     inventoryEntry: 'الإدخال المخزني',
     inventory: 'المخزن والمواد',
     settings: 'الإعدادات',
+    aboutSystem: 'حول النظام',
+    darkMode: 'الوضع الداكن',
+    lightMode: 'الوضع الفاتح',
+    languageSwitch: 'تبديل اللغة',
     
     // Dashboard
     currentCashFund: 'رصيد الصندوق الحالي',
