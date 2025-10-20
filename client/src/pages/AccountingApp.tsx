@@ -495,7 +495,7 @@ const PrintInvoice = React.memo(({ item, onClose, companyName, companyLogoUrl, e
                     <select
                         value={paperSize}
                         onChange={(e) => setPaperSize(e.target.value)}
-                        className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-teal-500 focus:border-teal-500 transition"
+                        className="p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-lg focus:ring-teal-500 focus:border-teal-500 transition"
                     >
                         <option value="80mm">80 ملم (طابعة حرارية)</option>
                         <option value="A4">A4 (ورق عادي)</option>
@@ -1383,7 +1383,7 @@ const DataPageComponent = React.memo(({ 
                                             required
                                             onInvalid={(e) => e.target.setCustomValidity('هذا الحقل إجباري، يرجى اختيار موظف.')}
                                             onInput={(e) => e.target.setCustomValidity('')}
-                                            className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-teal-500 focus:border-teal-500 transition duration-150 text-right"
+                                            className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500 transition duration-150 text-right"
                                         >
                                             <option value="" disabled>اختر الموظف</option>
                                             {data.employees.map(emp => (
@@ -1558,7 +1558,7 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
                     value={globalSearch}
                     onChange={(e) => setGlobalSearch(e.target.value)}
                     placeholder="ابحث بالاسم، المنصب، الراتب..."
-                    className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl pr-10 focus:ring-amber-500 focus:border-amber-500"
+                    className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl pr-10 focus:ring-amber-500 focus:border-amber-500"
                 />
                 <Search className="w-5 h-5 absolute right-3 top-1/2 transform translate-y-1/2 text-gray-400 mt-2" />
             </div>
@@ -1641,7 +1641,7 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
                                 required
                                 onInvalid={(e) => e.target.setCustomValidity('هذا الحقل إجباري، يرجى اختياره.')}
                                 onInput={(e) => e.target.setCustomValidity('')}
-                                className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-teal-500 focus:border-teal-500 transition duration-150 text-right"
+                                className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500 transition duration-150 text-right"
                             >
                                 <option value="" disabled>اختر قسم</option>
                                 {data.settings.departments.map(dept => (
@@ -1658,7 +1658,7 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
                                 required
                                 onInvalid={(e) => e.target.setCustomValidity('هذا الحقل إجباري، يرجى اختياره.')}
                                 onInput={(e) => e.target.setCustomValidity('')}
-                                className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-teal-500 focus:border-teal-500 transition duration-150 text-right"
+                                className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500 transition duration-150 text-right"
                             >
                                 <option value="" disabled>اختر منصب</option>
                                 {data.settings.jobTitles.map(title => (
@@ -1943,7 +1943,7 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                         <select
                             value={selectedMonth}
                             onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-                            className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-purple-500 focus:border-purple-500"
+                            className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-purple-500 focus:border-purple-500"
                             data-testid="select-month"
                         >
                             {monthNames.map((name, index) => (
@@ -1957,7 +1957,7 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                             type="number"
                             value={selectedYear}
                             onChange={(e) => setSelectedYear(parseInt(e.target.value) || new Date().getFullYear())}
-                            className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-purple-500 focus:border-purple-500"
+                            className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-purple-500 focus:border-purple-500"
                             data-testid="input-year"
                         />
                     </div>
@@ -2000,7 +2000,7 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                     value={globalSearch}
                     onChange={(e) => setGlobalSearch(e.target.value)}
                     placeholder="ابحث باسم الموظف..."
-                    className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl pr-10 focus:ring-purple-500 focus:border-purple-500"
+                    className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl pr-10 focus:ring-purple-500 focus:border-purple-500"
                     data-testid="input-search-payroll"
                 />
                 <Search className="w-5 h-5 absolute right-3 top-1/2 transform translate-y-1/2 text-gray-400 mt-2" />
@@ -2181,7 +2181,7 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                             <select
                                 value={adjustmentForm.type}
                                 onChange={(e) => setAdjustmentForm({ ...adjustmentForm, type: e.target.value })}
-                                className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-purple-500 focus:border-purple-500"
+                                className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-purple-500 focus:border-purple-500"
                                 data-testid="select-adjustment-type"
                             >
                                 <option value="bonus">مكافأة</option>
@@ -2456,7 +2456,7 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
                             <select
                                 value={newItemForm.category}
                                 onChange={(e) => setNewItemForm({ ...newItemForm, category: e.target.value })}
-                                className="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                                className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 dark:bg-gray-700 dark:text-gray-200 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
                                 required
                                 data-testid="select-new-item-category"
                             >
@@ -2489,7 +2489,7 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
                         {currentItem.invoiceImageUrl && (
                             <div className="text-center mb-4">
                                 <h5 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">صورة الفاتورة/المستند:</h5>
-                                <img src={currentItem.invoiceImageUrl} alt="Invoice Document" className="w-full h-auto object-contain rounded-lg shadow-md border border-gray-300 dark:border-gray-600" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/400x200/cccccc/333333?text=No+Image+Available"; }}/>
+                                <img src={currentItem.invoiceImageUrl} alt="Invoice Document" className="w-full h-auto object-contain rounded-lg shadow-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/400x200/cccccc/333333?text=No+Image+Available"; }}/>
                             </div>
                         )}
 
@@ -3016,7 +3016,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                     value={globalSearch}
                     onChange={(e) => setGlobalSearch(e.target.value)}
                     placeholder="ابحث برقم الفاتورة، المورد، المندوب، أو اسم مادة..."
-                    className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl pr-10 focus:ring-amber-500 focus:border-amber-500"
+                    className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl pr-10 focus:ring-amber-500 focus:border-amber-500"
                 />
                 <Search className="w-5 h-5 absolute right-3 top-1/2 transform translate-y-1/2 text-gray-400 mt-2" />
             </div>
@@ -3073,7 +3073,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
             {isNewInvoiceModalOpen && (
                 <Modal title="إدخال فاتورة مشتريات جديدة" onClose={() => setIsNewInvoiceModalOpen(false)} size="xl">
                     <form onSubmit={handleCreateInvoice} className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border border-gray-300 dark:border-gray-600 p-4 rounded-xl bg-gray-50 dark:bg-gray-700">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 p-4 rounded-xl bg-gray-50 dark:bg-gray-700">
                             <h4 className="md:col-span-2 text-lg font-bold text-gray-700 dark:text-gray-300 border-b pb-2 mb-2">معلومات الفاتورة الأساسية</h4>
                             
                             <InputField 
@@ -3104,7 +3104,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                                         }));
                                     }}
                                     required
-                                    className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl transition duration-150 text-right focus:ring-teal-500 focus:border-teal-500"
+                                    className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl transition duration-150 text-right focus:ring-teal-500 focus:border-teal-500"
                                 >
                                     <option value="" disabled>-- اختر الشركة الموردة --</option>
                                     {data.settings.vendors.map(vendor => (
@@ -3120,7 +3120,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                                     onChange={(e) => setInvoiceForm({ ...invoiceForm, representative: e.target.value })}
                                     required
                                     disabled={!invoiceForm.vendor}
-                                    className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl transition duration-150 text-right focus:ring-teal-500 focus:border-teal-500"
+                                    className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl transition duration-150 text-right focus:ring-teal-500 focus:border-teal-500"
                                 >
                                     <option value="" disabled>-- اختر المندوب --</option>
                                     {filteredReps.map(rep => (
@@ -3145,7 +3145,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                                     value={invoiceForm.expenseCategory}
                                     onChange={(e) => setInvoiceForm({ ...invoiceForm, expenseCategory: e.target.value })}
                                     required
-                                    className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl transition duration-150 text-right focus:ring-teal-500 focus:border-teal-500"
+                                    className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl transition duration-150 text-right focus:ring-teal-500 focus:border-teal-500"
                                 >
                                     {data.settings.expenseCategories.map(cat => (
                                         <option key={cat} value={cat}>{cat}</option>
@@ -3302,7 +3302,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                                 value={itemForm.category}
                                 onChange={(e) => setItemForm(prev => ({ ...prev, category: e.target.value }))}
                                 required
-                                className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl transition duration-150 text-right focus:ring-teal-500 focus:border-teal-500"
+                                className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl transition duration-150 text-right focus:ring-teal-500 focus:border-teal-500"
                             >
                                 <option value="" disabled>اختر الفئة</option>
                                 {data.settings.expenseCategories.map(cat => (
@@ -3354,7 +3354,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                         {currentInvoice.invoiceImageUrl && (
                             <div className="text-center p-3 bg-white dark:bg-gray-800 rounded-xl border border-teal-200">
                                 <h5 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">صورة الفاتورة/المستند:</h5>
-                                <img src={currentInvoice.invoiceImageUrl} alt="Invoice Document" className="w-full h-auto object-contain rounded-lg shadow-md border border-gray-300 dark:border-gray-600 max-h-64" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/400x150/cccccc/333333?text=No+Image+Available"; }}/>
+                                <img src={currentInvoice.invoiceImageUrl} alt="Invoice Document" className="w-full h-auto object-contain rounded-lg shadow-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 max-h-64" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/400x150/cccccc/333333?text=No+Image+Available"; }}/>
                             </div>
                         )}
 
@@ -3816,7 +3816,7 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
                                 value={newRep.vendor}
                                 onChange={(e) => setNewRep({ ...newRep, vendor: e.target.value })}
                                 required
-                                className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl transition duration-150 text-right focus:ring-blue-500 focus:border-blue-500"
+                                className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl transition duration-150 text-right focus:ring-blue-500 focus:border-blue-500"
                             >
                                 {settings.vendors.map(vendor => (
                                     <option key={vendor} value={vendor}>{vendor}</option>
@@ -4088,7 +4088,7 @@ const InventoryDispatchComponent = React.memo(({ data, handleDataAction, showToa
                             value={globalSearchHistory}
                             onChange={(e) => setGlobalSearchHistory(e.target.value)}
                             placeholder="البحث باسم الموظف أو التكلفة..."
-                            className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl pr-10 focus:ring-amber-500 focus:border-amber-500"
+                            className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl pr-10 focus:ring-amber-500 focus:border-amber-500"
                         />
                         <Search className="w-5 h-5 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                     </div>
@@ -4685,7 +4685,7 @@ const AccountingApp = () => {
                                     onChange={(e) => setInputMessage(e.target.value)}
                                     placeholder="اكتب رسالتك هنا..."
                                     disabled={isSending}
-                                    className="flex-1 p-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-transparent transition bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                                    className="flex-1 p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-transparent transition bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                                     data-testid="input-chat-message"
                                 />
                                 <button
