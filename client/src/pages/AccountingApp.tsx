@@ -1024,15 +1024,15 @@ const DataPageComponent = React.memo(({ 
 
             <div className="bg-white dark:bg-gray-700 p-6 rounded-xl shadow-lg overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50 rounded-t-xl">
+                    <thead className="bg-gray-50 dark:bg-gray-600 rounded-t-xl">
                         <tr>
-                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">التاريخ والوقت</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">التاريخ والوقت</th>
                             {fields.map(field => (
                                 <th key={field.key} className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{field.label}</th>
                             ))}
-                            {collectionName === 'expenses' && <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">المورد والمندوب</th>}
-                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">رقم الفاتورة</th>
-                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">الإجراءات</th>
+                            {collectionName === 'expenses' && <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">المورد والمندوب</th>}
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">رقم الفاتورة</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">الإجراءات</th>
                         </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
@@ -1400,11 +1400,11 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50 dark:bg-gray-600">
                         <tr>
-                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">اسم الموظف</th>
-                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">تاريخ الميلاد</th>
-                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">القسم</th>
-                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">الراتب الأساسي (د.ع.)</th>
-                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">الإجراءات</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">اسم الموظف</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">تاريخ الميلاد</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">القسم</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">الراتب الأساسي (د.ع.)</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">الإجراءات</th>
                         </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
@@ -2847,12 +2847,12 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50 dark:bg-gray-600">
                         <tr>
-                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">رقم فاتورة المورد</th>
-                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">تاريخ الإدخال</th>
-                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">المورد والمندوب</th>
-                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">عدد المواد</th>
-                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">الإجمالي (د.ع.)</th>
-                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">الحالة والإجراء</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">رقم فاتورة المورد</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">تاريخ الإدخال</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">المورد والمندوب</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">عدد المواد</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">الإجمالي (د.ع.)</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">الحالة والإجراء</th>
                         </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
@@ -3915,11 +3915,11 @@ const InventoryDispatchComponent = React.memo(({ data, handleDataAction, showToa
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-indigo-100 dark:bg-indigo-900/30">
                             <tr>
-                                <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">التاريخ</th>
-                                <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">الموظف المستلم</th>
-                                <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">عدد المواد</th>
-                                <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">التكلفة الإجمالية (د.ع.)</th>
-                                <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">الإجراءات</th>
+                                <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">التاريخ</th>
+                                <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">الموظف المستلم</th>
+                                <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">عدد المواد</th>
+                                <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">التكلفة الإجمالية (د.ع.)</th>
+                                <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">الإجراءات</th>
                             </tr>
                         </thead>
                         <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
