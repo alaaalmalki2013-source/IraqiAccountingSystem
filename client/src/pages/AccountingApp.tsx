@@ -750,16 +750,16 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
 
 
     return (
-        <div className="space-y-8 p-6 bg-white rounded-3xl shadow-2xl">
+        <div className="space-y-8 p-6 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl">
             <h2 className="text-4xl font-extrabold text-gray-800 dark:text-gray-200 border-b-2 border-teal-500 pb-3">الرئيسية </h2>
 
             {upcomingBirthdays.length > 0 && (
-                <div className="bg-pink-100 border-l-4 border-pink-500 p-4 rounded-xl shadow-md">
-                    <h3 className="text-2xl font-bold text-pink-800 flex items-center mb-2">
+                <div className="bg-pink-100 dark:bg-pink-900 border-l-4 border-pink-500 dark:border-pink-400 p-4 rounded-xl shadow-md">
+                    <h3 className="text-2xl font-bold text-pink-800 dark:text-pink-200 flex items-center mb-2">
                         <Gift className="w-6 h-6 ml-2" />
                         تذكير أعياد الميلاد القادمة!
                     </h3>
-                    <ul className="list-disc list-inside space-y-1 text-gray-700">
+                    <ul className="list-disc list-inside space-y-1 text-gray-700 dark:text-gray-300">
                         {upcomingBirthdays.map((b, index) => (
                             <li key={index} className="font-semibold">
                                 الموظف **{b.name}** عيد ميلاده في **{b.date}**.
@@ -769,10 +769,10 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
                 </div>
             )}
             
-            <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-200 border-b border-gray-300 pb-2">الملخص المالي الرئيسي</h3>
+            <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-200 border-b border-gray-300 dark:border-gray-600 pb-2">الملخص المالي الرئيسي</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {primaryCards.map((card, index) => (
-                    <div key={index} className="p-6 rounded-2xl shadow-lg transition transform hover:scale-[1.03] border-l-4 border-teal-500 bg-gray-50">
+                    <div key={index} className="p-6 rounded-2xl shadow-lg transition transform hover:scale-[1.03] border-l-4 border-teal-500 dark:border-teal-400 bg-gray-50 dark:bg-gray-700">
                         <div className="flex items-center justify-between">
                             <div className="space-y-1">
                                 <p className="text-lg font-semibold text-gray-600 dark:text-gray-400">{card.title}</p>
@@ -788,7 +788,7 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {secondaryCards.map((card, index) => (
-                    <div key={index} className="p-6 rounded-2xl shadow-lg transition transform hover:scale-[1.03] border-l-4 border-teal-500 bg-gray-50">
+                    <div key={index} className="p-6 rounded-2xl shadow-lg transition transform hover:scale-[1.03] border-l-4 border-teal-500 dark:border-teal-400 bg-gray-50 dark:bg-gray-700">
                         <div className="flex items-center justify-between">
                             <div className="space-y-1">
                                 <p className="text-lg font-semibold text-gray-600 dark:text-gray-400">{card.title}</p>
@@ -802,36 +802,36 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
                 ))}
             </div>
 
-            <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-200 border-b border-gray-300 pb-2 pt-4">إحصائيات حسب الفئة</h3>
+            <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-200 border-b border-gray-300 dark:border-gray-600 pb-2 pt-4">إحصائيات حسب الفئة</h3>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* كروت الإيرادات حسب الفئة */}
-                <div className="p-4 rounded-2xl shadow-lg bg-green-50 dark:bg-green-900 border-l-4 border-green-600">
-                    <h4 className="text-xl font-bold text-green-800 mb-3 flex items-center">
+                <div className="p-4 rounded-2xl shadow-lg bg-green-50 dark:bg-green-900 border-l-4 border-green-600 dark:border-green-400">
+                    <h4 className="text-xl font-bold text-green-800 dark:text-green-200 mb-3 flex items-center">
                         <TrendingUp className="w-5 h-5 ml-2" />
                         إجمالي الإيرادات لكل فئة
                     </h4>
                     <ul className="space-y-2">
                         {Object.keys(summaryData.revenueByCategory).map(category => (
-                            <li key={category} className="flex justify-between items-center p-2 bg-white rounded-lg shadow-sm">
+                            <li key={category} className="flex justify-between items-center p-2 bg-white dark:bg-gray-700 rounded-lg shadow-sm">
                                 <span className="text-gray-700 dark:text-gray-300 font-medium">{category}</span>
-                                <span className="font-bold text-green-600">{formatCurrencyDisplay(summaryData.revenueByCategory[category])}</span>
+                                <span className="font-bold text-green-600 dark:text-green-400">{formatCurrencyDisplay(summaryData.revenueByCategory[category])}</span>
                             </li>
                         ))}
                     </ul>
                 </div>
 
                 {/* كروت الصرفيات حسب الفئة */}
-                <div className="p-4 rounded-2xl shadow-lg bg-red-50 dark:bg-red-900 border-l-4 border-red-600">
-                    <h4 className="text-xl font-bold text-red-800 mb-3 flex items-center">
+                <div className="p-4 rounded-2xl shadow-lg bg-red-50 dark:bg-red-900 border-l-4 border-red-600 dark:border-red-400">
+                    <h4 className="text-xl font-bold text-red-800 dark:text-red-200 mb-3 flex items-center">
                         <TrendingDown className="w-5 h-5 ml-2" />
                         إجمالي الصرفيات لكل فئة
                     </h4>
                     <ul className="space-y-2">
                         {Object.keys(summaryData.expenseByCategory).map(category => (
-                            <li key={category} className="flex justify-between items-center p-2 bg-white rounded-lg shadow-sm">
+                            <li key={category} className="flex justify-between items-center p-2 bg-white dark:bg-gray-700 rounded-lg shadow-sm">
                                 <span className="text-gray-700 dark:text-gray-300 font-medium">{category}</span>
-                                <span className="font-bold text-red-600">{formatCurrencyDisplay(summaryData.expenseByCategory[category])}</span>
+                                <span className="font-bold text-red-600 dark:text-red-400">{formatCurrencyDisplay(summaryData.expenseByCategory[category])}</span>
                             </li>
                         ))}
                     </ul>
@@ -1208,7 +1208,7 @@ const DataPageComponent = React.memo(({ 
              </div>
 
 
-            <div className="bg-white p-6 rounded-xl shadow-lg overflow-x-auto">
+            <div className="bg-white dark:bg-gray-700 p-6 rounded-xl shadow-lg overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50 rounded-t-xl">
                         <tr>
@@ -1221,7 +1221,7 @@ const DataPageComponent = React.memo(({ 
                             <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">الإجراءات</th>
                         </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
                         {filteredList.length === 0 ? (
                             <tr><td colSpan={fields.length + (collectionName === 'expenses' ? 4 : 3)} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">لا توجد سجلات متاحة تتوافق مع الفلاتر.</td></tr>
                         ) : (
@@ -1548,10 +1548,10 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
 
 
     return (
-        <div className="p-6 space-y-6 bg-white rounded-3xl shadow-2xl">
+        <div className="p-6 space-y-6 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl">
             <h2 className="text-4xl font-extrabold text-gray-800 dark:text-gray-200 border-b-2 border-teal-500 pb-3">إدارة الموظفين </h2>
             
-            <div className="bg-white p-4 rounded-xl shadow-lg border border-teal-100 relative">
+            <div className="bg-white dark:bg-gray-700 p-4 rounded-xl shadow-lg border border-teal-100 dark:border-teal-700 relative">
                  <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">البحث الشامل</label>
                 <input
                     type="text"
@@ -1582,9 +1582,9 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
                    </div>
             </div>
 
-            <div className="bg-white p-6 rounded-xl shadow-lg overflow-x-auto">
+            <div className="bg-white dark:bg-gray-700 p-6 rounded-xl shadow-lg overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
+                    <thead className="bg-gray-50 dark:bg-gray-600">
                         <tr>
                             <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">اسم الموظف</th>
                             <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">تاريخ الميلاد</th>
@@ -1593,7 +1593,7 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
                             <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">الإجراءات</th>
                         </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
                         {filteredList.length === 0 ? (
                             <tr><td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">لا يوجد موظفين مسجلين.</td></tr>
                         ) : (
@@ -1701,10 +1701,10 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
                 <Modal title={`تفاصيل الموظف: ${currentEmployee.name}`} onClose={() => setIsDetailsModalOpen(false)} size="sm">
                     <div className="space-y-4 p-4 bg-gray-50 rounded-xl">
                         <h4 className="text-xl font-bold text-gray-800 dark:text-gray-200 border-b pb-2 mb-4">معلومات أساسية</h4>
-                        <p className="flex items-center text-lg"><CalendarCheck className="w-5 h-5 ml-2 text-indigo-500" /> **تاريخ الميلاد:** {formatDOB(currentEmployee.dateOfBirth)}</p>
-                        <p className="flex items-center text-lg"><Briefcase className="w-5 h-5 ml-2 text-indigo-500" /> **القسم:** {currentEmployee.department}</p>
-                        <p className="flex items-center text-lg"><List className="w-5 h-5 ml-2 text-indigo-500" /> **المنصب:** {currentEmployee.jobTitle}</p>
-                        <p className="flex items-center text-lg"><Phone className="w-5 h-5 ml-2 text-indigo-500" /> **الهاتف:** {currentEmployee.phone || 'غير متوفر'}</p>
+                        <p className="flex items-center text-lg dark:text-gray-200"><CalendarCheck className="w-5 h-5 ml-2 text-indigo-500" /> **تاريخ الميلاد:** {formatDOB(currentEmployee.dateOfBirth)}</p>
+                        <p className="flex items-center text-lg dark:text-gray-200"><Briefcase className="w-5 h-5 ml-2 text-indigo-500" /> **القسم:** {currentEmployee.department}</p>
+                        <p className="flex items-center text-lg dark:text-gray-200"><List className="w-5 h-5 ml-2 text-indigo-500" /> **المنصب:** {currentEmployee.jobTitle}</p>
+                        <p className="flex items-center text-lg dark:text-gray-200"><Phone className="w-5 h-5 ml-2 text-indigo-500" /> **الهاتف:** {currentEmployee.phone || 'غير متوفر'}</p>
                         
                         {currentEmployee.docUrl && (
                             <a href={currentEmployee.docUrl} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center p-3 text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition space-x-2 space-x-reverse font-semibold mt-4">
@@ -1932,7 +1932,7 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
     };
 
     return (
-        <div className="p-6 space-y-6 bg-white rounded-3xl shadow-2xl">
+        <div className="p-6 space-y-6 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl">
             <h2 className="text-4xl font-extrabold text-gray-800 dark:text-gray-200 border-b-2 border-purple-500 pb-3">إدارة الرواتب</h2>
             
             {/* اختيار الشهر والسنة */}
@@ -2007,9 +2007,9 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
             </div>
 
             {/* جدول الرواتب */}
-            <div className="bg-white p-6 rounded-xl shadow-lg overflow-x-auto">
+            <div className="bg-white dark:bg-gray-700 p-6 rounded-xl shadow-lg overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
+                    <thead className="bg-gray-50 dark:bg-gray-600">
                         <tr>
                             <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">الموظف</th>
                             <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">الراتب الأساسي</th>
@@ -2023,7 +2023,7 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                             <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">الإجراءات</th>
                         </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
                         {filteredEmployees.length === 0 ? (
                             <tr><td colSpan="10" className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">لا يوجد موظفين.</td></tr>
                         ) : (
@@ -2313,17 +2313,17 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
     };
 
     const formatPurchaseHistory = (history) => (
-        <div className="space-y-3 max-h-48 overflow-y-auto mt-2 p-3 bg-white rounded-lg border">
+        <div className="space-y-3 max-h-48 overflow-y-auto mt-2 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600">
             {history.length === 0 ? (
                 <p className="text-gray-500 dark:text-gray-400 italic">لا يوجد سجل مشتريات لهذه المادة.</p>
             ) : (
                 <table className="min-w-full text-sm">
                     <thead>
                         <tr className="bg-gray-100 dark:bg-gray-600">
-                            <th className="px-2 py-1 text-right font-bold text-gray-700">تاريخ الشراء</th>
-                            <th className="px-2 py-1 text-right font-bold text-gray-700">السعر</th>
-                            <th className="px-2 py-1 text-right font-bold text-gray-700">الكمية</th>
-                            <th className="px-2 py-1 text-right font-bold text-gray-700">المورد</th>
+                            <th className="px-2 py-1 text-right font-bold text-gray-700 dark:text-gray-300">تاريخ الشراء</th>
+                            <th className="px-2 py-1 text-right font-bold text-gray-700 dark:text-gray-300">السعر</th>
+                            <th className="px-2 py-1 text-right font-bold text-gray-700 dark:text-gray-300">الكمية</th>
+                            <th className="px-2 py-1 text-right font-bold text-gray-700 dark:text-gray-300">المورد</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -2959,7 +2959,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
     };
 
     return (
-        <div className="p-6 space-y-6 bg-white rounded-3xl shadow-2xl">
+        <div className="p-6 space-y-6 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl">
             <h2 className="text-4xl font-extrabold text-gray-800 dark:text-gray-200 border-b-2 border-teal-500 pb-3">إدارة الإدخال المخزني </h2>
 
             <div className="flex justify-between items-center flex-wrap gap-4">
@@ -3009,7 +3009,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                 </div>
             </div>
 
-            <div className="bg-white p-4 rounded-xl shadow-lg border border-teal-100 relative">
+            <div className="bg-white dark:bg-gray-700 p-4 rounded-xl shadow-lg border border-teal-100 dark:border-teal-700 relative">
                  <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">البحث في الفواتير المعلقة</label>
                 <input
                     type="text"
@@ -3028,10 +3028,10 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
             </div>
 
 
-            <div className="bg-white p-6 rounded-xl shadow-lg overflow-x-auto">
+            <div className="bg-white dark:bg-gray-700 p-6 rounded-xl shadow-lg overflow-x-auto">
                 <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200 border-b pb-2 mb-4">سجل فواتير المشتريات (كل الحالات)</h3>
                 <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
+                    <thead className="bg-gray-50 dark:bg-gray-600">
                         <tr>
                             <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">رقم فاتورة المورد</th>
                             <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">تاريخ الإدخال</th>
@@ -3041,7 +3041,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                             <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">الحالة والإجراء</th>
                         </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
                         {filteredInvoices.length === 0 ? (
                             <tr><td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">لا توجد فواتير مشتريات مطابقة للفلترة.</td></tr>
                         ) : (
@@ -3073,7 +3073,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
             {isNewInvoiceModalOpen && (
                 <Modal title="إدخال فاتورة مشتريات جديدة" onClose={() => setIsNewInvoiceModalOpen(false)} size="xl">
                     <form onSubmit={handleCreateInvoice} className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-xl bg-gray-50">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border border-gray-300 dark:border-gray-600 p-4 rounded-xl bg-gray-50 dark:bg-gray-700">
                             <h4 className="md:col-span-2 text-lg font-bold text-gray-700 dark:text-gray-300 border-b pb-2 mb-2">معلومات الفاتورة الأساسية</h4>
                             
                             <InputField 
@@ -3178,7 +3178,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                                             <th className="px-4 py-2 text-right text-xs font-bold text-gray-600 dark:text-gray-400">إجراء</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="bg-white divide-y divide-gray-200">
+                                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
                                         {invoiceForm.items.map(item => (
                                             <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                                                 <td className="px-4 py-2 whitespace-nowrap text-sm font-medium">{item.name}</td>
@@ -3370,7 +3370,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                                         <th className="px-4 py-2 text-right text-xs font-bold text-gray-600 dark:text-gray-400">الإجمالي</th>
                                     </tr>
                                 </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
+                                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
                                     {currentInvoice.items.map(item => (
                                         <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                                             <td className="px-4 py-2 whitespace-nowrap text-sm font-medium">{item.name}</td>
@@ -3754,7 +3754,7 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* إدارة القوائم (الفئات والموردين) */}
-                <div className="space-y-6 p-6 rounded-xl shadow-lg border-l-4 border-teal-500 bg-gray-50">
+                <div className="space-y-6 p-6 rounded-xl shadow-lg border-l-4 border-teal-500 dark:border-teal-400 bg-gray-50 dark:bg-gray-700">
                     <h3 className="text-2xl font-bold text-teal-800 flex items-center"><List className="w-6 h-6 ml-2" /> إدارة الفئات والأقسام والمناصب</h3>
 
                     <div className="flex space-x-2 space-x-reverse overflow-x-auto pb-2">
@@ -3863,7 +3863,7 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
                                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-400 uppercase">الإجراءات</th>
                                 </tr>
                             </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
+                            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
                                 {settings.users.map(user => (
                                     <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-bold">{user.username}</td>
@@ -4068,7 +4068,7 @@ const InventoryDispatchComponent = React.memo(({ data, handleDataAction, showToa
     };
 
     return (
-        <div className="p-6 space-y-6 bg-white rounded-3xl shadow-2xl">
+        <div className="p-6 space-y-6 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl">
             <h2 className="text-4xl font-extrabold text-gray-800 dark:text-gray-200 border-b-2 border-blue-500 pb-3 flex items-center">
                 <LogOut className="w-7 h-7 ml-3 text-blue-600" />
                 سجل عمليات الصرف المخزني
@@ -4108,7 +4108,7 @@ const InventoryDispatchComponent = React.memo(({ data, handleDataAction, showToa
                                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">الإجراءات</th>
                             </tr>
                         </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
+                        <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
                             {dispatchHistory.length === 0 ? (
                                 <tr><td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">لا يوجد سجلات صرف مخزني.</td></tr>
                             ) : (
@@ -4155,7 +4155,7 @@ const InventoryDispatchComponent = React.memo(({ data, handleDataAction, showToa
                                         <th className="px-4 py-2 text-right text-xs font-bold text-gray-600 dark:text-gray-400">الإجمالي</th>
                                     </tr>
                                 </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
+                                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
                                     {currentDispatch.items.map(item => (
                                         <tr key={item.itemId} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                                             <td className="px-4 py-2 whitespace-nowrap text-sm font-medium">{item.name}</td>
@@ -4188,7 +4188,7 @@ const AboutSystemModal = ({ onClose }) => (
         <div className="space-y-4 text-center p-4">
             <h3 className="text-2xl font-extrabold text-blue-900">نظام المحاسبة العراقي (V 1.0)</h3>
             {/* **تم تغيير الجملة إلى جملة احترافية** */}
-            <p className="text-gray-700">منصة احترافية متكاملة لإدارة الموارد والمخزون والعمليات التشغيلية بكفاءة عالية.</p>
+            <p className="text-gray-700 dark:text-gray-300">منصة احترافية متكاملة لإدارة الموارد والمخزون والعمليات التشغيلية بكفاءة عالية.</p>
             
             <div className="border-t border-gray-200 pt-4 space-y-2 text-right">
                 {/* **تم تصحيح الاتجاه لليمين** */}
