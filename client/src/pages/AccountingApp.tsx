@@ -2045,11 +2045,10 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
 
 
 /**
- * 3.4. InventoryPage Component (عرض المخزون مع إمكانية الإضافة المباشرة)
+ * 3.4. InventoryPage Component (عرض المخزون)
  */
 const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, handleDataAction }) => {
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
-    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [currentItem, setCurrentItem] = useState(null);
     const [globalSearch, setGlobalSearch] = useState('');
     
@@ -2248,59 +2247,6 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
         printWindow.document.write(htmlContent);
         printWindow.document.close();
     };
-    
-    // نموذج المادة الجديدة
-    const [newItemForm, setNewItemForm] = useState({
-        name: '',
-        barcode: '',
-        price: '',
-        count: '',
-        category: data.settings.expenseCategories.find(c => c.includes('مواد')) || data.settings.expenseCategories[0] || ''
-    });
-    
-    // دالة إعادة تعيين النموذج
-    const resetForm = () => {
-        setNewItemForm({
-            name: '',
-            barcode: '',
-            price: '',
-            count: '',
-            category: data.settings.expenseCategories.find(c => c.includes('مواد')) || data.settings.expenseCategories[0] || ''
-        });
-    };
-    
-    // دالة إضافة مادة جديدة
-    const handleAddInventoryItem = (e) => {
-        e.preventDefault();
-        
-        if (!newItemForm.name || !newItemForm.price || !newItemForm.count || !newItemForm.category) {
-            showToast('الرجاء ملء جميع الحقول المطلوبة.', 'error');
-            return;
-        }
-        
-        // التحقق من عدم وجود مادة بنفس الاسم
-        const existingItem = data.inventory.find(item => item.name.trim().toLowerCase() === newItemForm.name.trim().toLowerCase());
-        if (existingItem) {
-            showToast('توجد مادة بهذا الاسم في المخزون بالفعل. يرجى استخدام اسم مختلف أو تحديث المادة الموجودة من خلال فاتورة مشتريات.', 'error');
-            return;
-        }
-        
-        const newItem = {
-            id: crypto.randomUUID(),
-            name: newItemForm.name.trim(),
-            barcode: newItemForm.barcode.trim() || generateBarcode(),
-            price: parseFloat(newItemForm.price),
-            count: parseInt(newItemForm.count),
-            category: newItemForm.category,
-            purchaseHistory: [], // لا يوجد سجل شراء لأنها مادة يدوية
-            invoiceImageUrl: '',
-        };
-        
-        handleDataAction('inventory', newItem, true);
-        showToast(`تم إضافة المادة "${newItem.name}" إلى المخزون بنجاح!`, 'success');
-        resetForm();
-        setIsAddModalOpen(false);
-    };
 
     const filteredList = useMemo(() => {
         let list = data.inventory.slice().sort((a, b) => a.name.localeCompare(b.name, 'ar'));
@@ -2374,12 +2320,7 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
                 <Search className="w-5 h-5 absolute right-3 top-1/2 transform translate-y-1/2 text-gray-400 mt-2" />
             </div>
             
-            <div className="flex justify-between items-center">
-                <ActionButton onClick={() => setIsAddModalOpen(true)} className="bg-indigo-600 hover:bg-indigo-700" data-testid="button-add-inventory-item">
-                    <Plus className="w-5 h-5 ml-2" />
-                    إضافة مادة جديدة
-                </ActionButton>
-                
+            <div className="flex justify-end items-center">
                 <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200" data-testid="button-refresh-inventory">
                     <RotateCcw className="w-6 h-6" />
                 </button>
@@ -2421,79 +2362,6 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
                     </tbody>
                 </table>
             </div>
-            
-            {/* Modal إضافة مادة جديدة */}
-            {isAddModalOpen && (
-                <Modal title="إضافة مادة جديدة للمخزون" onClose={() => { setIsAddModalOpen(false); resetForm(); }} size="lg">
-                    <form onSubmit={handleAddInventoryItem} className="space-y-4">
-                        <InputField
-                            label="اسم المادة *"
-                            type="text"
-                            value={newItemForm.name}
-                            onChange={(e) => setNewItemForm({ ...newItemForm, name: e.target.value })}
-                            placeholder="أدخل اسم المادة"
-                            required
-                            data-testid="input-new-item-name"
-                        />
-                        
-                        <InputField
-                            label="الباركود (اختياري - سيتم توليده تلقائياً إذا ترك فارغاً)"
-                            type="text"
-                            value={newItemForm.barcode}
-                            onChange={(e) => setNewItemForm({ ...newItemForm, barcode: e.target.value })}
-                            placeholder="أدخل الباركود"
-                            data-testid="input-new-item-barcode"
-                        />
-                        
-                        <InputField
-                            label="السعر (د.ع.) *"
-                            type="number"
-                            step="0.01"
-                            value={newItemForm.price}
-                            onChange={(e) => setNewItemForm({ ...newItemForm, price: e.target.value })}
-                            placeholder="أدخل السعر"
-                            required
-                            data-testid="input-new-item-price"
-                        />
-                        
-                        <InputField
-                            label="الكمية *"
-                            type="number"
-                            value={newItemForm.count}
-                            onChange={(e) => setNewItemForm({ ...newItemForm, count: e.target.value })}
-                            placeholder="أدخل الكمية"
-                            required
-                            data-testid="input-new-item-count"
-                        />
-                        
-                        <div className="space-y-1">
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">الفئة *</label>
-                            <select
-                                value={newItemForm.category}
-                                onChange={(e) => setNewItemForm({ ...newItemForm, category: e.target.value })}
-                                className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 dark:bg-gray-700 dark:text-gray-200 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
-                                required
-                                data-testid="select-new-item-category"
-                            >
-                                {data.settings.expenseCategories.map((cat, idx) => (
-                                    <option key={idx} value={cat}>{cat}</option>
-                                ))}
-                            </select>
-                        </div>
-                        
-                        <div className="flex space-x-3 space-x-reverse pt-4">
-                            <ActionButton type="submit" className="flex-1 bg-green-600 hover:bg-green-700" data-testid="button-save-inventory-item">
-                                <Save className="w-5 h-5 ml-2" />
-                                حفظ المادة
-                            </ActionButton>
-                            <ActionButton type="button" onClick={() => { setIsAddModalOpen(false); resetForm(); }} className="flex-1 bg-gray-500 hover:bg-gray-600" data-testid="button-cancel-add-item">
-                                <X className="w-5 h-5 ml-2" />
-                                إلغاء
-                            </ActionButton>
-                        </div>
-                    </form>
-                </Modal>
-            )}
             
             {/* Modal تفاصيل المادة */}
             {isDetailsModalOpen && currentItem && (

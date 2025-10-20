@@ -4,12 +4,20 @@
 This project is a comprehensive Iraqi accounting system designed to manage revenues, expenses, inventory, employees, and payroll. It features a full Arabic RTL interface with a professional design, dark/light mode support, and aims to be a complete solution for financial management tailored for the Iraqi market. The system operates offline, storing data locally, and provides an intelligent AI assistant named "Alaa" specialized in guiding users through the system's functionalities.
 
 ### Recent Changes (October 20, 2025)
+**Inventory Management Workflow Enhancement (v5.5 - Complete):**
+- ✅ Removed direct "Add Item" functionality from Inventory page
+- ✅ All inventory items must now be added through the Inventory Entry (الإدخال المخزني) workflow
+- ✅ Ensures proper purchase tracking and invoice management for all inventory items
+- ✅ Simplified Inventory page to focus on viewing and managing existing items only
+- ✅ Maintains data integrity by requiring all items to have associated purchase records
+
 **Barcode Sticker Printing Feature (v5.4 - Complete):**
 - ✅ Added barcode sticker printing button in inventory item details modal
 - ✅ Implemented `printBarcodeSticker()` function for generating printable sticker labels
 - ✅ Sticker format optimized for label printers (50mm × 30mm size)
 - ✅ Sticker includes: Item name, visual barcode representation, barcode number, and price
-- ✅ Auto-print functionality: Opens print dialog automatically in new window
+- ✅ Professional print preview window with gradient header and styling
+- ✅ User can review sticker before printing with dedicated "طباعة الآن" button
 - ✅ CSS configured with `@page` size directive for precise label printer output
 - ✅ Purple button with Printer icon positioned between item details and purchase history
 
