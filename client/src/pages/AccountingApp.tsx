@@ -589,33 +589,33 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
             
             <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 border-b-2 border-gradient-to-r from-blue-500 to-purple-500 pb-2">{ t("financialSummary") }</h3>
             
-            {/* البطاقات المالية - توزيع متساوي ومتكيف */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {/* البطاقات المالية - بطاقات مستطيلة أفقية */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                 {/* 1. رصيد الصندوق */}
-                <div className="p-6 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-[1.02] border dark:border-gray-200/10 bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-950/50 dark:to-blue-900/50">
-                    <div className="flex items-center justify-between">
-                        <div className="space-y-1">
-                            <p className="text-sm font-semibold text-gray-600 dark:text-gray-400">{ t("currentCashFund") }</p>
-                            <p className={`text-2xl font-extrabold ${summaryData.totalCashFund >= 0 ? 'text-blue-700 dark:text-blue-300' : 'text-rose-700 dark:text-rose-300'}`}>
+                <div className="p-5 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 border dark:border-gray-200/10 bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-950/50 dark:to-blue-900/50">
+                    <div className="flex items-center gap-4">
+                        <div className="p-4 rounded-xl shadow-lg bg-blue-500/20 dark:bg-blue-500/30 flex-shrink-0">
+                            <DollarSign className={`w-8 h-8 ${summaryData.totalCashFund >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-rose-600 dark:text-rose-400'}`} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-base font-bold text-gray-700 dark:text-gray-300 mb-1">{ t("currentCashFund") }</p>
+                            <p className={`text-3xl font-extrabold truncate ${summaryData.totalCashFund >= 0 ? 'text-blue-700 dark:text-blue-300' : 'text-rose-700 dark:text-rose-300'}`}>
                                 {formatCurrencyDisplay(summaryData.totalCashFund)}
                             </p>
-                        </div>
-                        <div className="p-3 rounded-xl shadow-lg bg-blue-500/20 dark:bg-blue-500/30">
-                            <DollarSign className={`w-7 h-7 ${summaryData.totalCashFund >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-rose-600 dark:text-rose-400'}`} />
                         </div>
                     </div>
                 </div>
 
                 {/* 2-3. الإيرادات والصرفيات */}
                 {primaryCards.map((card, index) => (
-                    <div key={index} className={`p-6 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-[1.02] border dark:border-gray-200/10 ${card.bg}`}>
-                        <div className="flex items-center justify-between">
-                            <div className="space-y-1">
-                                <p className="text-sm font-semibold text-gray-600 dark:text-gray-400">{card.title}</p>
-                                <p className={`text-2xl font-extrabold ${card.color}`}>{card.value}</p>
+                    <div key={index} className={`p-5 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 border dark:border-gray-200/10 ${card.bg}`}>
+                        <div className="flex items-center gap-4">
+                            <div className={`p-4 rounded-xl shadow-lg ${card.iconBg} flex-shrink-0`}>
+                                <card.icon className={`w-8 h-8 ${card.color}`} />
                             </div>
-                            <div className={`p-3 rounded-xl shadow-lg ${card.iconBg}`}>
-                                <card.icon className={`w-7 h-7 ${card.color}`} />
+                            <div className="flex-1 min-w-0">
+                                <p className="text-base font-bold text-gray-700 dark:text-gray-300 mb-1">{card.title}</p>
+                                <p className={`text-3xl font-extrabold truncate ${card.color}`}>{card.value}</p>
                             </div>
                         </div>
                     </div>
@@ -625,14 +625,14 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
                 {secondaryCards.map((card, index) => {
                     const CardIcon = card.icon;
                     return (
-                        <div key={index} className={`p-6 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-[1.02] border dark:border-gray-200/10 ${card.bg}`}>
-                            <div className="flex items-center justify-between">
-                                <div className="space-y-1">
-                                    <p className="text-sm font-semibold text-gray-600 dark:text-gray-400">{card.title}</p>
-                                    <p className={`text-2xl font-extrabold ${card.color}`}>{card.value}</p>
+                        <div key={index} className={`p-5 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 border dark:border-gray-200/10 ${card.bg}`}>
+                            <div className="flex items-center gap-4">
+                                <div className={`p-4 rounded-xl shadow-lg ${card.iconBg} flex-shrink-0`}>
+                                    <CardIcon className={`w-8 h-8 ${card.color}`} />
                                 </div>
-                                <div className={`p-3 rounded-xl shadow-lg ${card.iconBg}`}>
-                                    <CardIcon className={`w-7 h-7 ${card.color}`} />
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-base font-bold text-gray-700 dark:text-gray-300 mb-1">{card.title}</p>
+                                    <p className={`text-3xl font-extrabold truncate ${card.color}`}>{card.value}</p>
                                 </div>
                             </div>
                         </div>
