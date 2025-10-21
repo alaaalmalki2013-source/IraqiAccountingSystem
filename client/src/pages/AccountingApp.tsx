@@ -696,6 +696,7 @@ const DataPageComponent = React.memo(({ 
     const [filterDateTo, setFilterDateTo] = useState(initialRange.end);
     const [filterCategory, setFilterCategory] = useState('الكل');
     const [globalSearch, setGlobalSearch] = useState('');
+    const [filterStatus, setFilterStatus] = useState('active'); // فلتر الحالة: active, cancelled, all
     
     // دالة تهيئة النماذج لتبسيط useEffect
     const getInitialFormState = useCallback((item = null, initialDispatch = null) => {
