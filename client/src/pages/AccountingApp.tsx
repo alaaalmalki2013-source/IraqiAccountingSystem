@@ -927,12 +927,7 @@ const DataPageComponent = React.memo(({ 
         <div className="p-6 space-y-6 bg-white dark:bg-gray-800 rounded-3xl app-main-content">
             <h2 className="text-4xl font-extrabold text-gray-800 dark:text-gray-200 border-b-2 border-teal-500 pb-3">{title}</h2>
 
-            <div className="flex flex-wrap gap-2 justify-between items-center">
-                 <ActionButton onClick={() => openModal()} className="bg-green-600 hover:bg-green-700" disabled={!!initialExpenseState && collectionName === 'expenses' && isModalOpen}>
-                    <Plus className="w-5 h-5 ml-2" />
-                    {type === 'suspended' ? 'إضافة مبلغ معلق' : type === 'revenue' ? 'إضافة إيراد' : type === 'expense' ? 'إضافة مصروف' : 'إضافة سلفة'}
-                    {!!initialExpenseState && collectionName === 'expenses' && ' (معلومات من المخزن)'}
-                </ActionButton>
+            <div className="flex flex-wrap gap-2 justify-end items-center">
                 
                 <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
                     <RotateCcw className="w-6 h-6" />
@@ -1044,6 +1039,20 @@ const DataPageComponent = React.memo(({ 
                 </div>
             </div>
             
+            
+             <div className="flex justify-end items-center">
+                 <button 
+                    onClick={() => openModal()} 
+                    className="flex items-center px-6 py-3 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-xl hover:from-green-600 hover:to-teal-600 shadow-lg transition duration-200"
+                    disabled={!!initialExpenseState && collectionName === 'expenses' && isModalOpen}
+                    data-testid="button-add-record"
+                 >
+                    <Plus className="w-5 h-5 ml-2" />
+                    {type === 'suspended' ? 'إضافة مبلغ معلق' : type === 'revenue' ? 'إضافة إيراد' : type === 'expense' ? 'إضافة مصروف' : 'إضافة سلفة'}
+                    {!!initialExpenseState && collectionName === 'expenses' && ' (معلومات من المخزن)'}
+                 </button>
+             </div>
+
              <div className="flex flex-wrap gap-2 space-x-reverse">
                  <button onClick={handlePrintAll} className="p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
                      <Printer className="w-6 h-6" />
