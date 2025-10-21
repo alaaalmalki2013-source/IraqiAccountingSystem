@@ -4313,8 +4313,6 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
             date: getDefaultDateTime(),
         };
 
-        console.log('[DEBUG] Saving withdrawal:', withdrawalToSave);
-        console.log('[DEBUG] Current inventoryWithdrawals:', data.inventoryWithdrawals);
         handleDataAction('inventoryWithdrawals', withdrawalToSave, !withdrawalForm.id);
         handleDataAction('inventory', updatedInventory, true, true);
         
@@ -4356,23 +4354,20 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
     };
     
     // فلترة الاستخراجات
-    const filteredWithdrawals = useMemo(() => {
-        let list = data.inventoryWithdrawals.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+    const withdrawals = data.inventoryWithdrawals || [];
+    let filteredWithdrawals = withdrawals.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    if (globalSearch) {
+        const searchLower = normalizeTextForSearch(globalSearch);
         
-        if (globalSearch) {
-            const searchLower = normalizeTextForSearch(globalSearch);
+        filteredWithdrawals = filteredWithdrawals.filter(w => {
+            const matchesNum = w.withdrawalNumber && normalizeTextForSearch(w.withdrawalNumber).includes(searchLower);
+            const matchesEmp = w.employeeName && normalizeTextForSearch(w.employeeName).includes(searchLower);
+            const matchesItem = w.items.some(item => normalizeTextForSearch(item.name).includes(searchLower));
             
-            list = list.filter(w => {
-                const matchesNum = w.withdrawalNumber && normalizeTextForSearch(w.withdrawalNumber).includes(searchLower);
-                const matchesEmp = w.employeeName && normalizeTextForSearch(w.employeeName).includes(searchLower);
-                const matchesItem = w.items.some(item => normalizeTextForSearch(item.name).includes(searchLower));
-                
-                return matchesNum || matchesEmp || matchesItem;
-            });
-        }
-        
-        return list;
-    }, [data.inventoryWithdrawals, globalSearch]);
+            return matchesNum || matchesEmp || matchesItem;
+        });
+    }
 
     return (
         <div className="p-6 space-y-6 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl">
@@ -4851,8 +4846,6 @@ const AccountingApp = () => {
                 ...(collectionName !== 'inventory' && collectionName !== 'inventoryWithdrawals' ? { invoiceNumber: generateInvoiceNumber() } : {})
             };
             newData[collectionName] = [...collection, newItem];
-            console.log(`[DEBUG handleDataAction] Adding to ${collectionName}:`, newItem);
-            console.log(`[DEBUG handleDataAction] New collection size:`, newData[collectionName].length);
             
             // رسالة النجاح المخصصة
             if (collectionName === 'inventory') {
