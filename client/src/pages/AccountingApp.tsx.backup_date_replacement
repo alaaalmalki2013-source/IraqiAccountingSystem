@@ -204,6 +204,21 @@ const Modal = ({ title, children, onClose, size = 'lg', isPrintModal = false }) 
 const PrintInvoice = React.memo(({ item, onClose, companyName, companyLogoUrl, employees }) => {
     const [paperSize, setPaperSize] = useState('80mm');
 
+    // تنسيق التاريخ ليكون رقمياً فقط
+    const formatDate = (dateString) => {
+        const date = new Date(dateString);
+        // تنسيق الوقت HH:MM AM/PM والتاريخ MM/DD/YYYY
+        return date.toLocaleString('en-US', { 
+            year: 'numeric', 
+            month: 'numeric', 
+            day: 'numeric', 
+            hour: '2-digit', 
+            minute: '2-digit', 
+            hour12: true 
+        });
+    }
+    // **تعديل:** إزالة الكسور العشرية
+    const formatCurrency = (amount) => (parseFloat(amount) || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' د.ع.';
 
     // ضمان عمل زر الطباعة (HandlePrint)
     const handlePrint = () => {
@@ -296,7 +311,7 @@ const PrintInvoice = React.memo(({ item, onClose, companyName, companyLogoUrl, e
                                 رقم الفاتورة: <span style={{ fontWeight: 'bold' }}>{item.invoiceNumber}</span>
                             </p>
                             <p style={{ fontSize: paperSize === 'A4' ? '12px' : '10px', margin: '0' }}>
-                                التاريخ والوقت: <span style={{ fontWeight: 'bold' }}>{formatDateTimeDDMMYYYY(item.date)}</span>
+                                التاريخ والوقت: <span style={{ fontWeight: 'bold' }}>{formatDate(item.date)}</span>
                             </p>
                         </div>
                     </div>
@@ -327,7 +342,7 @@ const PrintInvoice = React.memo(({ item, onClose, companyName, companyLogoUrl, e
                         <tbody>
                             <tr style={{ backgroundColor: paperSize === 'A4' ? '#f3f4f6' : 'transparent', fontWeight: 'bold' }}>
                                 <td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'right', width: '35%', color: '#1f2937' }}>القيمة الإجمالية</td>
-                                <td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'right', fontSize: '18px', color: '#B45309' }}>{formatCurrencyDisplay(item.amount)}</td>
+                                <td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'right', fontSize: '18px', color: '#B45309' }}>{formatCurrency(item.amount)}</td>
                             </tr>
                         </tbody>
                     </table>
@@ -356,6 +371,10 @@ const PrintInvoice = React.memo(({ item, onClose, companyName, companyLogoUrl, e
 
 // مكون طباعة التقرير الجماعي
 const PrintReportModal = React.memo(({ reportData, title, onClose, companyName, companyLogoUrl }) => {
+    
+    // **تعديل:** إزالة الكسور العشرية
+    const formatCurrency = (amount) => (parseFloat(amount) || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' د.ع.';
+    const formatDate = (dateString) => new Date(dateString).toLocaleDateString('en-US');
     
     const handlePrint = () => {
         window.print();
@@ -393,11 +412,11 @@ const PrintReportModal = React.memo(({ reportData, title, onClose, companyName, 
                     {companyLogoUrl && <img src={companyLogoUrl} alt="Logo" style={{ maxHeight: '60px', margin: '0 auto 10px' }} onError={(e) => { e.target.style.display = 'none'; }} />}
                     <h1 className="text-2xl font-bold" style={{ color: "#000" }}>{companyName}</h1>
                     <h2 className="text-xl font-semibold mt-1" style={{ color: "#000" }}>تقرير {title} المفصل</h2>
-                    <p className="text-sm" style={{ color: "#333" }}>تاريخ التقرير: {formatDateDDMMYYYY(new Date())}</p>
+                    <p className="text-sm" style={{ color: "#333" }}>تاريخ التقرير: {formatDate(new Date())}</p>
                 </div>
 
                 <div className="mb-4">
-                    <p className="text-lg font-extrabold bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent">إجمالي المبلغ في التقرير: {formatCurrencyDisplay(totalAmount)}</p>
+                    <p className="text-lg font-extrabold bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent">إجمالي المبلغ في التقرير: {formatCurrency(totalAmount)}</p>
                     <p className="text-sm">عدد السجلات: {reportData.length}</p>
                 </div>
 
@@ -868,7 +887,7 @@ const DataPageComponent = React.memo(({ 
         }
         const exportContent = filteredList.map(item => {
             const baseItem = {
-                'التاريخ والوقت': formatDateTimeDDMMYYYY(item.date),
+                'التاريخ والوقت': new Date(item.date).toLocaleString('en-US'),
                 'رقم الفاتورة': item.invoiceNumber || 'N/A',
                 'المبلغ (د.ع.)': formatCurrencyDisplay(item.amount || 0),
                 'الجهة المعنية': item.category || (item.employeeId ? data.employees.find(e => e.id === item.employeeId)?.name : item.recipientName) || 'N/A',
@@ -895,7 +914,7 @@ const DataPageComponent = React.memo(({ 
         
         const exportContent = filteredList.map(item => {
             const baseItem = {
-                'التاريخ والوقت': formatDateTimeDDMMYYYY(item.date),
+                'التاريخ والوقت': new Date(item.date).toLocaleString('en-US'),
                 'رقم الفاتورة': item.invoiceNumber || 'N/A',
                 'المبلغ (د.ع.)': parseFloat(item.amount || 0), // يتم التصدير كرقم ليسهل الحساب
                 'الجهة المعنية': item.category || (item.employeeId ? data.employees.find(e => e.id === item.employeeId)?.name : item.recipientName) || 'N/A',
@@ -1070,7 +1089,7 @@ const DataPageComponent = React.memo(({ 
                         ) : (
                             filteredList.map(item => (
                                 <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150">
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{formatDateTimeDDMMYYYY(item.date)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{new Date(item.date).toLocaleString('en-US')}</td>
                                     {fields.map(field => {
                                         const itemValue = item[field.key] || '';
 
@@ -1624,7 +1643,7 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                                 return (
                                     <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150">
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
-                                            {formatDateDDMMYYYY(item.date)}
+                                            {new Date(item.date).toLocaleDateString('ar-IQ')}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                                             <span className={`px-3 py-1 rounded-full text-xs font-semibold
@@ -1979,7 +1998,7 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                             <div className="col-span-2 sm:col-span-1">
                                 <p className="text-sm font-medium text-gray-600 dark:text-gray-400">التاريخ</p>
                                 <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
-                                    {formatDateTimeDDMMYYYY(viewItem.date)}
+                                    {new Date(viewItem.date).toLocaleString('ar-IQ')}
                                 </p>
                             </div>
                             
@@ -2129,7 +2148,7 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
     
     const formatDOB = (dateString) => {
         if (!dateString) return 'غير محدد';
-        return formatDateDDMMYYYY(dateString);
+        return new Date(dateString).toLocaleDateString('ar-IQ');
     };
 
     const filteredList = useMemo(() => {
@@ -2850,7 +2869,7 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                                                         {adj.type === 'overtime' && '⏰ أوفرتايم'}
                                                     </p>
                                                     <p className="text-sm text-gray-600 dark:text-gray-400">{adj.description}</p>
-                                                    <p className="text-xs text-gray-400 dark:text-gray-500">{formatDateDDMMYYYY(adj.date)}</p>
+                                                    <p className="text-xs text-gray-400 dark:text-gray-500">{new Date(adj.date).toLocaleDateString('ar-IQ')}</p>
                                                 </div>
                                                 <p className={`font-bold ${adj.type === 'bonus' || adj.type === 'overtime' ? 'text-green-600' : 'text-red-600'}`}>
                                                     {adj.type === 'bonus' || adj.type === 'overtime' ? '+' : '-'}{formatCurrencyDisplay(adj.amount)}
@@ -2882,7 +2901,7 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                                                 <div>
                                                     <p className="font-semibold">{adv.category}</p>
                                                     <p className="text-sm text-gray-600 dark:text-gray-400">{adv.notes}</p>
-                                                    <p className="text-xs text-gray-400 dark:text-gray-500">{formatDateDDMMYYYY(adv.date)}</p>
+                                                    <p className="text-xs text-gray-400 dark:text-gray-500">{new Date(adv.date).toLocaleDateString('ar-IQ')}</p>
                                                 </div>
                                                 <p className="font-bold text-red-600">-{formatCurrencyDisplay(adv.amount)}</p>
                                             </div>
@@ -2996,7 +3015,7 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                                         <tr style={{ fontWeight: 'bold', fontSize: '14px' }}><td style={{ padding: '5px', borderBottom: '1px solid #000' }}>الراتب الصافي:</td><td style={{ padding: '5px', borderBottom: '1px solid #000' }}>{payslipToPrint.salaryData.netSalary.toLocaleString()} د.ع.</td></tr>
                                     </tbody>
                                 </table>
-                                <p style={{ textAlign: 'center', marginTop: '20px', color: '#000' }}>التاريخ: {formatDateDDMMYYYY()}</p>
+                                <p style={{ textAlign: 'center', marginTop: '20px', color: '#000' }}>التاريخ: {new Date().toLocaleDateString('ar-IQ')}</p>
                             </div>
                         </div>
 
@@ -3184,7 +3203,7 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
                     <tbody>
                         {history.sort((a, b) => new Date(b.date) - new Date(a.date)).map((record, index) => (
                             <tr key={index} className="border-t hover:bg-indigo-50 dark:bg-indigo-900">
-                                <td className="px-2 py-1">{formatDateTimeDDMMYYYY(record.date)}</td>
+                                <td className="px-2 py-1">{new Date(record.date).toLocaleString('en-US', {dateStyle: 'short', timeStyle: 'short'})}</td>
                                 <td className="px-2 py-1 font-semibold">{formatCurrencyDisplay(record.price)}</td>
                                 <td className="px-2 py-1">{record.count}</td>
                                 <td className="px-2 py-1">{record.vendor}</td>
@@ -3929,7 +3948,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                                     onClick={() => openDetailsModal(invoice)}
                                 >
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900 dark:text-gray-100">{highlightText(invoice.invoiceNumber, globalSearch)}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{formatDateDDMMYYYY(invoice.date)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{new Date(invoice.date).toLocaleDateString('en-US')}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{highlightText(`${invoice.vendor} (${invoice.representative})`, globalSearch)}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{invoice.items.length}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-red-600">{formatCurrencyDisplay(invoice.totalAmount)}</td>
@@ -4225,7 +4244,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                         <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl border border-gray-200 dark:border-gray-600">
                             <p className="font-medium text-gray-700 dark:text-gray-300">المورد: <span className="font-bold">{currentInvoice.vendor}</span></p>
                             <p className="font-medium text-gray-700 dark:text-gray-300">المندوب: <span className="font-bold">{currentInvoice.representative}</span></p>
-                            <p className="font-medium text-gray-700 dark:text-gray-300">تاريخ الفاتورة: <span className="font-bold">{formatDateTimeDDMMYYYY(currentInvoice.date)}</span></p>
+                            <p className="font-medium text-gray-700 dark:text-gray-300">تاريخ الفاتورة: <span className="font-bold">{new Date(currentInvoice.date).toLocaleString('en-US')}</span></p>
                             <p className="font-medium text-gray-700 dark:text-gray-300">فئة المصروف: <span className="font-bold">{currentInvoice.expenseCategory}</span></p>
                         </div>
                         
@@ -5240,7 +5259,7 @@ const InventoryDispatchComponent = React.memo(({ data, handleDataAction, showToa
                             ) : (
                                 dispatchHistory.map(dispatch => (
                                     <tr key={dispatch.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150 cursor-pointer" onClick={() => openDispatchDetails(dispatch)}>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{formatDateTimeDDMMYYYY(dispatch.date)}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{new Date(dispatch.date).toLocaleString('en-US')}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-indigo-600 font-semibold">{highlightText(dispatch.employeeName, globalSearchHistory)}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{dispatch.items.reduce((sum, item) => sum + item.count, 0)}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-red-600">{highlightText(formatCurrencyDisplay(dispatch.totalCost), globalSearchHistory)}</td>
@@ -5267,7 +5286,7 @@ const InventoryDispatchComponent = React.memo(({ data, handleDataAction, showToa
                             بيانات الصرف
                         </h4>
                         <p className="font-medium text-gray-700 dark:text-gray-300">**الموظف:** {currentDispatch.employeeName}</p>
-                        <p className="font-medium text-gray-700 dark:text-gray-300">**التاريخ والوقت:** {formatDateTimeDDMMYYYY(currentDispatch.date)}</p>
+                        <p className="font-medium text-gray-700 dark:text-gray-300">**التاريخ والوقت:** {new Date(currentDispatch.date).toLocaleString('en-US')}</p>
                         <p className="font-medium text-gray-700 dark:text-gray-300">**الملاحظات:** {currentDispatch.notes || 'لا توجد ملاحظات.'}</p>
                         
                         <h5 className="text-lg font-bold text-gray-800 dark:text-gray-200 border-b pb-2 pt-4">المواد المصروفة:</h5>
@@ -5683,7 +5702,7 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
                             filteredWithdrawals.map(withdrawal => (
                                 <tr key={withdrawal.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition">
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">{highlightText(withdrawal.withdrawalNumber, globalSearch)}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm">{formatDateTimeDDMMYYYY(withdrawal.date)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm">{new Date(withdrawal.date).toLocaleString('ar-IQ')}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold">{highlightText(withdrawal.employeeName, globalSearch)}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm">{withdrawal.items.reduce((sum, item) => sum + item.count, 0)}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2 space-x-reverse">
@@ -5903,7 +5922,7 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
                             </div>
                             <div>
                                 <span className="font-semibold text-gray-700 dark:text-gray-300">التاريخ:</span>
-                                <span className="mr-2 text-gray-900 dark:text-gray-100">{formatDateTimeDDMMYYYY(currentWithdrawal.date)}</span>
+                                <span className="mr-2 text-gray-900 dark:text-gray-100">{new Date(currentWithdrawal.date).toLocaleString('ar-IQ')}</span>
                             </div>
                             <div className="col-span-2">
                                 <span className="font-semibold text-gray-700 dark:text-gray-300">الموظف المستلم:</span>
@@ -6240,7 +6259,7 @@ const AccountingApp = () => {
             return false;
         }).map(emp => ({
             name: emp.name,
-            date: formatDateDDMMYYYY(emp.dateOfBirth)
+            date: new Date(emp.dateOfBirth).toLocaleDateString('ar-IQ', { month: 'long', day: 'numeric' })
         })).sort((a, b) => new Date(a.date) - new Date(b.date));
 
     }, [data.employees]);
