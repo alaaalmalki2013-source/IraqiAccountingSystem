@@ -643,7 +643,7 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
 const DataPageComponent = React.memo(({ 
     type, title, collectionName, fields, categories, data, 
     handleDataAction, handleDelete, setPrintItem, setPrintReportData, 
-    setIsReportModalOpen, showToast, initialExpenseState, handleRefresh // <--- Added handleRefresh
+    setIsReportModalOpen, showToast, initialExpenseState, handleRefresh, setInitialExpenseState
 }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [currentItem, setCurrentItem] = useState(null);
