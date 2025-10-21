@@ -33,6 +33,15 @@ The system is built as a single-page application with a modern and professional 
 -   **Employee Management:** Covers Employees (database, birthday tracking, basic salary), Advances (manage various categories of advances, track payments, print vouchers), and Payroll (comprehensive table with salary breakdown, bonuses, deductions, absences, overtime, net salary calculation, payslip printing).
 -   **Inventory Management:** Features Inventory Entry (purchase invoice entry, item modification, cash/credit approval, status tracking) and Inventory (material database, barcode generation, stock tracking, expenditure tracking, purchase history).
 -   **Settings:** Manages categories (revenues, expenses, advances), departments, job titles, vendors, representatives, user permissions, and company details.
+-   **Admin Page (New):** Comprehensive administrative dashboard displaying system information including:
+    -   System version and statistics
+    -   User and employee counts
+    -   Revenue and expense counts
+    -   Inventory items count
+    -   Storage usage with formatted display
+    -   Last backup information
+    -   System features overview
+    -   Modern gradient cards with RTL support and full dark mode compatibility
 -   **AI Assistant "Alaa":** A GPT-5-mini powered intelligent assistant integrated into the system, specialized in guiding users on system functionalities, providing accurate and context-aware responses in Arabic.
 
 ### System Design Choices

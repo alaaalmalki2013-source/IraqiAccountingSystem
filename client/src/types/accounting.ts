@@ -23,7 +23,8 @@ export const BASE_PERMISSIONS = {
     inventoryEntry: { view: true, approve: true, credit: true, cancel: true },
     inventoryWithdrawal: { view: true, add: true, edit: true, delete: true },
     inventory: { view: true, add: true, edit: true, delete: true },
-    settings: { view: true }
+    settings: { view: true },
+    admin: { view: true }
 };
 
 export const defaultSettings = {

@@ -51,7 +51,8 @@ import {
     Languages,
     Clock,
     XCircle,
-    FileImage
+    FileImage,
+    Shield
 } from 'lucide-react';
 
 // استيراد الثوابت والأنواع
@@ -4770,6 +4771,136 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
     );
 });
 
+/**
+ * 3.6.1. AdminPage (صفحة الإدارة)
+ * صفحة إدارة النظام والمعلومات الإدارية
+ */
+const AdminPage = React.memo(({ data }) => {
+    const systemInfo = {
+        version: 'V3.0',
+        lastBackup: 'لم يتم إنشاء نسخة احتياطية',
+        totalUsers: data.settings.users.length,
+        totalEmployees: data.employees.length,
+        totalRevenues: data.revenues.length,
+        totalExpenses: data.expenses.length,
+        totalInventoryItems: data.inventory.length,
+        storageUsed: new Blob([JSON.stringify(data)]).size,
+    };
+
+    const formatBytes = (bytes) => {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+    };
+
+    return (
+        <div className="p-6 space-y-8 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl">
+            <h2 className="text-4xl font-extrabold text-gray-800 dark:text-gray-200 border-b-2 border-purple-500 pb-3 flex items-center gap-3">
+                <Shield className="w-9 h-9 text-purple-600 dark:text-purple-400" />
+                لوحة الإدارة
+            </h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="p-6 rounded-xl shadow-lg bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 border-r-4 border-blue-600" data-testid="card-system-version">
+                    <div className="flex items-center gap-3 mb-3">
+                        <Info className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                        <h3 className="text-xl font-bold text-blue-800 dark:text-blue-300">إصدار النظام</h3>
+                    </div>
+                    <p className="text-3xl font-extrabold text-blue-900 dark:text-blue-200">{systemInfo.version}</p>
+                </div>
+
+                <div className="p-6 rounded-xl shadow-lg bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/30 dark:to-green-800/30 border-r-4 border-green-600" data-testid="card-total-users">
+                    <div className="flex items-center gap-3 mb-3">
+                        <Users className="w-6 h-6 text-green-600 dark:text-green-400" />
+                        <h3 className="text-xl font-bold text-green-800 dark:text-green-300">عدد المستخدمين</h3>
+                    </div>
+                    <p className="text-3xl font-extrabold text-green-900 dark:text-green-200">{systemInfo.totalUsers}</p>
+                </div>
+
+                <div className="p-6 rounded-xl shadow-lg bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/30 dark:to-purple-800/30 border-r-4 border-purple-600" data-testid="card-total-employees">
+                    <div className="flex items-center gap-3 mb-3">
+                        <Users className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                        <h3 className="text-xl font-bold text-purple-800 dark:text-purple-300">عدد الموظفين</h3>
+                    </div>
+                    <p className="text-3xl font-extrabold text-purple-900 dark:text-purple-200">{systemInfo.totalEmployees}</p>
+                </div>
+
+                <div className="p-6 rounded-xl shadow-lg bg-gradient-to-br from-teal-50 to-teal-100 dark:from-teal-900/30 dark:to-teal-800/30 border-r-4 border-teal-600" data-testid="card-total-revenues">
+                    <div className="flex items-center gap-3 mb-3">
+                        <TrendingUp className="w-6 h-6 text-teal-600 dark:text-teal-400" />
+                        <h3 className="text-xl font-bold text-teal-800 dark:text-teal-300">عدد الإيرادات</h3>
+                    </div>
+                    <p className="text-3xl font-extrabold text-teal-900 dark:text-teal-200">{systemInfo.totalRevenues}</p>
+                </div>
+
+                <div className="p-6 rounded-xl shadow-lg bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/30 dark:to-red-800/30 border-r-4 border-red-600" data-testid="card-total-expenses">
+                    <div className="flex items-center gap-3 mb-3">
+                        <TrendingDown className="w-6 h-6 text-red-600 dark:text-red-400" />
+                        <h3 className="text-xl font-bold text-red-800 dark:text-red-300">عدد الصرفيات</h3>
+                    </div>
+                    <p className="text-3xl font-extrabold text-red-900 dark:text-red-200">{systemInfo.totalExpenses}</p>
+                </div>
+
+                <div className="p-6 rounded-xl shadow-lg bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-900/30 dark:to-amber-800/30 border-r-4 border-amber-600" data-testid="card-total-inventory">
+                    <div className="flex items-center gap-3 mb-3">
+                        <Package className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+                        <h3 className="text-xl font-bold text-amber-800 dark:text-amber-300">عدد المواد المخزنية</h3>
+                    </div>
+                    <p className="text-3xl font-extrabold text-amber-900 dark:text-amber-200">{systemInfo.totalInventoryItems}</p>
+                </div>
+
+                <div className="p-6 rounded-xl shadow-lg bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-900/30 dark:to-indigo-800/30 border-r-4 border-indigo-600" data-testid="card-storage-size">
+                    <div className="flex items-center gap-3 mb-3">
+                        <Save className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+                        <h3 className="text-xl font-bold text-indigo-800 dark:text-indigo-300">حجم البيانات</h3>
+                    </div>
+                    <p className="text-3xl font-extrabold text-indigo-900 dark:text-indigo-200">{formatBytes(systemInfo.storageUsed)}</p>
+                </div>
+
+                <div className="p-6 rounded-xl shadow-lg bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900/30 dark:to-gray-800/30 border-r-4 border-gray-600" data-testid="card-last-backup">
+                    <div className="flex items-center gap-3 mb-3">
+                        <Clock className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+                        <h3 className="text-xl font-bold text-gray-800 dark:text-gray-300">آخر نسخة احتياطية</h3>
+                    </div>
+                    <p className="text-lg font-bold text-gray-700 dark:text-gray-300">{systemInfo.lastBackup}</p>
+                </div>
+            </div>
+
+            <div className="p-6 rounded-xl shadow-lg bg-gradient-to-br from-gray-50 to-white dark:from-gray-700 dark:to-gray-800 border border-gray-200 dark:border-gray-600">
+                <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-4 flex items-center gap-2">
+                    <Info className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+                    معلومات النظام
+                </h3>
+                <div className="space-y-3 text-gray-700 dark:text-gray-300">
+                    <p className="flex items-center gap-2">
+                        <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
+                        <span className="font-semibold">نظام المحاسبة العراقي</span>
+                    </p>
+                    <p className="flex items-center gap-2">
+                        <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
+                        <span>نظام شامل لإدارة الحسابات والمخزون والموظفين</span>
+                    </p>
+                    <p className="flex items-center gap-2">
+                        <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
+                        <span>يعمل دون اتصال بالإنترنت (Offline)</span>
+                    </p>
+                    <p className="flex items-center gap-2">
+                        <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
+                        <span>يدعم الوضع الداكن (Dark Mode)</span>
+                    </p>
+                    <p className="flex items-center gap-2">
+                        <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
+                        <span>واجهة RTL كاملة للغة العربية</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+    );
+});
+
+
 
 /**
  * 3.7. InventoryDispatchComponent (سجل الصرف المخزني)
@@ -5872,6 +6003,7 @@ const AccountingApp = () => {
         { key: 'inventoryWithdrawal', label: 'الاستخراج المخزني', icon: LogOut, component: InventoryWithdrawalComponent, props: { handleRefresh, handleDelete, handleDataAction } },
         { key: 'inventory', label: 'المخزن والمواد', icon: Package, component: InventoryPageComponent, props: { handleRefresh, handleDataAction } },
         { key: 'settings', label: 'الإعدادات', icon: Settings, component: SettingsPage, props: { handleSettingsUpdate } },
+        { key: 'admin', label: 'الإدارة', icon: Shield, component: AdminPage, props: {} },
     ];
     
     // فلترة عناصر القائمة حسب صلاحيات المستخدم
