@@ -754,7 +754,7 @@ const DataPageComponent = React.memo(({ 
     const categoryTotals = useMemo(() => {
         const totals = data[collectionName].reduce((acc, item) => {
             const category = item.category || 'غير مصنف';
-            acc[category] = (acc[category] || 0) + item.amount;
+            acc[category] = (acc[category] || 0) + (parseFloat(item.amount) || 0);
             return acc;
         }, {});
         // تحويل الكائن إلى مصفوفة لسهولة العرض
@@ -4110,7 +4110,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                                                 <td className="px-4 py-2 whitespace-nowrap text-xs text-gray-600 dark:text-gray-400">{item.barcode}</td>
                                                 <td className="px-4 py-2 whitespace-nowrap text-sm">{formatCurrencyDisplay(item.price)}</td>
                                                 <td className="px-4 py-2 whitespace-nowrap text-sm">{item.count}</td>
-                                                <td className="px-4 py-2 whitespace-nowrap text-sm font-bold text-red-700">{formatCurrencyDisplay(item.price * item.count)}</td>
+                                                <td className="px-4 py-2 whitespace-nowrap text-sm font-bold text-red-700">{formatCurrencyDisplay((parseFloat(item.price) || 0) * (parseInt(item.count) || 0))}</td>
                                                 <td className="px-4 py-2 whitespace-nowrap flex gap-2">
                                                     <button type="button" onClick={() => handleEditItem(item)} className="text-blue-500 hover:text-blue-700" title="تعديل">
                                                         <Edit className="w-4 h-4" />
@@ -4301,7 +4301,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                                             <td className="px-4 py-2 whitespace-nowrap text-xs text-gray-600 dark:text-gray-400">{item.barcode}</td>
                                             <td className="px-4 py-2 whitespace-nowrap text-sm">{formatCurrencyDisplay(item.price)}</td>
                                             <td className="px-4 py-2 whitespace-nowrap text-sm">{item.count}</td>
-                                            <td className="px-4 py-2 whitespace-nowrap text-sm font-bold text-red-700">{formatCurrencyDisplay(item.price * item.count)}</td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm font-bold text-red-700">{formatCurrencyDisplay((parseFloat(item.price) || 0) * (parseInt(item.count) || 0))}</td>
                                         </tr>
                                     ))}
                                     <tr className="bg-gradient-to-r from-blue-100 via-purple-100 to-cyan-100 dark:from-blue-950/50 dark:via-purple-950/50 dark:to-cyan-950/50 font-extrabold text-lg border-t-2 border-blue-500 dark:border-blue-400">
