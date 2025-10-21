@@ -4828,7 +4828,7 @@ const AccountingApp = () => {
 
 
         let newData = { ...data };
-        let collection = newData[collectionName];
+        let collection = newData[collectionName] || [];
 
         if (overwrite) {
              newData[collectionName] = item;
@@ -4845,8 +4845,8 @@ const AccountingApp = () => {
             const newItem = {
                 ...item,
                 id: item.id || crypto.randomUUID(),
-                // فقط إضافة invoiceNumber إذا لم يكن المخزون
-                ...(collectionName !== 'inventory' ? { invoiceNumber: generateInvoiceNumber() } : {})
+                // فقط إضافة invoiceNumber إذا لم يكن المخزون أو الاستخراج المخزني
+                ...(collectionName !== 'inventory' && collectionName !== 'inventoryWithdrawals' ? { invoiceNumber: generateInvoiceNumber() } : {})
             };
             newData[collectionName] = [...collection, newItem];
             
