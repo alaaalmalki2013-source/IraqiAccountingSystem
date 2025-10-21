@@ -21,7 +21,6 @@ export const BASE_PERMISSIONS = {
     payroll: { view: true, add: true, edit: true, delete: true, pay: true },
     inventoryEntry: { view: true, approve: true, credit: true, cancel: true },
     inventory: { view: true, add: true, edit: true, delete: true },
-    inventoryDispatch: { view: true, add: true, delete: true },
     settings: { view: true }
 };
 
