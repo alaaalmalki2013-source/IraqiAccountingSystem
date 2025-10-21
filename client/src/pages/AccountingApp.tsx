@@ -4932,15 +4932,26 @@ const AccountingApp = () => {
             const savedData = localStorage.getItem(STORAGE_KEY);
             if (savedData) {
                 // دمج البيانات المحفوظة مع الإعدادات الافتراضية الجديدة في حال عدم وجودها
-                const parsedData = JSON.parse(savedData);
-                setData(prev => ({
-                    ...defaultDataStructure,
-                    ...parsedData,
-                    settings: {
-                        ...defaultSettings,
-                        ...(parsedData.settings || {})
-                    }
-                }));
+                const parsedData = JSON.parse(savedData);
+                
+                // تحديث صلاحيات المستخدمين الموجودين بدمجها مع BASE_PERMISSIONS
+                const updatedUsers = (parsedData.settings?.users || []).map(user => ({
+                    ...user,
+                    permissions: {
+                        ...BASE_PERMISSIONS,
+                        ...user.permissions
+                    }
+                }));
+                
+                setData(prev => ({
+                    ...defaultDataStructure,
+                    ...parsedData,
+                    settings: {
+                        ...defaultSettings,
+                        ...(parsedData.settings || {}),
+                        users: updatedUsers.length > 0 ? updatedUsers : defaultSettings.users
+                    }
+                }));
             }
         } catch (error) {
             console.error("Failed to load data from localStorage", error);
