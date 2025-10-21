@@ -4313,25 +4313,13 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
             date: getDefaultDateTime(),
         };
 
-        // **الحل الصحيح: تحديث كلا المجموعتين في عملية واحدة**
-        const newData = { ...data };
+        // حفظ الاستخراج أولاً
+        console.log('[handleCompleteWithdrawal] Saving withdrawal:', withdrawalToSave);
+        console.log('[handleCompleteWithdrawal] Current withdrawals before save:', data.inventoryWithdrawals);
+        handleDataAction('inventoryWithdrawals', withdrawalToSave, !withdrawalForm.id);
         
-        // تحديث inventoryWithdrawals
-        if (!withdrawalForm.id) {
-            newData.inventoryWithdrawals = [...newData.inventoryWithdrawals, withdrawalToSave];
-        } else {
-            const index = newData.inventoryWithdrawals.findIndex(w => w.id === withdrawalToSave.id);
-            if (index !== -1) {
-                newData.inventoryWithdrawals[index] = withdrawalToSave;
-            }
-        }
-        
-        // تحديث inventory
-        newData.inventory = updatedInventory;
-        
-        // حفظ مرة واحدة
-        saveData(newData);
-        setRefreshKey(prev => prev + 1);
+        // ثم تحديث المخزون
+        handleDataAction('inventory', updatedInventory, true, true);
         
         setWithdrawalForm(getDefaultWithdrawalForm());
         setIsNewWithdrawalModalOpen(false);
@@ -4365,18 +4353,19 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
             }
         });
         
-        // **الحل الصحيح: تحديث كلا المجموعتين في عملية واحدة**
-        const newData = { ...data };
-        newData.inventoryWithdrawals = newData.inventoryWithdrawals.filter(w => w.id !== withdrawal.id);
-        newData.inventory = updatedInventory;
+        // حذف الاستخراج
+        handleDelete('inventoryWithdrawals', withdrawal.id, false);
         
-        saveData(newData);
-        setRefreshKey(prev => prev + 1);
+        // تحديث المخزون
+        handleDataAction('inventory', updatedInventory, true, true);
+        
         showToast(`تم حذف الاستخراج #${withdrawal.withdrawalNumber} وإعادة المواد للمخزون.`, 'success');
     };
     
     // فلترة الاستخراجات
     const withdrawals = data.inventoryWithdrawals || [];
+    console.log('[InventoryWithdrawalComponent] data.inventoryWithdrawals:', data.inventoryWithdrawals);
+    console.log('[InventoryWithdrawalComponent] withdrawals:', withdrawals);
     let filteredWithdrawals = withdrawals.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
     
     if (globalSearch) {
