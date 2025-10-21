@@ -450,7 +450,7 @@ const PrintReportModal = React.memo(({ reportData, title, onClose, companyName, 
  * 3.1. Dashboard Component
  */
 const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
-    const { revenues, expenses, suspended, advances, employees, payroll } = data;
+    const { revenues, expenses, suspended, advances, employees } = data;
     const { t } = useLanguage();
 
     // استخدام useMemo لضمان عدم إعادة الحساب إلا عند الضرورة
@@ -477,60 +477,17 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
         }, {});
 
 
-        // حساب مجموع الرواتب المدفوعة
-        const totalPaidSalaries = payroll ? payroll.reduce((sum, payrollRecord) => {
-            if (!payrollRecord.isPaid) return sum;
-            
-            // إيجاد الموظف المرتبط بسجل الرواتب
-            const employee = employees.find(emp => emp.id === payrollRecord.employeeId);
-            if (!employee) return sum;
-            
-            const baseSalary = parseFloat(employee.salary) || 0;
-            let bonuses = 0;
-            let deductions = 0;
-            let absenceAmount = 0;
-            let overtimeAmount = 0;
-            
-            // حساب التعديلات
-            if (payrollRecord.adjustments) {
-                payrollRecord.adjustments.forEach(adj => {
-                    const amount = parseFloat(adj.amount) || 0;
-                    if (adj.type === 'bonus') bonuses += amount;
-                    if (adj.type === 'deduction') deductions += amount;
-                    if (adj.type === 'absence') absenceAmount += amount;
-                    if (adj.type === 'overtime') overtimeAmount += amount;
-                });
-            }
-            
-            // حساب السلف لنفس الموظف والشهر والسنة
-            const employeeAdvances = advances.reduce((advSum, adv) => {
-                if (adv.employeeId === employee.id) {
-                    const advDate = new Date(adv.date);
-                    if (advDate.getMonth() === payrollRecord.month && advDate.getFullYear() === payrollRecord.year) {
-                        return advSum + (parseFloat(adv.amount) || 0);
-                    }
-                }
-                return advSum;
-            }, 0);
-            
-            // حساب صافي الراتب
-            const netSalary = baseSalary + bonuses + overtimeAmount - deductions - absenceAmount - employeeAdvances;
-            
-            return sum + netSalary;
-        }, 0) : 0;
-
         return {
             totalRevenues,
             totalExpenses,
             totalAdvances,
             totalSuspended,
             totalSalaries,
-            totalPaidSalaries,
             totalCashFund,
             revenueByCategory,
             expenseByCategory
         };
-    }, [revenues, expenses, suspended, advances, employees, payroll]);
+    }, [revenues, expenses, suspended, advances, employees]);
 
     const primaryCards = [
         { 
@@ -588,15 +545,6 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
             color: 'text-purple-600 dark:text-purple-400', 
             bg: 'bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-950/50 dark:to-purple-900/50',
             iconBg: 'bg-purple-500/20 dark:bg-purple-500/30',
-            gradient: true
-        },
-        { 
-            title: t('totalPaidSalaries'), 
-            value: formatCurrencyDisplay(summaryData.totalPaidSalaries), 
-            icon: Calculator, 
-            color: 'text-teal-600 dark:text-teal-400', 
-            bg: 'bg-gradient-to-br from-teal-100 to-teal-200 dark:from-teal-950/50 dark:to-teal-900/50',
-            iconBg: 'bg-teal-500/20 dark:bg-teal-500/30',
             gradient: true
         },
     ];
