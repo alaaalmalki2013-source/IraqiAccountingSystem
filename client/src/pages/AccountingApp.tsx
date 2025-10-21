@@ -1306,7 +1306,7 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
     const [selectedVendor, setSelectedVendor] = useState('');
     const [globalSearch, setGlobalSearch] = useState('');
     const [filterType, setFilterType] = useState('الكل');
-    const [filterStatus, setFilterStatus] = useState('pending'); // فلتر الحالة: pending, cancelled, all
+    const [filterStatus, setFilterStatus] = useState('all'); // فلتر الحالة: pending, cancelled, all - الافتراضي: عرض الكل
     const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
     
     const initialRange = useMemo(() => getCurrentMonthRange(), []);
