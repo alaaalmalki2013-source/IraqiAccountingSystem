@@ -438,22 +438,22 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
 
     // استخدام useMemo لضمان عدم إعادة الحساب إلا عند الضرورة
     const summaryData = useMemo(() => {
-        const totalRevenues = revenues.reduce((sum, item) => sum + item.amount, 0);
-        const totalExpenses = expenses.reduce((sum, item) => sum + item.amount, 0);
-        const totalAdvances = advances.reduce((sum, item) => sum + item.amount, 0);
-        const totalSuspended = suspended.reduce((sum, item) => sum + item.amount, 0);
+        const totalRevenues = revenues.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+        const totalExpenses = expenses.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+        const totalAdvances = advances.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+        const totalSuspended = suspended.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
         const totalSalaries = employees.reduce((sum, emp) => sum + parseFloat(emp.salary || 0), 0);
         
 
         // تجميع الإيرادات حسب الفئة
         const revenueByCategory = revenues.reduce((acc, item) => {
-            acc[item.category] = (acc[item.category] || 0) + item.amount;
+            acc[item.category] = (acc[item.category] || 0) + (parseFloat(item.amount) || 0);
             return acc;
         }, {});
         
         // تجميع الصرفيات حسب الفئة
         const expenseByCategory = expenses.reduce((acc, item) => {
-            acc[item.category] = (acc[item.category] || 0) + item.amount;
+            acc[item.category] = (acc[item.category] || 0) + (parseFloat(item.amount) || 0);
             return acc;
         }, {});
 
