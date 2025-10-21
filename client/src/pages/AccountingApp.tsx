@@ -4284,10 +4284,26 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
             return;
         }
 
-        // التحقق من توفر جميع المواد في المخزون
+        // **إذا كان تعديل، نعيد المواد القديمة للمخزون أولاً**
         let updatedInventory = [...data.inventory];
-        const itemsToDispatch = [];
         
+        if (withdrawalForm.id) {
+            const oldWithdrawal = data.inventoryWithdrawals.find(w => w.id === withdrawalForm.id);
+            if (oldWithdrawal) {
+                // إعادة المواد القديمة للمخزون
+                oldWithdrawal.items.forEach(item => {
+                    const inventoryItemIndex = updatedInventory.findIndex(i => i.name === item.name);
+                    if (inventoryItemIndex !== -1) {
+                        updatedInventory[inventoryItemIndex] = {
+                            ...updatedInventory[inventoryItemIndex],
+                            count: updatedInventory[inventoryItemIndex].count + item.count,
+                        };
+                    }
+                });
+            }
+        }
+        
+        // التحقق من توفر جميع المواد في المخزون (بعد إعادة القديمة)
         for (const item of withdrawalForm.items) {
             const inventoryItem = updatedInventory.find(i => i.name === item.name);
             if (!inventoryItem || inventoryItem.count < item.count) {
@@ -4296,7 +4312,7 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
             }
         }
 
-        // خصم المواد من المخزون
+        // خصم المواد الجديدة من المخزون
         withdrawalForm.items.forEach(item => {
             const inventoryItemIndex = updatedInventory.findIndex(i => i.name === item.name);
             if (inventoryItemIndex !== -1) {
