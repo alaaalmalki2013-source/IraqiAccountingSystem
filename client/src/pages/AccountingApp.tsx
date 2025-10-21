@@ -4313,29 +4313,13 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
             date: getDefaultDateTime(),
         };
 
-        // تحديث البيانات مباشرة
-        const newData = { ...data };
-        
-        // إضافة أو تعديل الاستخراج
-        if (!withdrawalForm.id) {
-            newData.inventoryWithdrawals = [...newData.inventoryWithdrawals, withdrawalToSave];
-        } else {
-            const index = newData.inventoryWithdrawals.findIndex(w => w.id === withdrawalForm.id);
-            if (index !== -1) {
-                newData.inventoryWithdrawals[index] = withdrawalToSave;
-            }
-        }
+        // تحديث الاستخراج
+        handleDataAction('inventoryWithdrawals', withdrawalToSave, !withdrawalForm.id);
         
         // تحديث المخزون
-        newData.inventory = updatedInventory;
-        
-        // حفظ البيانات
-        setData(newData);
-        try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(newData));
-        } catch (error) {
-            console.error("Failed to save", error);
-        }
+        setTimeout(() => {
+            handleDataAction('inventory', updatedInventory, true, true);
+        }, 100);
         
         setWithdrawalForm(getDefaultWithdrawalForm());
         setIsNewWithdrawalModalOpen(false);
@@ -4373,18 +4357,13 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
             }
         });
         
-        // تحديث البيانات مباشرة
-        const newData = { ...data };
-        newData.inventoryWithdrawals = newData.inventoryWithdrawals.filter(w => w.id !== withdrawal.id);
-        newData.inventory = updatedInventory;
+        // حذف الاستخراج
+        handleDelete('inventoryWithdrawals', withdrawal.id, false);
         
-        // حفظ البيانات
-        setData(newData);
-        try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(newData));
-        } catch (error) {
-            console.error("Failed to save", error);
-        }
+        // تحديث المخزون
+        setTimeout(() => {
+            handleDataAction('inventory', updatedInventory, true, true);
+        }, 100);
         
         showToast(`تم حذف الاستخراج #${withdrawal.withdrawalNumber} وإعادة المواد للمخزون.`, 'success');
     };
