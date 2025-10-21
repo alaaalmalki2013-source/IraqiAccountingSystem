@@ -444,8 +444,6 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
         const totalSuspended = suspended.reduce((sum, item) => sum + item.amount, 0);
         const totalSalaries = employees.reduce((sum, emp) => sum + parseFloat(emp.salary || 0), 0);
         
-        // حساب الصندوق: الإيرادات - (المصروفات + السلف + المعلقة)
-        const totalCashFund = totalRevenues - (totalExpenses + totalAdvances + totalSuspended);
 
         // تجميع الإيرادات حسب الفئة
         const revenueByCategory = revenues.reduce((acc, item) => {
@@ -501,6 +499,9 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
             
             return sum + netSalary;
         }, 0) : 0;
+
+        // حساب الصندوق: الإيرادات - (المصروفات + السلف + المعلقة + الرواتب المدفوعة)
+        const totalCashFund = totalRevenues - (totalExpenses + totalAdvances + totalSuspended + totalPaidSalaries);
 
         return {
             totalRevenues,
