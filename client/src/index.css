@@ -2,12 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
-/* إصلاح أيقونات التاريخ في الوضع الداكن */
+/* إصلاح أيقونات التاريخ في الوضع الداكن - دعم جميع المتصفحات */
 .dark input[type="datetime-local"]::-webkit-calendar-picker-indicator,
 .dark input[type="date"]::-webkit-calendar-picker-indicator,
-.dark input[type="time"]::-webkit-calendar-picker-indicator {
-  filter: invert(1);
+.dark input[type="time"]::-webkit-calendar-picker-indicator,
+.dark input[type="datetime-local"]::-webkit-inner-spin-button,
+.dark input[type="date"]::-webkit-inner-spin-button,
+.dark input[type="time"]::-webkit-inner-spin-button {
+  filter: invert(1) !important;
   cursor: pointer;
+  opacity: 1 !important;
 }
 
 /* تحسين مظهر حقول التاريخ في الوضع الداكن */
@@ -15,6 +19,14 @@
 .dark input[type="date"],
 .dark input[type="time"] {
   color-scheme: dark;
+}
+
+/* دعم Firefox */
+.dark input[type="datetime-local"]::-moz-calendar-picker-indicator,
+.dark input[type="date"]::-moz-calendar-picker-indicator,
+.dark input[type="time"]::-moz-calendar-picker-indicator {
+  filter: invert(1) !important;
+  cursor: pointer;
 }
 
 /* ===== MODERN DESIGN SYSTEM - Iraqi Accounting System ===== */
