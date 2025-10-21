@@ -1072,7 +1072,7 @@ const DataPageComponent = React.memo(({ 
                             <tr><td colSpan={fields.length + (collectionName === 'expenses' ? 4 : 3)} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">لا توجد سجلات متاحة تتوافق مع الفلاتر.</td></tr>
                         ) : (
                             filteredList.map(item => (
-                                <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150">
+                                <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150 cursor-pointer" onClick={() => openModal(item)} data-testid={`row-${item.id}`}>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{formatDateTimeDDMMYYYY(item.date)}</td>
                                     {fields.map(field => {
                                         const itemValue = item[field.key] || '';
@@ -1111,7 +1111,7 @@ const DataPageComponent = React.memo(({ 
                                         </td>
                                     )}
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300 font-mono">{highlightText(item.invoiceNumber || 'N/A', globalSearch)}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium" onClick={(e) => e.stopPropagation()}>
                                         <div className="flex space-x-3 space-x-reverse">
                                             {(type === 'expense' || type === 'advance') && (
                                                 <button onClick={() => handlePrint(item)} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100">
@@ -1685,7 +1685,12 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                             filteredList.map(item => {
                                 const employee = item.employeeId ? data.employees.find(e => e.id === item.employeeId) : null;
                                 return (
-                                    <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150">
+                                    <tr 
+                                        key={item.id} 
+                                        className="hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150 cursor-pointer"
+                                        onClick={() => setViewItem(item)}
+                                        data-testid={`row-${item.id}`}
+                                    >
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
                                             {formatDateDDMMYYYY(item.date)}
                                         </td>
@@ -1702,11 +1707,7 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
                                             {item.category}
                                         </td>
-                                        <td 
-                                            className="px-6 py-4 whitespace-nowrap text-sm font-bold text-blue-600 dark:text-blue-400 cursor-pointer hover:underline"
-                                            onClick={() => setViewItem(item)}
-                                            data-testid={`amount-${item.id}`}
-                                        >
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-blue-600 dark:text-blue-400" data-testid={`amount-${item.id}`}>
                                             {formatCurrencyDisplay(item.amount)}
                                         </td>
                                         <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
@@ -1736,7 +1737,7 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                                                 {item.status === 'pending' ? 'معلقة' : item.status === 'paid' ? 'مصروفة' : 'ملغية'}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm" onClick={(e) => e.stopPropagation()}>
                                             {item.invoiceImageUrl ? (
                                                 <button
                                                     onClick={() => setImagePreviewUrl(item.invoiceImageUrl)}
@@ -1750,49 +1751,38 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                                                 <span className="text-gray-400 text-xs">لا توجد</span>
                                             )}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                            <div className="flex gap-2">
-                                                {item.status === 'pending' ? (
-                                                    <>
-                                                        <button
-                                                            onClick={() => {
-                                                                setCurrentItem(item);
-                                                                setIsModalOpen(true);
-                                                            }}
-                                                            className="px-3 py-1 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors flex items-center gap-1 text-xs font-semibold"
-                                                            data-testid={`button-edit-${item.id}`}
-                                                        >
-                                                            <Edit2 className="w-4 h-4" />
-                                                            تعديل
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleApprove(item)}
-                                                            className="px-3 py-1 bg-green-600 dark:bg-green-500 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-600 transition-colors flex items-center gap-1 text-xs font-semibold"
-                                                            data-testid={`button-approve-${item.id}`}
-                                                        >
-                                                            <CheckCircle className="w-4 h-4" />
-                                                            موافقة
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleCancel(item)}
-                                                            className="px-3 py-1 bg-red-600 dark:bg-red-500 text-white rounded-lg hover:bg-red-700 dark:hover:bg-red-600 transition-colors flex items-center gap-1 text-xs font-semibold"
-                                                            data-testid={`button-cancel-${item.id}`}
-                                                        >
-                                                            <XCircle className="w-4 h-4" />
-                                                            إلغاء
-                                                        </button>
-                                                    </>
-                                                ) : (
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm" onClick={(e) => e.stopPropagation()}>
+                                            {item.status === 'pending' && (
+                                                <div className="flex gap-2">
                                                     <button
-                                                        onClick={() => setViewItem(item)}
-                                                        className="px-3 py-1 bg-gray-600 dark:bg-gray-500 text-white rounded-lg hover:bg-gray-700 dark:hover:bg-gray-600 transition-colors flex items-center gap-1 text-xs font-semibold"
-                                                        data-testid={`button-view-${item.id}`}
+                                                        onClick={() => {
+                                                            setCurrentItem(item);
+                                                            setIsModalOpen(true);
+                                                        }}
+                                                        className="px-3 py-1 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors flex items-center gap-1 text-xs font-semibold"
+                                                        data-testid={`button-edit-${item.id}`}
                                                     >
-                                                        <Eye className="w-4 h-4" />
-                                                        معاينة
+                                                        <Edit2 className="w-4 h-4" />
+                                                        تعديل
                                                     </button>
-                                                )}
-                                            </div>
+                                                    <button
+                                                        onClick={() => handleApprove(item)}
+                                                        className="px-3 py-1 bg-green-600 dark:bg-green-500 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-600 transition-colors flex items-center gap-1 text-xs font-semibold"
+                                                        data-testid={`button-approve-${item.id}`}
+                                                    >
+                                                        <CheckCircle className="w-4 h-4" />
+                                                        موافقة
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleCancel(item)}
+                                                        className="px-3 py-1 bg-red-600 dark:bg-red-500 text-white rounded-lg hover:bg-red-700 dark:hover:bg-red-600 transition-colors flex items-center gap-1 text-xs font-semibold"
+                                                        data-testid={`button-cancel-${item.id}`}
+                                                    >
+                                                        <XCircle className="w-4 h-4" />
+                                                        إلغاء
+                                                    </button>
+                                                </div>
+                                            )}
                                         </td>
                                     </tr>
                                 );
