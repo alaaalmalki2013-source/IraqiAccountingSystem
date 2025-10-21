@@ -60,6 +60,10 @@ import {
     STORAGE_KEY,
     CUSTOM_CATEGORY_COLORS,
     BASE_PERMISSIONS,
+    USER_ROLES,
+    ROLE_LABELS,
+    ROLE_PERMISSIONS,
+    ROLE_DESCRIPTIONS,
     defaultSettings,
     defaultDataStructure
 } from '../types/accounting';
