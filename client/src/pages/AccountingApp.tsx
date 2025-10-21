@@ -615,38 +615,92 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
                     </div>
                 </div>
             </div>
-            <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 border-b-2 border-gradient-to-r from-blue-500 to-purple-500 pb-2">{ t("financialSummary") }</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {primaryCards.map((card, index) => (
-                    <div key={index} className={`p-6 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-[1.02] border dark:border-gray-200/10 ${card.bg}`}>
-                        <div className="flex items-center justify-between">
-                            <div className="space-y-1">
-                                <p className="text-lg font-semibold text-gray-600 dark:text-gray-400">{card.title}</p>
-                                <p className={`text-3xl font-extrabold ${card.color}`}>{card.value}</p>
-                            </div>
-                            <div className={`p-4 rounded-2xl shadow-lg ${card.iconBg}`}>
-                                <card.icon className={`w-8 h-8 ${card.color}`} />
-                            </div>
-                        </div>
-                    </div>
-                ))}
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {secondaryCards.map((card, index) => (
-                    <div key={index} className={`p-6 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-[1.02] border dark:border-gray-200/10 ${card.bg}`}>
-                        <div className="flex items-center justify-between">
-                            <div className="space-y-1">
-                                <p className="text-lg font-semibold text-gray-600 dark:text-gray-400">{card.title}</p>
-                                <p className={`text-3xl font-extrabold ${card.color}`}>{card.value}</p>
-                            </div>
-                            <div className={`p-4 rounded-2xl shadow-lg ${card.iconBg}`}>
-                                <card.icon className={`w-8 h-8 ${card.color}`} />
-                            </div>
-                        </div>
-                    </div>
-                ))}
-            </div>
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 border-b-2 border-gradient-to-r from-blue-500 to-purple-500 pb-2">{ t("financialSummary") }</h3>
+            
+            {/* كارت الإيرادات - معادلة مفصلة */}
+            <div className="p-8 rounded-2xl shadow-2xl bg-gradient-to-br from-emerald-100 to-emerald-200 dark:from-emerald-950/50 dark:to-emerald-900/50 border-2 border-emerald-500 dark:border-emerald-400">
+                <h3 className="text-2xl font-bold text-emerald-800 dark:text-emerald-200 mb-4 flex items-center">
+                    <TrendingUp className="w-7 h-7 ml-2" />
+                    { t("totalRevenues") }
+                </h3>
+                <div className="bg-white/80 dark:bg-gray-800/80 p-6 rounded-xl shadow-lg backdrop-blur-sm">
+                    <div className="flex flex-wrap items-center justify-center gap-3 text-base md:text-lg font-bold text-gray-800 dark:text-gray-200">
+                        {Object.keys(summaryData.revenueByCategory).length > 0 ? (
+                            <>
+                                {Object.keys(summaryData.revenueByCategory).map((category, idx) => (
+                                    <span key={category}>
+                                        {idx > 0 && <span className="text-gray-500 dark:text-gray-400 mx-2">+</span>}
+                                        <span className="text-emerald-600 dark:text-emerald-400">{formatCurrencyDisplay(summaryData.revenueByCategory[category])}</span>
+                                    </span>
+                                ))}
+                                <span className="text-gray-500 dark:text-gray-400 mx-2">=</span>
+                                <span className="text-2xl md:text-3xl font-extrabold text-emerald-700 dark:text-emerald-300">
+                                    {formatCurrencyDisplay(summaryData.totalRevenues)}
+                                </span>
+                            </>
+                        ) : (
+                            <span className="text-2xl md:text-3xl font-extrabold text-emerald-700 dark:text-emerald-300">
+                                {formatCurrencyDisplay(summaryData.totalRevenues)}
+                            </span>
+                        )}
+                    </div>
+                    {Object.keys(summaryData.revenueByCategory).length > 0 && (
+                        <div className="mt-4 text-sm text-gray-600 dark:text-gray-400 text-center">
+                            <p>{Object.keys(summaryData.revenueByCategory).join(' + ')} = مجموع الإيرادات</p>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* كارت الصرفيات - معادلة مفصلة */}
+            <div className="p-8 rounded-2xl shadow-2xl bg-gradient-to-br from-rose-100 to-rose-200 dark:from-rose-950/50 dark:to-rose-900/50 border-2 border-rose-500 dark:border-rose-400">
+                <h3 className="text-2xl font-bold text-rose-800 dark:text-rose-200 mb-4 flex items-center">
+                    <TrendingDown className="w-7 h-7 ml-2" />
+                    { t("totalExpenses") }
+                </h3>
+                <div className="bg-white/80 dark:bg-gray-800/80 p-6 rounded-xl shadow-lg backdrop-blur-sm">
+                    <div className="flex flex-wrap items-center justify-center gap-3 text-base md:text-lg font-bold text-gray-800 dark:text-gray-200">
+                        {Object.keys(summaryData.expenseByCategory).length > 0 ? (
+                            <>
+                                {Object.keys(summaryData.expenseByCategory).map((category, idx) => (
+                                    <span key={category}>
+                                        {idx > 0 && <span className="text-gray-500 dark:text-gray-400 mx-2">+</span>}
+                                        <span className="text-rose-600 dark:text-rose-400">{formatCurrencyDisplay(summaryData.expenseByCategory[category])}</span>
+                                    </span>
+                                ))}
+                                <span className="text-gray-500 dark:text-gray-400 mx-2">=</span>
+                                <span className="text-2xl md:text-3xl font-extrabold text-rose-700 dark:text-rose-300">
+                                    {formatCurrencyDisplay(summaryData.totalExpenses)}
+                                </span>
+                            </>
+                        ) : (
+                            <span className="text-2xl md:text-3xl font-extrabold text-rose-700 dark:text-rose-300">
+                                {formatCurrencyDisplay(summaryData.totalExpenses)}
+                            </span>
+                        )}
+                    </div>
+                    {Object.keys(summaryData.expenseByCategory).length > 0 && (
+                        <div className="mt-4 text-sm text-gray-600 dark:text-gray-400 text-center">
+                            <p>{Object.keys(summaryData.expenseByCategory).join(' + ')} = مجموع الصرفيات</p>
+                        </div>
+                    )}
+                </div>
+            </div>
+            
+            {/* كروت ثانوية: السلف، المعلقة، الرواتب */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {secondaryCards.map((card, index) => (
+                    <div key={index} className={`p-6 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-[1.02] border-2 dark:border-gray-200/10 ${card.bg}`}>
+                        <div className="flex flex-col items-center text-center space-y-3">
+                            <div className={`p-4 rounded-2xl shadow-lg ${card.iconBg}`}>
+                                <card.icon className={`w-8 h-8 ${card.color}`} />
+                            </div>
+                            <p className="text-lg font-semibold text-gray-700 dark:text-gray-300">{card.title}</p>
+                            <p className={`text-3xl font-extrabold ${card.color}`}>{card.value}</p>
+                        </div>
+                    </div>
+                ))}
+            </div>
 
             <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-200 border-b border-gray-300 dark:border-gray-600 pb-2 pt-4">{ t("categoryStatistics") }</h3>
             
