@@ -86,7 +86,8 @@ import { useLanguage } from '../contexts/LanguageContext';
 // مكون التنبيه المنبثق
 const NotificationToast = React.memo(({ message, type, onClose }) => {
     const isSuccess = type === 'success';
-    const bgColor = isSuccess ? 'bg-green-50 dark:bg-green-900' : (type === 'error' ? 'bg-red-50 dark:bg-red-900' : 'bg-amber-500');
+    const bgColor = isSuccess ? 'bg-green-50 dark:bg-green-900' : (type === 'error' ? 'bg-red-50 dark:bg-red-900' : 'bg-amber-50 dark:bg-amber-900');
+    const textColor = isSuccess ? 'text-green-800 dark:text-green-200' : (type === 'error' ? 'text-red-800 dark:text-red-200' : 'text-amber-800 dark:text-amber-200');
     const Icon = isSuccess ? CheckCircle : AlertTriangle;
 
     useEffect(() => {
@@ -97,7 +98,7 @@ const NotificationToast = React.memo(({ message, type, onClose }) => {
     }, [onClose]);
 
     return (
-        <div className={`fixed top-4 right-4 z-[100] p-4 rounded-xl shadow-2xl text-white flex items-center space-x-3 space-x-reverse transition-transform duration-300 transform translate-x-0 ${bgColor}`}>
+        <div className={`fixed top-4 right-4 z-[100] p-4 rounded-xl shadow-2xl ${textColor}  flex items-center space-x-3 space-x-reverse transition-transform duration-300 transform translate-x-0 ${bgColor}`}>
             <Icon className="w-6 h-6" />
             <span className="font-semibold">{message}</span>
             <button onClick={onClose} className="p-1 rounded-full hover:bg-black hover:bg-opacity-10 transition">
