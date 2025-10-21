@@ -2335,11 +2335,6 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
             </div>
 
 
-            <div className="flex flex-wrap gap-2 justify-between items-center">
-                <ActionButton onClick={() => openModal()} className="bg-green-600 hover:bg-green-700">
-                    <UserPlus className="w-5 h-5 ml-2" />
-                    إضافة موظف جديد
-                </ActionButton>
                    <div className="flex flex-wrap gap-2 space-x-reverse">
                        <button onClick={handlePrintAll} className="p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
                            <Printer className="w-6 h-6" />
@@ -2351,6 +2346,18 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
                             <RotateCcw className="w-6 h-6" />
                         </button>
                    </div>
+
+            <div className="flex justify-end items-center">
+                <button
+                    onClick={() => openModal()}
+                    className="flex items-center px-6 py-3 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-xl hover:from-green-600 hover:to-teal-600 shadow-lg transition duration-200"
+                    data-testid="button-add-employee"
+                >
+                    <UserPlus className="w-5 h-5 ml-2" />
+                    إضافة موظف جديد
+                </button>
+            </div>
+
             </div>
 
             <div className="bg-white dark:bg-gray-700 p-6 rounded-xl shadow-lg overflow-x-auto">
