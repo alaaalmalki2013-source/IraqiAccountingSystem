@@ -4093,7 +4093,7 @@ const InventoryDispatchComponent = React.memo(({ data, handleDataAction, showToa
 });
 
 /**
- * 3.8. InventoryWithdrawalComponent (الاستخراج المخزني)
+ * 3.8. InventoryWithdrawalComponent (الاستخراج المخزني) - نسخة محدّثة ومبسطة
  */
 const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, showToast, handleRefresh }) => {
     const { t } = useLanguage();
@@ -4102,13 +4102,13 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
     const [currentWithdrawal, setCurrentWithdrawal] = useState(null);
     const [globalSearch, setGlobalSearch] = useState('');
     const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
+    const [editingItemId, setEditingItemId] = useState(null);
     
-    // حالة الـ autocomplete للمواد والموظفين
+    // حالة الـ autocomplete
     const [itemSuggestions, setItemSuggestions] = useState([]);
     const [showItemSuggestions, setShowItemSuggestions] = useState(false);
     const [employeeSuggestions, setEmployeeSuggestions] = useState([]);
     const [showEmployeeSuggestions, setShowEmployeeSuggestions] = useState(false);
-    const [editingItemId, setEditingItemId] = useState(null);
 
     // دالة للحصول على حالة نموذج الاستخراج الافتراضية
     const getDefaultWithdrawalForm = useCallback(() => ({
@@ -4313,12 +4313,8 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
             date: getDefaultDateTime(),
         };
 
-        // حفظ الاستخراج أولاً
-        console.log('[handleCompleteWithdrawal] Saving withdrawal:', withdrawalToSave);
-        console.log('[handleCompleteWithdrawal] Current withdrawals before save:', data.inventoryWithdrawals);
+        // حفظ الاستخراج والمخزون معاً
         handleDataAction('inventoryWithdrawals', withdrawalToSave, !withdrawalForm.id);
-        
-        // ثم تحديث المخزون
         handleDataAction('inventory', updatedInventory, true, true);
         
         setWithdrawalForm(getDefaultWithdrawalForm());
@@ -4362,11 +4358,9 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
         showToast(`تم حذف الاستخراج #${withdrawal.withdrawalNumber} وإعادة المواد للمخزون.`, 'success');
     };
     
-    // فلترة الاستخراجات
-    const withdrawals = data.inventoryWithdrawals || [];
-    console.log('[InventoryWithdrawalComponent] data.inventoryWithdrawals:', data.inventoryWithdrawals);
-    console.log('[InventoryWithdrawalComponent] withdrawals:', withdrawals);
-    let filteredWithdrawals = withdrawals.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+    // فلترة الاستخراجات - القراءة مباشرة من data
+    const allWithdrawals = data.inventoryWithdrawals || [];
+    let filteredWithdrawals = [...allWithdrawals].sort((a, b) => new Date(b.date) - new Date(a.date));
     
     if (globalSearch) {
         const searchLower = normalizeTextForSearch(globalSearch);
@@ -4823,9 +4817,9 @@ const AccountingApp = () => {
         showToast('تم تحديث بيانات الصفحة.', 'info');
     }, [showToast]);
 
-    // 3. CRUD Logic (Updated to take showToast as an argument where needed)
+    // 3. CRUD Logic
     const handleDataAction = (collectionName, item, isNew, overwrite = false) => {
-        // **تحديث: فحص صلاحيات الإضافة/التعديل**
+        // فحص صلاحيات الإضافة/التعديل
         const permissionKey = navItems.find(i => i.key === collectionName)?.key;
         const requiredAction = isNew ? 'add' : 'edit';
 
@@ -4834,64 +4828,48 @@ const AccountingApp = () => {
             return;
         }
 
-
-        let newData = { ...data };
-        let collection = newData[collectionName] || [];
+        const newData = { ...data };
+        let collection = [...(newData[collectionName] || [])];
 
         if (overwrite) {
              newData[collectionName] = item;
-             saveData(newData);
-             
-             // إجبار المكونات على إعادة الرسم بعد التحديث الشامل
-             setRefreshKey(prev => prev + 1);
-             return;
-        }
-
-        if (isNew) {
-            // إضافة
-            // للمواد المخزنية، قد يكون لديها id و barcode بالفعل
+        } else if (isNew) {
+            // إضافة سجل جديد
             const newItem = {
                 ...item,
                 id: item.id || crypto.randomUUID(),
-                // فقط إضافة invoiceNumber إذا لم يكن المخزون أو الاستخراج المخزني
                 ...(collectionName !== 'inventory' && collectionName !== 'inventoryWithdrawals' ? { invoiceNumber: generateInvoiceNumber() } : {})
             };
-            newData[collectionName] = [...collection, newItem];
+            collection.push(newItem);
+            newData[collectionName] = collection;
             
-            // رسالة النجاح المخصصة
-            if (collectionName === 'inventory') {
-                // لا نعرض رسالة هنا لأن المكون سيعرضها
-            } else {
+            if (collectionName !== 'inventory') {
                 showToast(`تم إضافة السجل بنجاح!`, 'success');
             }
             
-            // إذا كان سجلاً في المخزون تم إضافته يدوياً، نضيف له سجل شراء مبدئي
             if (collectionName === 'inventory' && !newItem.purchaseHistory) {
                  newItem.purchaseHistory = [];
             }
-            setInitialExpenseState(null); // مسح حالة الإرسال التلقائي
+            setInitialExpenseState(null);
         } else {
-            // تعديل
+            // تعديل سجل موجود
             const index = collection.findIndex(i => i.id === item.id);
             if (index !== -1) {
                 collection[index] = item;
                 newData[collectionName] = collection;
                 showToast(`تم تعديل السجل بنجاح!`, 'success');
             } else if (collectionName === 'pendingInvoices' && item.status) {
-                 // حالة تحديث حالة فاتورة موجودة (مصروفة أو ملغاة)
                  const existingIndex = collection.findIndex(i => i.id === item.id);
                  if (existingIndex !== -1) {
                       collection[existingIndex] = item;
-                      newData[collectionName] = collection;
                  } else {
-                     // في حالة عدم العثور عليها، يتم إضافتها إذا لم يكن لديها حالة (للتأكد فقط)
-                      newData[collectionName] = [...collection, item];
+                      collection.push(item);
                  }
+                 newData[collectionName] = collection;
             }
         }
         
         saveData(newData);
-        // **إضافة التحديث الفوري:**
         setRefreshKey(prev => prev + 1);
     };
 
