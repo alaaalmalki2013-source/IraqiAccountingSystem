@@ -6264,6 +6264,15 @@ const AccountingApp = () => {
 
     const handleDelete = (collectionName, id, showMessage = true, bypassPermissions = false) => {
         // **تحديث: فحص صلاحيات الحذف**
+        // **حماية: منع حذف سجلات الصرفيات المعلقة غير المعلقة**
+        if (collectionName === 'pendingExpenses') {
+            const itemToDelete = data.pendingExpenses.find(item => item.id === id);
+            if (itemToDelete && itemToDelete.status !== 'pending' && itemToDelete.status) {
+                showToast('لا يمكن حذف سجل مصروف أو ملغي. السجلات تبقى للمراجعة فقط.', 'error');
+                return;
+            }
+        }
+        
         const permissionKey = navItems.find(i => i.key === collectionName)?.key;
         if (!bypassPermissions && permissionKey && !currentUser?.permissions[permissionKey]?.delete && collectionName !== 'inventoryDispatches') {
             showToast(`ليس لديك صلاحية حذف سجلات في قسم ${navItems.find(i => i.key === collectionName)?.label}.`, 'error');
