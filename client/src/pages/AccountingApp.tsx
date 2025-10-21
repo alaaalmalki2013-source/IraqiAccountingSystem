@@ -3424,6 +3424,7 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
         { key: 'suspended', label: 'المبالغ المعلقة' },
         { key: 'employees', label: 'الموظفين' },
         { key: 'inventoryEntry', label: 'الإدخال المخزني' },
+        { key: 'inventoryWithdrawal', label: 'الاستخراج المخزني' },
         { key: 'inventory', label: 'المخزن والمواد' },
         { key: 'settings', label: 'الإعدادات' },
     ]), []);
