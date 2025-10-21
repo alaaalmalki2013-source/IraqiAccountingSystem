@@ -2430,6 +2430,25 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
         return list.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
     }, [data.employees, globalSearch, statusFilter, selectedMonth, selectedYear, calculateEmployeeSalary]);
 
+    // حساب مجاميع الرواتب للكارتات
+    const salaryTotals = useMemo(() => {
+        let totalAll = 0;
+        let totalPaid = 0;
+        let totalUnpaid = 0;
+        
+        filteredEmployees.forEach(emp => {
+            const salaryData = calculateEmployeeSalary(emp, selectedMonth, selectedYear);
+            totalAll += salaryData.netSalary;
+            if (salaryData.isPaid) {
+                totalPaid += salaryData.netSalary;
+            } else {
+                totalUnpaid += salaryData.netSalary;
+            }
+        });
+        
+        return { totalAll, totalPaid, totalUnpaid };
+    }, [filteredEmployees, selectedMonth, selectedYear, calculateEmployeeSalary]);
+
     // دالة إضافة تعديل
     const handleAddAdjustment = (e) => {
         e.preventDefault();
@@ -2557,6 +2576,63 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                             <RotateCcw className="w-5 h-5 inline ml-2" />
                             تحديث
                         </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* كارتات مجاميع الرواتب */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {/* الكل */}
+                <div 
+                    className="bg-gradient-to-br from-teal-50 to-teal-100 dark:from-teal-950/50 dark:to-teal-900/50 p-6 rounded-2xl shadow-xl border-r-4 border-teal-500 dark:border-teal-400 hover:shadow-2xl transition-all duration-300 transform hover:scale-[1.02]"
+                    data-testid="card-total-all"
+                >
+                    <div className="flex items-center justify-between">
+                        <div className="space-y-2">
+                            <p className="text-lg font-bold text-gray-700 dark:text-gray-300">الكل</p>
+                            <p className="text-3xl font-extrabold text-teal-600 dark:text-teal-400">
+                                {formatCurrencyDisplay(salaryTotals.totalAll)}
+                            </p>
+                        </div>
+                        <div className="p-4 bg-teal-500/20 dark:bg-teal-500/30 rounded-2xl">
+                            <Calculator className="w-8 h-8 text-teal-600 dark:text-teal-400" />
+                        </div>
+                    </div>
+                </div>
+
+                {/* المدفوع */}
+                <div 
+                    className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950/50 dark:to-green-900/50 p-6 rounded-2xl shadow-xl border-r-4 border-green-500 dark:border-green-400 hover:shadow-2xl transition-all duration-300 transform hover:scale-[1.02]"
+                    data-testid="card-total-paid"
+                >
+                    <div className="flex items-center justify-between">
+                        <div className="space-y-2">
+                            <p className="text-lg font-bold text-gray-700 dark:text-gray-300">المدفوع</p>
+                            <p className="text-3xl font-extrabold text-green-600 dark:text-green-400">
+                                {formatCurrencyDisplay(salaryTotals.totalPaid)}
+                            </p>
+                        </div>
+                        <div className="p-4 bg-green-500/20 dark:bg-green-500/30 rounded-2xl">
+                            <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
+                        </div>
+                    </div>
+                </div>
+
+                {/* الغير مدفوع */}
+                <div 
+                    className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950/50 dark:to-orange-900/50 p-6 rounded-2xl shadow-xl border-r-4 border-orange-500 dark:border-orange-400 hover:shadow-2xl transition-all duration-300 transform hover:scale-[1.02]"
+                    data-testid="card-total-unpaid"
+                >
+                    <div className="flex items-center justify-between">
+                        <div className="space-y-2">
+                            <p className="text-lg font-bold text-gray-700 dark:text-gray-300">الغير مدفوع</p>
+                            <p className="text-3xl font-extrabold text-orange-600 dark:text-orange-400">
+                                {formatCurrencyDisplay(salaryTotals.totalUnpaid)}
+                            </p>
+                        </div>
+                        <div className="p-4 bg-orange-500/20 dark:bg-orange-500/30 rounded-2xl">
+                            <XCircle className="w-8 h-8 text-orange-600 dark:text-orange-400" />
+                        </div>
                     </div>
                 </div>
             </div>
