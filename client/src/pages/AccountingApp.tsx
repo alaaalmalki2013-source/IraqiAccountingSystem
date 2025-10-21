@@ -2068,21 +2068,36 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                                     setIsModalOpen(true);
                                 }}
                                 className="flex-1 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+                                data-testid={`button-edit-preview-${viewItem.id}`}
                             >
                                 <Edit2 className="w-4 h-4" />
                                 تعديل
                             </button>
                             {viewItem.status === 'pending' && (
-                                <button
-                                    onClick={() => {
-                                        setViewItem(null);
-                                        handleApprove(viewItem);
-                                    }}
-                                    className="flex-1 px-4 py-2 bg-green-600 dark:bg-green-500 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-600 transition-colors flex items-center justify-center gap-2"
-                                >
-                                    <CheckCircle className="w-4 h-4" />
-                                    موافقة
-                                </button>
+                                <>
+                                    <button
+                                        onClick={() => {
+                                            setViewItem(null);
+                                            handleApprove(viewItem);
+                                        }}
+                                        className="flex-1 px-4 py-2 bg-green-600 dark:bg-green-500 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-600 transition-colors flex items-center justify-center gap-2"
+                                        data-testid={`button-approve-preview-${viewItem.id}`}
+                                    >
+                                        <CheckCircle className="w-4 h-4" />
+                                        موافقة
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setViewItem(null);
+                                            handleCancel(viewItem);
+                                        }}
+                                        className="flex-1 px-4 py-2 bg-red-600 dark:bg-red-500 text-white rounded-lg hover:bg-red-700 dark:hover:bg-red-600 transition-colors flex items-center justify-center gap-2"
+                                        data-testid={`button-cancel-preview-${viewItem.id}`}
+                                    >
+                                        <XCircle className="w-4 h-4" />
+                                        إلغاء
+                                    </button>
+                                </>
                             )}
                         </div>
                     </div>
