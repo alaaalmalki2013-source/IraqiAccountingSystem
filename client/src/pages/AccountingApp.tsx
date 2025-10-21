@@ -47,7 +47,9 @@ import {
     MessageCircle,
     Send,
     Minimize2,
-    Languages
+    Languages,
+    Clock,
+    XCircle
 } from 'lucide-react';
 
 // استيراد الثوابت والأنواع
@@ -1224,6 +1226,557 @@ const DataPageComponent = React.memo(({ 
         </div>
     );
 });
+
+
+
+
+/**
+ * 3.3. PendingExpenses Component - الصرفيات المعلقة
+ */
+const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDelete, showToast, setCurrentPage, handleRefresh }) => {
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [currentItem, setCurrentItem] = useState(null);
+    const [formState, setFormState] = useState({
+        type: 'expense',
+        date: getDefaultDateTime(),
+        amount: '',
+        category: '',
+        description: '',
+        vendor: '',
+        representative: '',
+        employeeId: '',
+        notes: ''
+    });
+    const [selectedVendor, setSelectedVendor] = useState('');
+    const [globalSearch, setGlobalSearch] = useState('');
+    const [filterType, setFilterType] = useState('الكل');
+    
+    const initialRange = useMemo(() => getCurrentMonthRange(), []);
+    const [filterDateFrom, setFilterDateFrom] = useState(initialRange.start);
+    const [filterDateTo, setFilterDateTo] = useState(initialRange.end);
+
+    useEffect(() => {
+        if (currentItem) {
+            setFormState(currentItem);
+            if (currentItem.type === 'expense') {
+                setSelectedVendor(currentItem.vendor || '');
+            }
+        } else {
+            setFormState({
+                type: 'expense',
+                date: getDefaultDateTime(),
+                amount: '',
+                category: '',
+                description: '',
+                vendor: '',
+                representative: '',
+                employeeId: data.employees[0]?.id || '',
+                notes: ''
+            });
+            setSelectedVendor('');
+        }
+    }, [currentItem, data.employees]);
+
+    const filteredList = useMemo(() => {
+        let list = data.pendingExpenses.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+        
+        if (filterDateFrom) list = list.filter(item => item.date.slice(0, 10) >= filterDateFrom);
+        if (filterDateTo) list = list.filter(item => item.date.slice(0, 10) <= filterDateTo);
+        if (filterType && filterType !== 'الكل') {
+            list = list.filter(item => item.type === filterType);
+        }
+        
+        if (globalSearch) {
+            const searchLower = normalizeTextForSearch(globalSearch);
+            const searchNumeric = normalizeTextForSearch(globalSearch, true);
+            
+            list = list.filter(item => {
+                const matchesCategory = item.category && normalizeTextForSearch(item.category).includes(searchLower);
+                const matchesDescription = item.description && normalizeTextForSearch(item.description).includes(searchLower);
+                const matchesNotes = item.notes && normalizeTextForSearch(item.notes).includes(searchLower);
+                const matchesAmount = item.amount && normalizeTextForSearch(item.amount.toString(), true).includes(searchNumeric);
+                const matchesVendor = item.vendor && normalizeTextForSearch(item.vendor).includes(searchLower);
+                const matchesEmployee = item.employeeId && data.employees.find(e => e.id === item.employeeId)?.name && normalizeTextForSearch(data.employees.find(e => e.id === item.employeeId).name).includes(searchLower);
+                
+                return matchesCategory || matchesDescription || matchesNotes || matchesAmount || matchesVendor || matchesEmployee;
+            });
+        }
+        return list;
+    }, [data.pendingExpenses, data.employees, filterDateFrom, filterDateTo, filterType, globalSearch]);
+
+    const typeTotals = useMemo(() => {
+        const totals = { expense: 0, advance: 0 };
+        filteredList.forEach(item => {
+            if (item.type === 'expense') totals.expense += parseFloat(item.amount) || 0;
+            if (item.type === 'advance') totals.advance += parseFloat(item.amount) || 0;
+        });
+        return totals;
+    }, [filteredList]);
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        
+        const itemToSave = formState.type === 'expense' ? {
+            ...formState,
+            vendor: selectedVendor
+        } : formState;
+        
+        if (formState.type === 'expense' && (!itemToSave.vendor || !itemToSave.representative)) {
+            showToast('يجب اختيار المورد والمندوب للصرفية.', 'error');
+            return;
+        }
+        
+        if (formState.type === 'advance' && !itemToSave.employeeId) {
+            showToast('يجب اختيار الموظف للسلفة.', 'error');
+            return;
+        }
+
+        handleDataAction('pendingExpenses', itemToSave, !currentItem);
+        setIsModalOpen(false);
+        setCurrentItem(null);
+    };
+
+    const handleApprove = (item) => {
+        if (item.type === 'expense') {
+            handleDataAction('expenses', {
+                date: item.date,
+                amount: item.amount,
+                category: item.category,
+                description: item.description,
+                vendor: item.vendor,
+                representative: item.representative,
+                invoiceImageUrl: item.invoiceImageUrl || ''
+            }, true);
+        } else {
+            handleDataAction('advances', {
+                date: item.date,
+                amount: item.amount,
+                category: item.category,
+                employeeId: item.employeeId,
+                notes: item.notes || ''
+            }, true);
+        }
+        
+        handleDelete('pendingExpenses', item.id);
+        showToast(`تمت الموافقة على ${item.type === 'expense' ? 'الصرفية' : 'السلفة'} وإضافتها بنجاح`, 'success');
+    };
+
+    const handleCancel = (item) => {
+        if (window.confirm('هل أنت متأكد من إلغاء هذا الطلب؟')) {
+            handleDelete('pendingExpenses', item.id);
+            showToast('تم إلغاء الطلب بنجاح', 'success');
+        }
+    };
+
+    const totalFilteredAmount = filteredList.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+
+    return (
+        <div className="space-y-6 p-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <h2 className="text-3xl font-extrabold text-gray-900 dark:text-gray-100 flex items-center gap-3">
+                    <Clock className="w-8 h-8 text-amber-600 dark:text-amber-400" />
+                    الصرفيات المعلقة
+                </h2>
+                <button
+                    onClick={() => {
+                        setCurrentItem(null);
+                        setIsModalOpen(true);
+                    }}
+                    className="px-6 py-3 bg-gradient-to-r from-teal-600 to-teal-700 dark:from-teal-500 dark:to-teal-600 text-white rounded-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 flex items-center gap-2 font-bold shadow-lg"
+                    data-testid="button-add-pending"
+                >
+                    <Plus className="w-5 h-5" />
+                    إضافة صرفية معلقة
+                </button>
+            </div>
+
+            {/* بطاقات الفلتر */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div
+                    onClick={() => setFilterType(filterType === 'expense' ? 'الكل' : 'expense')}
+                    className={`p-6 rounded-2xl shadow-lg cursor-pointer transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl border-r-4
+                        ${filterType === 'expense' 
+                            ? 'bg-red-200 dark:bg-red-800 border-red-600 ring-4 ring-red-500 ring-opacity-60'
+                            : 'bg-red-50 dark:bg-red-900 border-red-600'
+                        }
+                    `}
+                    data-testid="filter-card-expenses"
+                >
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="flex-1">
+                            <p className="text-sm font-semibold text-red-800 dark:text-red-200 mb-1">الصرفيات المعلقة</p>
+                            <p className="text-2xl font-extrabold text-red-900 dark:text-red-100">{formatCurrencyDisplay(typeTotals.expense)}</p>
+                        </div>
+                        <div className="p-2 rounded-lg bg-white/20 dark:bg-black/20">
+                            <TrendingDown className="w-5 h-5 text-red-800 dark:text-red-200" />
+                        </div>
+                    </div>
+                </div>
+
+                <div
+                    onClick={() => setFilterType(filterType === 'advance' ? 'الكل' : 'advance')}
+                    className={`p-6 rounded-2xl shadow-lg cursor-pointer transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl border-r-4
+                        ${filterType === 'advance'
+                            ? 'bg-purple-200 dark:bg-purple-800 border-purple-600 ring-4 ring-purple-500 ring-opacity-60'
+                            : 'bg-purple-50 dark:bg-purple-900 border-purple-600'
+                        }
+                    `}
+                    data-testid="filter-card-advances"
+                >
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="flex-1">
+                            <p className="text-sm font-semibold text-purple-800 dark:text-purple-200 mb-1">السلف المعلقة</p>
+                            <p className="text-2xl font-extrabold text-purple-900 dark:text-purple-100">{formatCurrencyDisplay(typeTotals.advance)}</p>
+                        </div>
+                        <div className="p-2 rounded-lg bg-white/20 dark:bg-black/20">
+                            <Coins className="w-5 h-5 text-purple-800 dark:text-purple-200" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* بطاقة المجموع والفلاتر */}
+            <div className="bg-white dark:bg-gray-800/50 p-6 rounded-2xl shadow-xl border-2 border-gray-200 dark:border-gray-700">
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 items-center">
+                    <div className="col-span-1 text-xl font-bold p-6 rounded-2xl bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-900/40 dark:to-amber-800/30 text-amber-800 dark:text-amber-200 flex flex-col items-center justify-center shadow-xl border-r-4 border-amber-600 dark:border-amber-400 transition-all duration-300 hover:shadow-2xl hover:-translate-y-1">
+                        <Calculator className="w-6 h-6 mb-1" />
+                        <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">المجموع المفلتر:</span>
+                        <span className="font-extrabold text-2xl mt-1">
+                            {formatCurrencyDisplay(totalFilteredAmount)}
+                        </span>
+                    </div>
+
+                    <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-xl bg-gray-50 dark:bg-gray-700 shadow-inner">
+                        <h3 className="md:col-span-3 w-full text-lg font-semibold text-gray-700 dark:text-gray-300 flex items-center border-b pb-2 mb-2">
+                            <Filter className="w-5 h-5 ml-2" /> فلاتر الجدول
+                        </h3>
+                        
+                        <div className="md:col-span-3 flex flex-col space-y-1 relative">
+                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400">البحث الشامل</label>
+                            <input
+                                type="text"
+                                value={globalSearch}
+                                onChange={(e) => setGlobalSearch(e.target.value)}
+                                placeholder="اكتب كلمة أو مبلغ للبحث..."
+                                className="p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl pr-10 focus:ring-amber-500 focus:border-amber-500"
+                                data-testid="input-search"
+                            />
+                            <Search className="w-5 h-5 absolute right-3 top-1/2 transform translate-y-1/2 text-gray-400 mt-2" />
+                        </div>
+
+                        <div className="flex flex-col space-y-1">
+                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400">التاريخ من</label>
+                            <input
+                                type="date"
+                                value={filterDateFrom}
+                                onChange={(e) => setFilterDateFrom(e.target.value)}
+                                className="p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-amber-500 focus:border-amber-500"
+                                data-testid="input-date-from"
+                            />
+                        </div>
+
+                        <div className="flex flex-col space-y-1">
+                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400">التاريخ إلى</label>
+                            <input
+                                type="date"
+                                value={filterDateTo}
+                                onChange={(e) => setFilterDateTo(e.target.value)}
+                                className="p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-amber-500 focus:border-amber-500"
+                                data-testid="input-date-to"
+                            />
+                        </div>
+
+                        <button
+                            onClick={() => {
+                                setFilterDateFrom(initialRange.start);
+                                setFilterDateTo(initialRange.end);
+                                setGlobalSearch('');
+                                setFilterType('الكل');
+                            }}
+                            className="flex items-center justify-center gap-2 px-4 py-3 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors duration-200 font-semibold"
+                            data-testid="button-reset-filters"
+                        >
+                            <RotateCcw className="w-5 h-5" />
+                            إعادة تعيين
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* الجدول */}
+            <div className="bg-white dark:bg-gray-700 p-6 rounded-xl shadow-lg overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50 dark:bg-gray-600 rounded-t-xl">
+                        <tr>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">التاريخ</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">النوع</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">الفئة</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">المبلغ</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">التفاصيل</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
+                        {filteredList.length === 0 ? (
+                            <tr>
+                                <td colSpan={6} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                                    لا توجد صرفيات معلقة
+                                </td>
+                            </tr>
+                        ) : (
+                            filteredList.map(item => {
+                                const employee = item.employeeId ? data.employees.find(e => e.id === item.employeeId) : null;
+                                return (
+                                    <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
+                                            {new Date(item.date).toLocaleDateString('ar-IQ')}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                            <span className={`px-3 py-1 rounded-full text-xs font-semibold
+                                                ${item.type === 'expense' 
+                                                    ? 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200' 
+                                                    : 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200'
+                                                }
+                                            `}>
+                                                {item.type === 'expense' ? 'صرفية' : 'سلفة'}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                                            {item.category}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900 dark:text-gray-100">
+                                            {formatCurrencyDisplay(item.amount)}
+                                        </td>
+                                        <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
+                                            {item.type === 'expense' ? (
+                                                <div>
+                                                    <p>{item.description}</p>
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                        {item.vendor} - {item.representative}
+                                                    </p>
+                                                </div>
+                                            ) : (
+                                                <div>
+                                                    <p>{employee?.name}</p>
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400">{item.notes}</p>
+                                                </div>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={() => handleApprove(item)}
+                                                    className="px-3 py-1 bg-green-600 dark:bg-green-500 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-600 transition-colors flex items-center gap-1 text-xs font-semibold"
+                                                    data-testid={`button-approve-${item.id}`}
+                                                >
+                                                    <CheckCircle className="w-4 h-4" />
+                                                    موافقة
+                                                </button>
+                                                <button
+                                                    onClick={() => handleCancel(item)}
+                                                    className="px-3 py-1 bg-red-600 dark:bg-red-500 text-white rounded-lg hover:bg-red-700 dark:hover:bg-red-600 transition-colors flex items-center gap-1 text-xs font-semibold"
+                                                    data-testid={`button-cancel-${item.id}`}
+                                                >
+                                                    <XCircle className="w-4 h-4" />
+                                                    إلغاء
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })
+                        )}
+                    </tbody>
+                </table>
+            </div>
+
+            {/* Modal */}
+            {isModalOpen && (
+                <Modal 
+                    title={currentItem ? 'تعديل صرفية معلقة' : 'إضافة صرفية معلقة جديدة'} 
+                    onClose={() => setIsModalOpen(false)}
+                >
+                    <form onSubmit={handleSubmit} className="space-y-5">
+                        <InputField
+                            label="تاريخ ووقت العملية"
+                            type="datetime-local"
+                            value={formState.date || getDefaultDateTime()}
+                            onChange={(e) => setFormState({ ...formState, date: e.target.value })}
+                            required
+                        />
+
+                        <div className="flex flex-col space-y-1 text-right">
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">نوع الصرف</label>
+                            <select
+                                value={formState.type}
+                                onChange={(e) => setFormState({ 
+                                    ...formState, 
+                                    type: e.target.value,
+                                    category: '',
+                                    description: '',
+                                    vendor: '',
+                                    representative: '',
+                                    employeeId: e.target.value === 'advance' ? (data.employees[0]?.id || '') : '',
+                                    notes: ''
+                                })}
+                                required
+                                className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500 transition duration-150 text-right"
+                                data-testid="select-type"
+                            >
+                                <option value="expense">صرفية</option>
+                                <option value="advance">سلفة</option>
+                            </select>
+                        </div>
+
+                        {formState.type === 'expense' ? (
+                            <>
+                                <div className="flex flex-col space-y-1 text-right">
+                                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">الشركة الموردة</label>
+                                    <select
+                                        value={selectedVendor}
+                                        onChange={(e) => {
+                                            const newVendor = e.target.value;
+                                            setSelectedVendor(newVendor);
+                                            const defaultRep = data.settings.representatives.find(r => r.vendor === newVendor)?.name || '';
+                                            setFormState(prev => ({ ...prev, representative: defaultRep }));
+                                        }}
+                                        required
+                                        className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500 transition duration-150 text-right"
+                                        data-testid="select-vendor"
+                                    >
+                                        <option value="" disabled>اختر المورد</option>
+                                        {data.settings.vendors.map(vendor => (
+                                            <option key={vendor} value={vendor}>{vendor}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div className="flex flex-col space-y-1 text-right">
+                                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">المندوب المسؤول</label>
+                                    <select
+                                        value={formState.representative || ''}
+                                        onChange={(e) => setFormState({ ...formState, representative: e.target.value })}
+                                        required
+                                        disabled={!selectedVendor}
+                                        className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500 transition duration-150 text-right"
+                                        data-testid="select-representative"
+                                    >
+                                        <option value="" disabled>اختر المندوب</option>
+                                        {data.settings.representatives
+                                            .filter(r => r.vendor === selectedVendor)
+                                            .map(rep => (
+                                                <option key={rep.name} value={rep.name}>{rep.name}</option>
+                                            ))
+                                        }
+                                    </select>
+                                </div>
+
+                                <div className="flex flex-col space-y-1 text-right">
+                                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">فئة المصروف</label>
+                                    <select
+                                        value={formState.category}
+                                        onChange={(e) => setFormState({ ...formState, category: e.target.value })}
+                                        required
+                                        className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500 transition duration-150 text-right"
+                                        data-testid="select-category"
+                                    >
+                                        <option value="" disabled>اختر الفئة</option>
+                                        {data.settings.expenseCategories.map(cat => (
+                                            <option key={cat} value={cat}>{cat}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <InputField
+                                    label="المبلغ"
+                                    type="text"
+                                    value={formState.amount}
+                                    onChange={(e) => {
+                                        let newValue = convertArabicToEnglish(e.target.value);
+                                        newValue = newValue.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+                                        setFormState({ ...formState, amount: newValue });
+                                    }}
+                                    required
+                                    currency
+                                />
+
+                                <InputField
+                                    label="الوصف المفصل"
+                                    type="textarea"
+                                    value={formState.description}
+                                    onChange={(e) => setFormState({ ...formState, description: e.target.value })}
+                                    required
+                                    textarea
+                                />
+                            </>
+                        ) : (
+                            <>
+                                <div className="flex flex-col space-y-1 text-right">
+                                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">الموظف المعني</label>
+                                    <select
+                                        value={formState.employeeId}
+                                        onChange={(e) => setFormState({ ...formState, employeeId: e.target.value })}
+                                        required
+                                        className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500 transition duration-150 text-right"
+                                        data-testid="select-employee"
+                                    >
+                                        <option value="" disabled>اختر الموظف</option>
+                                        {data.employees.map(emp => (
+                                            <option key={emp.id} value={emp.id}>{emp.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div className="flex flex-col space-y-1 text-right">
+                                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">فئة السلفة</label>
+                                    <select
+                                        value={formState.category}
+                                        onChange={(e) => setFormState({ ...formState, category: e.target.value })}
+                                        required
+                                        className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500 transition duration-150 text-right"
+                                        data-testid="select-advance-category"
+                                    >
+                                        <option value="" disabled>اختر الفئة</option>
+                                        {data.settings.advanceCategories.map(cat => (
+                                            <option key={cat} value={cat}>{cat}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <InputField
+                                    label="المبلغ"
+                                    type="text"
+                                    value={formState.amount}
+                                    onChange={(e) => {
+                                        let newValue = convertArabicToEnglish(e.target.value);
+                                        newValue = newValue.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+                                        setFormState({ ...formState, amount: newValue });
+                                    }}
+                                    required
+                                    currency
+                                />
+
+                                <InputField
+                                    label="ملاحظات"
+                                    type="textarea"
+                                    value={formState.notes}
+                                    onChange={(e) => setFormState({ ...formState, notes: e.target.value })}
+                                    textarea
+                                />
+                            </>
+                        )}
+
+                        <ActionButton type="submit" className="w-full bg-teal-600 hover:bg-teal-700">
+                            <Save className="w-5 h-5 ml-2" />
+                            {currentItem ? 'حفظ التعديلات' : 'إضافة'}
+                        </ActionButton>
+                    </form>
+                </Modal>
+            )}
+        </div>
+    );
+});
+
 
 
 /**
@@ -5040,6 +5593,7 @@ const AccountingApp = () => {
         { key: 'expenses', label: 'الصرفيات', icon: TrendingDown, component: DataPageComponent, props: { title: 'الصرفيات', type: 'expense', collectionName: 'expenses', categories: data.settings.expenseCategories, fields: [{ key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'category', label: 'فئة المصروف', type: 'select', required: true }, { key: 'description', label: 'الوصف المفصل', type: 'textarea', required: true }], handleRefresh } },
         { key: 'advances', label: 'السلف', icon: Coins, component: DataPageComponent, props: { title: 'السلف', type: 'advance', collectionName: 'advances', categories: data.settings.advanceCategories, fields: [{ key: 'employeeName', label: 'الموظف المعني', type: 'select', required: true }, { key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'category', label: 'فئة السلفة', type: 'select', required: true }, { key: 'notes', label: 'ملاحظات', type: 'textarea' }], handleRefresh } },
         { key: 'suspended', label: 'المعلقة (قيد التسوية)', icon: RotateCcw, component: DataPageComponent, props: { title: 'المعلقة (قيد التسوية)', type: 'suspended', collectionName: 'suspended', fields: [{ key: 'recipientName', label: 'اسم المستلم', required: true }, { key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'notes', label: 'ملاحظات', type: 'textarea' }], handleRefresh } },
+        { key: 'pendingExpenses', label: 'الصرفيات المعلقة', icon: Clock, component: PendingExpensesComponent, props: { handleRefresh, setCurrentPage } },
         { key: 'employees', label: 'الموظفين', icon: Users, component: EmployeePageComponent, props: { handleRefresh } },
         { key: 'payroll', label: 'الرواتب', icon: Calculator, component: PayrollPageComponent, props: { handleRefresh } },
         { key: 'inventoryEntry', label: 'الإدخال المخزني', icon: ClipboardCheck, component: InventoryEntryComponent, props: { handleRefresh } },
