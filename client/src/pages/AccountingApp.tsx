@@ -4095,7 +4095,7 @@ const InventoryDispatchComponent = React.memo(({ data, handleDataAction, showToa
 /**
  * 3.8. InventoryWithdrawalComponent (الاستخراج المخزني)
  */
-const InventoryWithdrawalComponent = React.memo(({ data, handleDataAction, handleDelete, showToast, handleRefresh }) => {
+const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, showToast, handleRefresh }) => {
     const { t } = useLanguage();
     const [isNewWithdrawalModalOpen, setIsNewWithdrawalModalOpen] = useState(false);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
@@ -4313,6 +4313,8 @@ const InventoryWithdrawalComponent = React.memo(({ data, handleDataAction, handl
             date: getDefaultDateTime(),
         };
 
+        console.log('[DEBUG] Saving withdrawal:', withdrawalToSave);
+        console.log('[DEBUG] Current inventoryWithdrawals:', data.inventoryWithdrawals);
         handleDataAction('inventoryWithdrawals', withdrawalToSave, !withdrawalForm.id);
         handleDataAction('inventory', updatedInventory, true, true);
         
@@ -4698,7 +4700,7 @@ const InventoryWithdrawalComponent = React.memo(({ data, handleDataAction, handl
             )}
         </div>
     );
-});
+};
 
 
 
@@ -4849,6 +4851,8 @@ const AccountingApp = () => {
                 ...(collectionName !== 'inventory' && collectionName !== 'inventoryWithdrawals' ? { invoiceNumber: generateInvoiceNumber() } : {})
             };
             newData[collectionName] = [...collection, newItem];
+            console.log(`[DEBUG handleDataAction] Adding to ${collectionName}:`, newItem);
+            console.log(`[DEBUG handleDataAction] New collection size:`, newData[collectionName].length);
             
             // رسالة النجاح المخصصة
             if (collectionName === 'inventory') {
