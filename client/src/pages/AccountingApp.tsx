@@ -798,9 +798,8 @@ const DataPageComponent = React.memo(({ 
 
         handleDataAction(collectionName, itemToSave, !currentItem);
         
-        // إذا جاءت البيانات من الموافقة على صرفية معلقة، احذف الصرفية المعلقة
-        if (initialExpenseState?.pendingExpenseId && !currentItem) {
-            handleDelete('pendingExpenses', initialExpenseState.pendingExpenseId, false, true);
+        // مسح حالة الملء التلقائي بعد الإضافة
+        if (initialExpenseState && !currentItem) {
             setInitialExpenseState(null);
         }
         
@@ -1363,7 +1362,6 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
             // تعيين البيانات للملء التلقائي في صفحة الصرفيات
             setTimeout(() => {
                 setInitialExpenseState({
-                    pendingExpenseId: item.id,
                     date: item.date,
                     amount: item.amount,
                     category: item.category,
@@ -1378,7 +1376,6 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
             // تعيين البيانات للملء التلقائي في صفحة السلف
             setTimeout(() => {
                 setInitialExpenseState({
-                    pendingExpenseId: item.id,
                     date: item.date,
                     amount: item.amount,
                     category: item.category,
