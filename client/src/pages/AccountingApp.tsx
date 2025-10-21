@@ -1353,6 +1353,9 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
     const filteredList = useMemo(() => {
         let list = data.pendingExpenses.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
         
+        // إظهار السجلات المعلقة فقط (إخفاء الملغاة والمصروفة)
+        list = list.filter(item => item.status === 'pending');
+        
         if (filterDateFrom) list = list.filter(item => item.date.slice(0, 10) >= filterDateFrom);
         if (filterDateTo) list = list.filter(item => item.date.slice(0, 10) <= filterDateTo);
         if (filterType && filterType !== 'الكل') {
@@ -1453,6 +1456,16 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
         }
     };
 
+    const handleClearAll = () => {
+        if (window.confirm('⚠️ هل أنت متأكد من حذف جميع الصرفيات المعلقة؟\n\nهذا الإجراء لا يمكن التراجع عنه!')) {
+            const currentData = JSON.parse(localStorage.getItem('iraqi_accounting_data') || '{}');
+            currentData.pendingExpenses = [];
+            localStorage.setItem('iraqi_accounting_data', JSON.stringify(currentData));
+            handleRefresh();
+            showToast('تم تفريغ جميع الصرفيات المعلقة بنجاح', 'success');
+        }
+    };
+
     const totalFilteredAmount = filteredList.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
 
     return (
@@ -1462,17 +1475,29 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                     <Clock className="w-8 h-8 text-amber-600 dark:text-amber-400" />
                     الصرفيات المعلقة
                 </h2>
-                <button
-                    onClick={() => {
-                        setCurrentItem(null);
-                        setIsModalOpen(true);
-                    }}
-                    className="px-6 py-3 bg-gradient-to-r from-teal-600 to-teal-700 dark:from-teal-500 dark:to-teal-600 text-white rounded-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 flex items-center gap-2 font-bold shadow-lg"
-                    data-testid="button-add-pending"
-                >
-                    <Plus className="w-5 h-5" />
-                    إضافة صرفية معلقة
-                </button>
+                <div className="flex gap-3">
+                    <button
+                        onClick={() => {
+                            setCurrentItem(null);
+                            setIsModalOpen(true);
+                        }}
+                        className="px-6 py-3 bg-gradient-to-r from-teal-600 to-teal-700 dark:from-teal-500 dark:to-teal-600 text-white rounded-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 flex items-center gap-2 font-bold shadow-lg"
+                        data-testid="button-add-pending"
+                    >
+                        <Plus className="w-5 h-5" />
+                        إضافة صرفية معلقة
+                    </button>
+                    {filteredList.length > 0 && (
+                        <button
+                            onClick={handleClearAll}
+                            className="px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 dark:from-red-500 dark:to-red-600 text-white rounded-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 flex items-center gap-2 font-bold shadow-lg"
+                            data-testid="button-clear-all-pending"
+                        >
+                            <Trash2 className="w-5 h-5" />
+                            تفريغ السجل
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* بطاقات الفلتر */}
