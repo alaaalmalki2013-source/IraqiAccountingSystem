@@ -872,7 +872,7 @@ const DataPageComponent = React.memo(({ 
         <div className="p-6 space-y-6 bg-white dark:bg-gray-800 rounded-3xl app-main-content">
             <h2 className="text-4xl font-extrabold text-gray-800 dark:text-gray-200 border-b-2 border-teal-500 pb-3">{title}</h2>
 
-            <div className="flex justify-between items-center">
+            <div className="flex flex-wrap gap-2 justify-between items-center">
                  <ActionButton onClick={() => openModal()} className="bg-green-600 hover:bg-green-700" disabled={!!initialExpenseState && collectionName === 'expenses' && isModalOpen}>
                     <Plus className="w-5 h-5 ml-2" />
                     {type === 'suspended' ? 'إضافة مبلغ معلق' : type === 'revenue' ? 'إضافة إيراد' : type === 'expense' ? 'إضافة مصروف' : 'إضافة سلفة'}
@@ -989,7 +989,7 @@ const DataPageComponent = React.memo(({ 
                 </div>
             </div>
             
-             <div className="flex space-x-2 space-x-reverse">
+             <div className="flex flex-wrap gap-2 space-x-reverse">
                  <button onClick={handlePrintAll} className="p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
                      <Printer className="w-6 h-6" />
                  </button>
@@ -1355,12 +1355,12 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
             </div>
 
 
-            <div className="flex justify-between items-center">
+            <div className="flex flex-wrap gap-2 justify-between items-center">
                 <ActionButton onClick={() => openModal()} className="bg-green-600 hover:bg-green-700">
                     <UserPlus className="w-5 h-5 ml-2" />
                     إضافة موظف جديد
                 </ActionButton>
-                   <div className="flex space-x-2 space-x-reverse">
+                   <div className="flex flex-wrap gap-2 space-x-reverse">
                        <button onClick={handlePrintAll} className="p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
                            <Printer className="w-6 h-6" />
                        </button>
@@ -2248,7 +2248,7 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
                 <Search className="w-5 h-5 absolute right-3 top-1/2 transform translate-y-1/2 text-gray-400 mt-2" />
             </div>
             
-            <div className="flex justify-end items-center">
+            <div className="flex flex-wrap gap-2 justify-end items-center">
                 <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200" data-testid="button-refresh-inventory">
                     <RotateCcw className="w-6 h-6" />
                 </button>
@@ -2874,7 +2874,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
         <div className="p-6 space-y-6 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl">
             <h2 className="text-4xl font-extrabold text-gray-800 dark:text-gray-200 border-b-2 border-teal-500 pb-3">إدارة الإدخال المخزني </h2>
 
-            <div className="flex justify-between items-center flex-wrap gap-4">
+            <div className="flex flex-wrap gap-4 justify-between items-center">
                  <ActionButton onClick={() => setIsNewInvoiceModalOpen(true)} className="bg-indigo-600 hover:bg-indigo-700">
                     <ClipboardCheck className="w-5 h-5 ml-2" />
                     إدخال فاتورة مشتريات جديدة
@@ -2933,7 +2933,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                 <Search className="w-5 h-5 absolute right-3 top-1/2 transform translate-y-1/2 text-gray-400 mt-2" />
             </div>
             
-            <div className="flex justify-end">
+            <div className="flex flex-wrap gap-2 justify-end items-center">
                 <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
                     <RotateCcw className="w-6 h-6" />
                 </button>
@@ -4725,7 +4725,7 @@ const AccountingApp = () => {
             </div>
 
             {/* Main Content Area */}
-            <main className={`flex-grow p-4 md:p-8 ${isSidebarCollapsed ? 'lg:mr-16' : 'lg:mr-64'}`}>
+            <main className={`flex-grow p-2 sm:p-4 md:p-8 ${isSidebarCollapsed ? 'lg:mr-16' : 'lg:mr-64'}`}>
                 {/* Header for Mobile/Tablet */}
                 <header className="app-header flex justify-between items-center bg-gradient-to-r from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 p-4 mb-4 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 lg:hidden">
                     <button onClick={() => setIsSidebarOpen(true)} className="text-blue-600 dark:text-blue-400 p-2 rounded-lg hover:bg-gray-100 dark:bg-gray-600 dark:hover:bg-gray-700 transition">
