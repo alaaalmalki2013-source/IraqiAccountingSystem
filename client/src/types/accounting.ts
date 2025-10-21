@@ -20,6 +20,7 @@ export const BASE_PERMISSIONS = {
     employees: { view: true, add: true, edit: true, delete: true },
     payroll: { view: true, add: true, edit: true, delete: true, pay: true },
     inventoryEntry: { view: true, approve: true, credit: true, cancel: true },
+    inventoryWithdrawal: { view: true, add: true, edit: true, delete: true },
     inventory: { view: true, add: true, edit: true, delete: true },
     settings: { view: true }
 };
@@ -56,6 +57,7 @@ export const defaultDataStructure = {
     inventory: [],
     payroll: [],
     pendingInvoices: [], 
+    inventoryWithdrawals: [],
     inventoryDispatches: [],
     settings: defaultSettings
 };

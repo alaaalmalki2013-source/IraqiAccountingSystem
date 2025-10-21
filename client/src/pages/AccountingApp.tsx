@@ -4091,6 +4091,615 @@ const InventoryDispatchComponent = React.memo(({ data, handleDataAction, showToa
     );
 });
 
+/**
+ * 3.8. InventoryWithdrawalComponent (الاستخراج المخزني)
+ */
+const InventoryWithdrawalComponent = React.memo(({ data, handleDataAction, handleDelete, showToast, handleRefresh }) => {
+    const { t } = useLanguage();
+    const [isNewWithdrawalModalOpen, setIsNewWithdrawalModalOpen] = useState(false);
+    const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+    const [currentWithdrawal, setCurrentWithdrawal] = useState(null);
+    const [globalSearch, setGlobalSearch] = useState('');
+    const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
+    
+    // حالة الـ autocomplete للمواد والموظفين
+    const [itemSuggestions, setItemSuggestions] = useState([]);
+    const [showItemSuggestions, setShowItemSuggestions] = useState(false);
+    const [employeeSuggestions, setEmployeeSuggestions] = useState([]);
+    const [showEmployeeSuggestions, setShowEmployeeSuggestions] = useState(false);
+    const [editingItemId, setEditingItemId] = useState(null);
+
+    // دالة للحصول على حالة نموذج الاستخراج الافتراضية
+    const getDefaultWithdrawalForm = useCallback(() => ({
+        employeeName: '',
+        withdrawalNumber: generateInvoiceNumber(),
+        items: [],
+        date: getDefaultDateTime(),
+        notes: '',
+        id: null
+    }), []);
+    
+    // دالة للحصول على حالة نموذج المادة الافتراضية
+    const getDefaultItemForm = useCallback(() => ({ 
+        name: '', 
+        barcode: '', 
+        count: 1, 
+        category: data.settings.expenseCategories.find(c => c.includes('مواد')) || data.settings.expenseCategories[0] || '' 
+    }), [data.settings.expenseCategories]);
+
+    const [withdrawalForm, setWithdrawalForm] = useState(getDefaultWithdrawalForm);
+    const [itemForm, setItemForm] = useState(getDefaultItemForm);
+
+    // دالة البحث الذكي في المخزون عند الكتابة في حقل الاسم
+    const handleItemNameChange = useCallback((value) => {
+        setItemForm(prev => ({ ...prev, name: value }));
+        
+        if (value.length >= 2) {
+            const searchNormalized = normalizeTextForSearch(value);
+            
+            const filtered = data.inventory.filter(item => {
+                const itemNameNorm = normalizeTextForSearch(item.name);
+                const itemBarcodeNorm = item.barcode ? normalizeTextForSearch(item.barcode) : '';
+                return (itemNameNorm.includes(searchNormalized) || itemBarcodeNorm.includes(searchNormalized)) && item.count > 0;
+            }).slice(0, 5);
+            
+            setItemSuggestions(filtered);
+            setShowItemSuggestions(true);
+        } else {
+            setShowItemSuggestions(false);
+            setItemSuggestions([]);
+        }
+    }, [data.inventory]);
+
+    // دالة اختيار اقتراح من القائمة
+    const selectItemSuggestion = useCallback((item) => {
+        setItemForm(prev => ({
+            ...prev,
+            name: item.name,
+            barcode: item.barcode || '',
+            category: item.category
+        }));
+        setShowItemSuggestions(false);
+        setItemSuggestions([]);
+    }, []);
+    
+    // دالة البحث الذكي في الموظفين عند الكتابة
+    const handleEmployeeNameChange = useCallback((value) => {
+        setWithdrawalForm(prev => ({ ...prev, employeeName: value }));
+        
+        if (value.length >= 2) {
+            const searchNormalized = normalizeTextForSearch(value);
+            
+            const filtered = data.employees.filter(emp => {
+                const empNameNorm = normalizeTextForSearch(emp.name);
+                return empNameNorm.includes(searchNormalized);
+            }).slice(0, 5);
+            
+            setEmployeeSuggestions(filtered);
+            setShowEmployeeSuggestions(true);
+        } else {
+            setShowEmployeeSuggestions(false);
+            setEmployeeSuggestions([]);
+        }
+    }, [data.employees]);
+    
+    // دالة اختيار موظف من القائمة
+    const selectEmployeeSuggestion = useCallback((employee) => {
+        setWithdrawalForm(prev => ({
+            ...prev,
+            employeeName: employee.name
+        }));
+        setShowEmployeeSuggestions(false);
+        setEmployeeSuggestions([]);
+    }, []);
+
+    // دالة فتح المودال لتعديل مادة موجودة
+    const handleEditItem = useCallback((item) => {
+        setItemForm({
+            name: item.name,
+            barcode: item.barcode,
+            count: item.count,
+            category: item.category
+        });
+        setEditingItemId(item.id);
+        setIsAddItemModalOpen(true);
+    }, []);
+
+    const handleAddItemToWithdrawal = (e) => {
+        e.preventDefault();
+        
+        if (!itemForm.name || !itemForm.count || itemForm.count <= 0 || !itemForm.category) {
+            showToast('الرجاء ملء جميع حقول المادة بشكل صحيح (الاسم، الكمية، الفئة).', 'error');
+            return;
+        }
+        
+        // التحقق من توفر الكمية في المخزون
+        const inventoryItem = data.inventory.find(i => i.name === itemForm.name);
+        if (!inventoryItem) {
+            showToast('المادة غير موجودة في المخزون.', 'error');
+            return;
+        }
+        
+        // حساب إجمالي الكمية المطلوبة (مع المواد الموجودة في الاستخراج)
+        const currentItemInWithdrawal = withdrawalForm.items.find(i => i.name === itemForm.name && i.id !== editingItemId);
+        const totalRequestedCount = parseInt(itemForm.count) + (currentItemInWithdrawal ? currentItemInWithdrawal.count : 0);
+        
+        if (totalRequestedCount > inventoryItem.count) {
+            showToast(`الكمية المتوفرة في المخزون: ${inventoryItem.count}. لا يمكن استخراج ${totalRequestedCount}.`, 'error');
+            return;
+        }
+
+        if (editingItemId) {
+            const updatedItem = {
+                ...itemForm,
+                id: editingItemId,
+                count: parseInt(itemForm.count),
+            };
+            
+            setWithdrawalForm(prev => ({
+                ...prev,
+                items: prev.items.map(item => item.id === editingItemId ? updatedItem : item)
+            }));
+            
+            showToast(`تم تعديل المادة "${updatedItem.name}" بنجاح.`, 'success');
+        } else {
+            const newItem = {
+                ...itemForm,
+                id: crypto.randomUUID(),
+                count: parseInt(itemForm.count),
+            };
+
+            setWithdrawalForm(prev => ({
+                ...prev,
+                items: [...prev.items, newItem]
+            }));
+            
+            showToast(`تمت إضافة المادة "${newItem.name}" بنجاح.`, 'success');
+        }
+        
+        setItemForm(prev => ({ ...getDefaultItemForm(), category: prev.category }));
+        setEditingItemId(null);
+        setIsAddItemModalOpen(false);
+    };
+
+    const handleRemoveItemFromWithdrawal = (id) => {
+        setWithdrawalForm(prev => ({
+            ...prev,
+            items: prev.items.filter(item => item.id !== id)
+        }));
+        showToast('تم حذف المادة بنجاح.', 'warning');
+    };
+
+    // إتمام الاستخراج (خصم من المخزون)
+    const handleCompleteWithdrawal = (e) => {
+        e.preventDefault();
+        
+        if (withdrawalForm.items.length === 0) {
+            showToast('يجب إضافة مواد إلى الاستخراج أولاً.', 'error');
+            return;
+        }
+        if (!withdrawalForm.employeeName) {
+            showToast('الرجاء إدخال اسم الموظف المستلم.', 'error');
+            return;
+        }
+
+        // التحقق من توفر جميع المواد في المخزون
+        let updatedInventory = [...data.inventory];
+        const itemsToDispatch = [];
+        
+        for (const item of withdrawalForm.items) {
+            const inventoryItem = updatedInventory.find(i => i.name === item.name);
+            if (!inventoryItem || inventoryItem.count < item.count) {
+                showToast(`الكمية المتوفرة من "${item.name}" غير كافية في المخزون.`, 'error');
+                return;
+            }
+        }
+
+        // خصم المواد من المخزون
+        withdrawalForm.items.forEach(item => {
+            const inventoryItemIndex = updatedInventory.findIndex(i => i.name === item.name);
+            if (inventoryItemIndex !== -1) {
+                updatedInventory[inventoryItemIndex] = {
+                    ...updatedInventory[inventoryItemIndex],
+                    count: updatedInventory[inventoryItemIndex].count - item.count,
+                };
+            }
+        });
+
+        const withdrawalToSave = {
+            ...withdrawalForm,
+            id: withdrawalForm.id || crypto.randomUUID(),
+            date: getDefaultDateTime(),
+        };
+
+        handleDataAction('inventoryWithdrawals', withdrawalToSave, !withdrawalForm.id);
+        handleDataAction('inventory', updatedInventory, true, true);
+        
+        setWithdrawalForm(getDefaultWithdrawalForm());
+        setIsNewWithdrawalModalOpen(false);
+        showToast(`تم إتمام الاستخراج #${withdrawalToSave.withdrawalNumber} وخصم المواد من المخزون بنجاح.`, 'success');
+    };
+    
+    // فتح نموذج التفاصيل
+    const openDetailsModal = (withdrawal) => {
+        setCurrentWithdrawal(withdrawal);
+        setIsDetailsModalOpen(true);
+    };
+    
+    // فتح نموذج التعديل
+    const openEditModal = (withdrawal) => {
+        setWithdrawalForm(withdrawal);
+        setIsNewWithdrawalModalOpen(true);
+    };
+    
+    // حذف استخراج (إعادة المواد للمخزون)
+    const handleDeleteWithdrawal = (withdrawal) => {
+        let updatedInventory = [...data.inventory];
+        
+        // إعادة المواد للمخزون
+        withdrawal.items.forEach(item => {
+            const inventoryItemIndex = updatedInventory.findIndex(i => i.name === item.name);
+            if (inventoryItemIndex !== -1) {
+                updatedInventory[inventoryItemIndex] = {
+                    ...updatedInventory[inventoryItemIndex],
+                    count: updatedInventory[inventoryItemIndex].count + item.count,
+                };
+            }
+        });
+        
+        handleDelete('inventoryWithdrawals', withdrawal.id);
+        handleDataAction('inventory', updatedInventory, true, true);
+        showToast(`تم حذف الاستخراج #${withdrawal.withdrawalNumber} وإعادة المواد للمخزون.`, 'success');
+    };
+    
+    // فلترة الاستخراجات
+    const filteredWithdrawals = useMemo(() => {
+        let list = data.inventoryWithdrawals.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+        
+        if (globalSearch) {
+            const searchLower = normalizeTextForSearch(globalSearch);
+            
+            list = list.filter(w => {
+                const matchesNum = w.withdrawalNumber && normalizeTextForSearch(w.withdrawalNumber).includes(searchLower);
+                const matchesEmp = w.employeeName && normalizeTextForSearch(w.employeeName).includes(searchLower);
+                const matchesItem = w.items.some(item => normalizeTextForSearch(item.name).includes(searchLower));
+                
+                return matchesNum || matchesEmp || matchesItem;
+            });
+        }
+        
+        return list;
+    }, [data.inventoryWithdrawals, globalSearch]);
+
+    return (
+        <div className="p-6 space-y-6 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl">
+            <h2 className="text-4xl font-extrabold text-gray-800 dark:text-gray-200 border-b-2 border-green-500 pb-3 flex items-center">
+                <LogOut className="w-7 h-7 ml-3 text-green-600" />
+                {t('inventoryWithdrawal')}
+            </h2>
+
+            {/* أزرار الإجراءات */}
+            <div className="flex flex-wrap gap-2 justify-between items-center">
+                <button
+                    onClick={() => {
+                        setWithdrawalForm(getDefaultWithdrawalForm());
+                        setIsNewWithdrawalModalOpen(true);
+                    }}
+                    data-testid="button-add-withdrawal"
+                    className="flex items-center px-6 py-3 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-xl hover:from-green-600 hover:to-teal-600 shadow-lg transition duration-200"
+                >
+                    <Plus className="w-5 h-5 ml-2" />
+                    {t('addWithdrawal')}
+                </button>
+                <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
+                    <RotateCcw className="w-6 h-6" />
+                </button>
+            </div>
+
+            {/* البحث */}
+            <div className="relative">
+                <input
+                    type="text"
+                    value={globalSearch}
+                    onChange={(e) => setGlobalSearch(e.target.value)}
+                    placeholder="البحث برقم الاستخراج، اسم الموظف، أو المادة..."
+                    className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl pr-10 focus:ring-green-500 focus:border-green-500"
+                    data-testid="input-search-withdrawals"
+                />
+                <Search className="w-5 h-5 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            </div>
+
+            {/* جدول الاستخراجات */}
+            <div className="bg-white dark:bg-gray-700 p-6 rounded-xl shadow-lg overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50 dark:bg-gray-600">
+                        <tr>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">رقم الاستخراج</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">التاريخ</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">الموظف المستلم</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">عدد المواد</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
+                        {filteredWithdrawals.length === 0 ? (
+                            <tr><td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">{t('noWithdrawals')}</td></tr>
+                        ) : (
+                            filteredWithdrawals.map(withdrawal => (
+                                <tr key={withdrawal.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">{highlightText(withdrawal.withdrawalNumber, globalSearch)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm">{new Date(withdrawal.date).toLocaleString('ar-IQ')}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold">{highlightText(withdrawal.employeeName, globalSearch)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm">{withdrawal.items.reduce((sum, item) => sum + item.count, 0)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2 space-x-reverse">
+                                        <button onClick={() => openDetailsModal(withdrawal)} className="text-blue-600 hover:text-blue-900" data-testid={`button-view-withdrawal-${withdrawal.id}`}>
+                                            <Eye className="w-5 h-5" />
+                                        </button>
+                                        <button onClick={() => openEditModal(withdrawal)} className="text-yellow-600 hover:text-yellow-900" data-testid={`button-edit-withdrawal-${withdrawal.id}`}>
+                                            <Edit className="w-5 h-5" />
+                                        </button>
+                                        <button onClick={() => handleDeleteWithdrawal(withdrawal)} className="text-red-600 hover:text-red-900" data-testid={`button-delete-withdrawal-${withdrawal.id}`}>
+                                            <Trash2 className="w-5 h-5" />
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
+                </table>
+            </div>
+
+            {/* مودال إضافة/تعديل استخراج */}
+            {isNewWithdrawalModalOpen && (
+                <Modal title={withdrawalForm.id ? t('editWithdrawal') : t('addWithdrawal')} onClose={() => setIsNewWithdrawalModalOpen(false)} size="xl">
+                    <form onSubmit={handleCompleteWithdrawal} className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">{t('withdrawalNumber')}</label>
+                                <input
+                                    type="text"
+                                    value={withdrawalForm.withdrawalNumber}
+                                    onChange={(e) => setWithdrawalForm(prev => ({ ...prev, withdrawalNumber: e.target.value }))}
+                                    className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                                    required
+                                    data-testid="input-withdrawal-number"
+                                />
+                            </div>
+                            <div className="relative">
+                                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">{t('receivingEmployee')}</label>
+                                <input
+                                    type="text"
+                                    value={withdrawalForm.employeeName}
+                                    onChange={(e) => handleEmployeeNameChange(e.target.value)}
+                                    className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                                    required
+                                    data-testid="input-employee-name"
+                                />
+                                {showEmployeeSuggestions && employeeSuggestions.length > 0 && (
+                                    <ul className="absolute z-10 w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg mt-1 max-h-40 overflow-y-auto shadow-lg">
+                                        {employeeSuggestions.map(emp => (
+                                            <li
+                                                key={emp.id}
+                                                onClick={() => selectEmployeeSuggestion(emp)}
+                                                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer text-sm"
+                                            >
+                                                {emp.name} - {emp.jobTitle}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">ملاحظات</label>
+                            <textarea
+                                value={withdrawalForm.notes}
+                                onChange={(e) => setWithdrawalForm(prev => ({ ...prev, notes: e.target.value }))}
+                                className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                                rows="2"
+                                data-testid="input-notes"
+                            />
+                        </div>
+
+                        {/* قسم المواد */}
+                        <div className="border-t pt-4">
+                            <div className="flex justify-between items-center mb-3">
+                                <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200">المواد</h3>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setItemForm(getDefaultItemForm());
+                                        setEditingItemId(null);
+                                        setIsAddItemModalOpen(true);
+                                    }}
+                                    className="flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                                    data-testid="button-add-item-to-withdrawal"
+                                >
+                                    <Plus className="w-4 h-4 ml-1" />
+                                    إضافة مادة
+                                </button>
+                            </div>
+                            
+                            {withdrawalForm.items.length === 0 ? (
+                                <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">لم يتم إضافة مواد بعد</p>
+                            ) : (
+                                <div className="space-y-2">
+                                    {withdrawalForm.items.map(item => (
+                                        <div key={item.id} className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                            <div className="flex-1">
+                                                <span className="font-semibold text-gray-800 dark:text-gray-200">{item.name}</span>
+                                                <span className="text-sm text-gray-500 dark:text-gray-400 mr-2">الكمية: {item.count}</span>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <button type="button" onClick={() => handleEditItem(item)} className="text-yellow-600 hover:text-yellow-900">
+                                                    <Edit className="w-4 h-4" />
+                                                </button>
+                                                <button type="button" onClick={() => handleRemoveItemFromWithdrawal(item.id)} className="text-red-600 hover:text-red-900">
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        <button
+                            type="submit"
+                            className="w-full bg-gradient-to-r from-green-500 to-teal-500 text-white py-3 rounded-xl hover:from-green-600 hover:to-teal-600 font-bold shadow-lg"
+                            data-testid="button-complete-withdrawal"
+                        >
+                            <Save className="w-5 h-5 inline ml-2" />
+                            {t('completeWithdrawal')}
+                        </button>
+                    </form>
+                </Modal>
+            )}
+
+            {/* مودال إضافة مادة */}
+            {isAddItemModalOpen && (
+                <Modal title={editingItemId ? "تعديل مادة" : "إضافة مادة"} onClose={() => { setIsAddItemModalOpen(false); setEditingItemId(null); }} size="md">
+                    <form onSubmit={handleAddItemToWithdrawal} className="space-y-4">
+                        <div className="relative">
+                            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">{t('itemName')}</label>
+                            <input
+                                type="text"
+                                value={itemForm.name}
+                                onChange={(e) => handleItemNameChange(e.target.value)}
+                                className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                                required
+                                data-testid="input-item-name"
+                            />
+                            {showItemSuggestions && itemSuggestions.length > 0 && (
+                                <ul className="absolute z-10 w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg mt-1 max-h-40 overflow-y-auto shadow-lg">
+                                    {itemSuggestions.map(item => (
+                                        <li
+                                            key={item.id}
+                                            onClick={() => selectItemSuggestion(item)}
+                                            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer text-sm"
+                                        >
+                                            {item.name} - متوفر: {item.count}
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+                        
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">{t('barcode')}</label>
+                            <input
+                                type="text"
+                                value={itemForm.barcode}
+                                onChange={(e) => setItemForm(prev => ({ ...prev, barcode: e.target.value }))}
+                                className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                                data-testid="input-item-barcode"
+                            />
+                        </div>
+                        
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">{t('quantity')}</label>
+                            <input
+                                type="number"
+                                value={itemForm.count}
+                                onChange={(e) => setItemForm(prev => ({ ...prev, count: parseInt(e.target.value) || 1 }))}
+                                min="1"
+                                className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                                required
+                                data-testid="input-item-count"
+                            />
+                        </div>
+                        
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">{t('materialCategory')}</label>
+                            <select
+                                value={itemForm.category}
+                                onChange={(e) => setItemForm(prev => ({ ...prev, category: e.target.value }))}
+                                className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                                required
+                                data-testid="select-item-category"
+                            >
+                                {data.settings.expenseCategories.map(cat => (
+                                    <option key={cat} value={cat}>{cat}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <button
+                            type="submit"
+                            className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 font-semibold"
+                            data-testid="button-save-item"
+                        >
+                            <Save className="w-4 h-4 inline ml-2" />
+                            {editingItemId ? 'تحديث المادة' : 'إضافة المادة'}
+                        </button>
+                    </form>
+                </Modal>
+            )}
+
+            {/* مودال التفاصيل */}
+            {isDetailsModalOpen && currentWithdrawal && (
+                <Modal title={t('withdrawalDetails')} onClose={() => setIsDetailsModalOpen(false)} size="lg">
+                    <div className="space-y-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <span className="font-semibold text-gray-700 dark:text-gray-300">رقم الاستخراج:</span>
+                                <span className="mr-2 text-gray-900 dark:text-gray-100">{currentWithdrawal.withdrawalNumber}</span>
+                            </div>
+                            <div>
+                                <span className="font-semibold text-gray-700 dark:text-gray-300">التاريخ:</span>
+                                <span className="mr-2 text-gray-900 dark:text-gray-100">{new Date(currentWithdrawal.date).toLocaleString('ar-IQ')}</span>
+                            </div>
+                            <div className="col-span-2">
+                                <span className="font-semibold text-gray-700 dark:text-gray-300">الموظف المستلم:</span>
+                                <span className="mr-2 text-gray-900 dark:text-gray-100">{currentWithdrawal.employeeName}</span>
+                            </div>
+                            {currentWithdrawal.notes && (
+                                <div className="col-span-2">
+                                    <span className="font-semibold text-gray-700 dark:text-gray-300">ملاحظات:</span>
+                                    <p className="text-gray-900 dark:text-gray-100 mt-1">{currentWithdrawal.notes}</p>
+                                </div>
+                            )}
+                        </div>
+                        
+                        <h5 className="text-lg font-bold text-gray-800 dark:text-gray-200 border-b pb-2 pt-4">المواد المستخرجة:</h5>
+                        <div className="overflow-x-auto shadow-md rounded-xl">
+                            <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-green-100 dark:bg-green-900">
+                                    <tr>
+                                        <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 dark:text-gray-300">المادة</th>
+                                        <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 dark:text-gray-300">الباركود</th>
+                                        <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 dark:text-gray-300">الكمية</th>
+                                        <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 dark:text-gray-300">الفئة</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
+                                    {currentWithdrawal.items.map((item, index) => (
+                                        <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm font-medium">{item.name}</td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm">{item.barcode || '-'}</td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm font-bold text-green-600">{item.count}</td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm">{item.category}</td>
+                                        </tr>
+                                    ))}
+                                    <tr className="bg-green-50 dark:bg-green-900 font-extrabold">
+                                        <td colSpan="2" className="px-4 py-3 text-right">إجمالي الكمية:</td>
+                                        <td className="px-4 py-3 text-green-800 dark:text-green-200">
+                                            {currentWithdrawal.items.reduce((sum, item) => sum + item.count, 0)}
+                                        </td>
+                                        <td></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </Modal>
+            )}
+        </div>
+    );
+});
+
+
 
 /**
  * 3.8. AboutSystemModal (حول النظام)

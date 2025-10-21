@@ -21,6 +21,7 @@ export const translations = {
     employees: 'الموظفين',
     payroll: 'الرواتب',
     inventoryEntry: 'الإدخال المخزني',
+    inventoryWithdrawal: 'الاستخراج المخزني',
     inventory: 'المخزن والمواد',
     settings: 'الإعدادات',
     aboutSystem: 'حول النظام',
@@ -191,6 +192,15 @@ export const translations = {
     dispatchMaterial: 'صرف مادة',
     noMaterials: 'لا توجد مواد مسجلة حتى الآن',
     
+    // Inventory Withdrawal Page
+    addWithdrawal: 'إضافة استخراج جديد',
+    editWithdrawal: 'تعديل الاستخراج',
+    withdrawalNumber: 'رقم الاستخراج',
+    receivingEmployee: 'الموظف المستلم',
+    completeWithdrawal: 'إتمام الاستخراج',
+    noWithdrawals: 'لا توجد استخراجات مسجلة حتى الآن',
+    withdrawalDetails: 'تفاصيل الاستخراج',
+    
     // Settings Page
     companySettings: 'إعدادات الشركة',
     companyName: 'اسم الشركة/العمل',
@@ -246,6 +256,7 @@ export const translations = {
     employees: 'Employees',
     payroll: 'Payroll',
     inventoryEntry: 'Inventory Entry',
+    inventoryWithdrawal: 'Inventory Withdrawal',
     inventory: 'Inventory & Materials',
     settings: 'Settings',
     
@@ -403,6 +414,15 @@ export const translations = {
     dispatchHistory: 'Dispatch History',
     dispatchMaterial: 'Dispatch Material',
     noMaterials: 'No materials recorded yet',
+    
+    // Inventory Withdrawal Page
+    addWithdrawal: 'Add New Withdrawal',
+    editWithdrawal: 'Edit Withdrawal',
+    withdrawalNumber: 'Withdrawal Number',
+    receivingEmployee: 'Receiving Employee',
+    completeWithdrawal: 'Complete Withdrawal',
+    noWithdrawals: 'No withdrawals recorded yet',
+    withdrawalDetails: 'Withdrawal Details',
     
     // Settings Page
     companySettings: 'Company Settings',
