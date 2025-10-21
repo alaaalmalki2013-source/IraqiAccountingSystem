@@ -483,21 +483,11 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
                 });
             }
             
-            // حساب السلف لنفس الموظف والشهر والسنة
-            const employeeAdvances = advances.reduce((advSum, adv) => {
-                if (adv.employeeId === employee.id) {
-                    const advDate = new Date(adv.date);
-                    if (advDate.getMonth() === payrollRecord.month && advDate.getFullYear() === payrollRecord.year) {
-                        return advSum + (parseFloat(adv.amount) || 0);
-                    }
-                }
-                return advSum;
-            }, 0);
+            // حساب الراتب الإجمالي (قبل خصم السلف)
+            // ملاحظة: السلف تُخصم بشكل منفصل في معادلة رصيد الصندوق
+            const grossSalary = baseSalary + bonuses + overtimeAmount - deductions - absenceAmount;
             
-            // حساب صافي الراتب
-            const netSalary = baseSalary + bonuses + overtimeAmount - deductions - absenceAmount - employeeAdvances;
-            
-            return sum + netSalary;
+            return sum + grossSalary;
         }, 0) : 0;
 
         // حساب الصندوق: الإيرادات - (المصروفات + السلف + المعلقة + الرواتب المدفوعة)
