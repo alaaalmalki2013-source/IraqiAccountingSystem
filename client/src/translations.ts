@@ -18,6 +18,7 @@ export const translations = {
     expenses: 'الصرفيات',
     advances: 'السلف',
     suspended: 'المبالغ المعلقة',
+    pendingExpenses: 'الصرفيات المعلقة',
     employees: 'الموظفين',
     payroll: 'الرواتب',
     inventoryEntry: 'الإدخال المخزني',
@@ -119,6 +120,22 @@ export const translations = {
     selectEmployee: 'اختر الموظف',
     enterReason: 'أدخل السبب',
     noAdvances: 'لا توجد سلف مسجلة حتى الآن',
+    
+    // Pending Expenses Page
+    addPendingExpense: 'إضافة صرفية معلقة',
+    editPendingExpense: 'تعديل الصرفية المعلقة',
+    expenseType: 'نوع الصرف',
+    selectExpenseType: 'اختر نوع الصرف',
+    typeExpense: 'صرفية',
+    typeAdvance: 'سلفة',
+    approve: 'موافقة',
+    approveAndAdd: 'موافقة وإضافة',
+    cancelRequest: 'إلغاء الطلب',
+    noPendingExpenses: 'لا توجد صرفيات معلقة',
+    totalPendingExpenses: 'مجموع الصرفيات المعلقة',
+    totalPendingAdvances: 'مجموع السلف المعلقة',
+    filterByExpenseType: 'فلترة حسب نوع الصرف',
+    pendingReview: 'قيد المراجعة',
     
     // Employees Page
     addEmployee: 'إضافة موظف جديد',
