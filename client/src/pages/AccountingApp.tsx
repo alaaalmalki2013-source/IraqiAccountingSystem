@@ -2592,6 +2592,54 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
         showToast(`تم دفع راتب ${employee.name} بنجاح!`, 'success');
     };
 
+    // دالة استرجاع الراتب
+    const handleRefundSalary = (employeeId) => {
+        const employee = data.employees.find(e => e.id === employeeId);
+        if (!employee) return;
+
+        const salaryData = calculateEmployeeSalary(employee, selectedMonth, selectedYear);
+        
+        if (!salaryData.isPaid) {
+            showToast('هذا الراتب غير مدفوع أصلاً!', 'warning');
+            return;
+        }
+
+        if (!window.confirm(`⚠️ هل أنت متأكد من استرجاع راتب ${employee.name}؟\n\nسيتم:\n- إرجاع المبلغ ${formatCurrencyDisplay(salaryData.netSalary)} إلى الصندوق\n- تغيير حالة الراتب إلى "غير مدفوع"`)) {
+            return;
+        }
+
+        // البحث عن سجل الراتب
+        let payrollRecord = data.payroll.find(p => 
+            p.employeeId === employeeId && 
+            p.month === selectedMonth && 
+            p.year === selectedYear
+        );
+
+        if (!payrollRecord) {
+            showToast('خطأ: لم يتم العثور على سجل الراتب!', 'error');
+            return;
+        }
+
+        // تحديث حالة الراتب إلى غير مدفوع
+        payrollRecord.isPaid = false;
+        payrollRecord.paidDate = null;
+        handleDataAction('payroll', payrollRecord, false);
+
+        // إضافة إيراد لإرجاع المبلغ للصندوق
+        const refundRevenue = {
+            id: Date.now().toString(),
+            date: new Date().toISOString(),
+            amount: salaryData.netSalary.toString(),
+            category: 'استرجاع رواتب',
+            description: `استرجاع راتب ${employee.name} - ${monthNames[selectedMonth - 1]} ${selectedYear}`,
+            source: 'استرجاع راتب',
+            invoiceNumber: `REF-${Date.now()}`
+        };
+        handleDataAction('revenues', refundRevenue, true);
+
+        showToast(`تم استرجاع راتب ${employee.name} بنجاح! وأُضيف المبلغ ${formatCurrencyDisplay(salaryData.netSalary)} للصندوق.`, 'success');
+    };
+
     // دالة طباعة كشف الراتب
     const handlePrintPayslip = (employee, salaryData) => {
         setPayslipToPrint({ employee, salaryData });
@@ -2793,6 +2841,16 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                                                 >
                                                     {salaryData.isPaid ? 'تم الدفع ✓' : 'دفع'}
                                                 </button>
+                                                {salaryData.isPaid && (
+                                                    <button
+                                                        onClick={() => handleRefundSalary(emp.id)}
+                                                        className="px-3 py-1 bg-orange-600 dark:bg-orange-500 text-white rounded-lg hover:bg-orange-700 dark:hover:bg-orange-600 transition-colors"
+                                                        data-testid={`button-refund-salary-${emp.id}`}
+                                                        title="استرجاع الراتب وإرجاع المبلغ للصندوق"
+                                                    >
+                                                        استرجاع
+                                                    </button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>
