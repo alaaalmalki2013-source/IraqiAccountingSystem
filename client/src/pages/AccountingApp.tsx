@@ -886,19 +886,19 @@ const DataPageComponent = React.memo(({ 
             
             {/* **جديد:** كروت الفئات (Multiple Select) */}
             {categoryTotals.length > 0 && (
-                <div className="p-4 rounded-xl shadow-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700">
-                    <h3 className="text-lg font-bold text-gray-700 dark:text-gray-300 mb-3 flex items-center">
+                <div className="space-y-4">
+                    <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4 flex items-center gap-2">
                         <Filter className="w-5 h-5 ml-2" />
                         فلترة حسب فئة {type === 'revenue' ? 'الإيراد' : 'الصرف'}
                     </h3>
-                    <div className="flex flex-wrap gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                         {categoryTotals.map(cat => {
                             const customColor = CUSTOM_CATEGORY_COLORS[cat.category] || (cat.color === 'green' ? { bg: 'bg-green-50 dark:bg-green-900', text: 'text-green-800 dark:text-green-200', border: 'border-green-500' } : { bg: 'bg-red-50 dark:bg-red-900', text: 'text-red-800 dark:text-red-200', border: 'border-red-500' });
                             return (
                                 <div 
                                     key={cat.category}
                                     onClick={() => handleCategoryCardClick(cat.category)}
-                                    className={`p-3 rounded-xl shadow-md border-t-4 cursor-pointer transition transform hover:scale-[1.03] min-w-[120px] text-center
+                                    className={`p-4 rounded-2xl shadow-lg cursor-pointer transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl
                                         ${isFilterActive(cat.category) 
                                             ? `${customColor.bg.replace('-50', '-200').replace('-100', '-200')} ${customColor.border.replace('border-', 'ring-4 ring-opacity-60 ring-')} ${customColor.text.replace('-800', '-900')}`
                                             : `${customColor.bg} ${customColor.text} ${customColor.border}`
@@ -920,7 +920,7 @@ const DataPageComponent = React.memo(({ 
 
             <div className="bg-white dark:bg-gray-700 p-6 rounded-xl shadow-lg border border-teal-100 dark:border-teal-700">
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 items-center">
-                    <div className="col-span-1 text-xl font-bold p-4 rounded-xl bg-teal-50 dark:bg-teal-900/30 text-teal-800 dark:text-teal-200 flex flex-col items-center justify-center shadow-md border-t-4 border-teal-600 dark:border-teal-400">
+                    <div className="col-span-1 text-xl font-bold p-4 rounded-xl bg-teal-50 dark:bg-teal-900/30 text-teal-800 dark:text-teal-200 flex flex-col items-center justify-center shadow-md border-r-4 border-teal-600 dark:border-teal-400">
                         <Calculator className="w-6 h-6 mb-1" />
                         <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">المجموع المفلتر:</span>
                         <span className="font-extrabold text-2xl mt-1">
@@ -2884,7 +2884,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                     {/* الإحصائيات المحدثة */}
                     <div 
                         onClick={() => handleFilterClick('Pending')}
-                        className={`text-xl font-bold p-4 rounded-xl shadow-md border-t-4 cursor-pointer transition transform hover:scale-[1.03] min-w-[150px] flex flex-col items-center justify-center 
+                        className={`text-xl font-bold p-4 rounded-xl shadow-md border-r-4 cursor-pointer transition transform hover:scale-[1.03] min-w-[150px] flex flex-col items-center justify-center 
                         ${isFilterActive('Pending') ? 'bg-yellow-200 dark:bg-yellow-700 text-yellow-900 dark:text-yellow-200 border-yellow-800 ring-4 ring-yellow-400' : 'bg-yellow-50 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 border-yellow-600'}`}
                     >
                         <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 ml-1">معلقة:</span>
@@ -2893,7 +2893,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                     </div>
                     <div 
                         onClick={() => handleFilterClick('Dispatched')}
-                        className={`text-xl font-bold p-4 rounded-xl shadow-md border-t-4 cursor-pointer transition transform hover:scale-[1.03] min-w-[150px] flex flex-col items-center justify-center 
+                        className={`text-xl font-bold p-4 rounded-xl shadow-md border-r-4 cursor-pointer transition transform hover:scale-[1.03] min-w-[150px] flex flex-col items-center justify-center 
                          ${isFilterActive('Dispatched') ? 'bg-green-200 dark:bg-green-700 text-green-900 dark:text-green-200 border-green-800 ring-4 ring-green-400' : 'bg-green-50 dark:bg-green-900 text-green-800 dark:text-green-200 border-green-600'}`}
                     >
                          <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 ml-1">معتمدة كاش:</span>
@@ -2902,7 +2902,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                     </div>
                     <div 
                         onClick={() => handleFilterClick('CreditApproved')}
-                        className={`text-xl font-bold p-4 rounded-xl shadow-md border-t-4 cursor-pointer transition transform hover:scale-[1.03] min-w-[150px] flex flex-col items-center justify-center 
+                        className={`text-xl font-bold p-4 rounded-xl shadow-md border-r-4 cursor-pointer transition transform hover:scale-[1.03] min-w-[150px] flex flex-col items-center justify-center 
                          ${isFilterActive('CreditApproved') ? 'bg-blue-200 dark:bg-blue-700 text-blue-900 dark:text-blue-200 border-blue-800 ring-4 ring-blue-400' : 'bg-blue-50 dark:bg-blue-900 text-blue-800 dark:text-blue-200 border-blue-600'}`}
                     >
                          <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 ml-1">معتمدة آجل:</span>
@@ -2911,7 +2911,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                     </div>
                     <div 
                         onClick={() => handleFilterClick('Cancelled')}
-                        className={`text-xl font-bold p-4 rounded-xl shadow-md border-t-4 cursor-pointer transition transform hover:scale-[1.03] min-w-[150px] flex flex-col items-center justify-center 
+                        className={`text-xl font-bold p-4 rounded-xl shadow-md border-r-4 cursor-pointer transition transform hover:scale-[1.03] min-w-[150px] flex flex-col items-center justify-center 
                          ${isFilterActive('Cancelled') ? 'bg-red-200 dark:bg-red-700 text-red-900 dark:text-red-200 border-red-800 ring-4 ring-red-400' : 'bg-red-50 dark:bg-red-900 text-red-800 dark:text-red-200 border-red-600'}`}
                     >
                         <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 ml-1">ملغاة:</span>
