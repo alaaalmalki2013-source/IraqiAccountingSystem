@@ -1337,39 +1337,34 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
     };
 
     const handleApprove = (item) => {
-        // حذف العنصر من pendingExpenses أولاً
-        handleDelete('pendingExpenses', item.id, false);
-        
-        // التنقل للصفحة المناسبة مع الملء التلقائي
+        // إضافة الصرفية أو السلفة مباشرة إلى المجموعة المناسبة
         if (item.type === 'expense') {
-            setCurrentPage('expenses');
-            // تعيين البيانات للملء التلقائي في صفحة الصرفيات
-            setTimeout(() => {
-                setInitialExpenseState({
-                    date: item.date,
-                    amount: item.amount,
-                    category: item.category,
-                    description: item.description,
-                    vendor: item.vendor,
-                    representative: item.representative,
-                    invoiceImageUrl: item.invoiceImageUrl || ''
-                });
-            }, 100);
+            handleDataAction('expenses', {
+                date: item.date,
+                amount: item.amount,
+                category: item.category,
+                description: item.description,
+                vendor: item.vendor,
+                representative: item.representative,
+                invoiceImageUrl: item.invoiceImageUrl || ''
+            }, true);
         } else {
-            setCurrentPage('advances');
-            // تعيين البيانات للملء التلقائي في صفحة السلف
-            setTimeout(() => {
-                setInitialExpenseState({
-                    date: item.date,
-                    amount: item.amount,
-                    category: item.category,
-                    employeeId: item.employeeId,
-                    notes: item.notes || ''
-                });
-            }, 100);
+            handleDataAction('advances', {
+                date: item.date,
+                amount: item.amount,
+                category: item.category,
+                employeeId: item.employeeId,
+                notes: item.notes || ''
+            }, true);
         }
         
-        showToast(`تمت الموافقة على ${item.type === 'expense' ? 'الصرفية' : 'السلفة'}. يرجى مراجعة البيانات والحفظ.`, 'success');
+        // حذف العنصر من pendingExpenses
+        handleDelete('pendingExpenses', item.id, false);
+        
+        // تحديث البيانات
+        handleRefresh();
+        
+        showToast(`تمت الموافقة وإضافة ${item.type === 'expense' ? 'الصرفية' : 'السلفة'} بنجاح`, 'success');
     };
 
     const handleCancel = (item) => {
