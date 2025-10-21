@@ -1478,17 +1478,6 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                     <Clock className="w-8 h-8 text-amber-600 dark:text-amber-400" />
                     الصرفيات المعلقة
                 </h2>
-                <button
-                    onClick={() => {
-                        setCurrentItem(null);
-                        setIsModalOpen(true);
-                    }}
-                    className="px-6 py-3 bg-gradient-to-r from-teal-600 to-teal-700 dark:from-teal-500 dark:to-teal-600 text-white rounded-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 flex items-center gap-2 font-bold shadow-lg"
-                    data-testid="button-add-pending"
-                >
-                    <Plus className="w-5 h-5" />
-                    إضافة صرفية معلقة
-                </button>
             </div>
 
             {/* بطاقات الفلتر */}
@@ -1666,6 +1655,21 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                         </button>
                     </div>
                 </div>
+            </div>
+
+
+            <div className="flex justify-end items-center">
+                <button
+                    onClick={() => {
+                        setCurrentItem(null);
+                        setIsModalOpen(true);
+                    }}
+                    className="flex items-center px-6 py-3 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-xl hover:from-green-600 hover:to-teal-600 shadow-lg transition duration-200"
+                    data-testid="button-add-pending"
+                >
+                    <Plus className="w-5 h-5 ml-2" />
+                    إضافة صرفية معلقة
+                </button>
             </div>
 
             {/* الجدول */}
