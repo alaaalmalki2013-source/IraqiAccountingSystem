@@ -11,11 +11,13 @@ The system is built as a single-page application with a modern and professional 
 
 ### UI/UX Decisions
 -   **Language Support:** Bilingual system supporting Arabic and English with infrastructure for easy switching. Language preference saved in `localStorage`.
--   **Dark/Light Mode:** Fully functional dark mode with comprehensive support across all components. Toggle switch saves user preference.
+-   **Dark/Light Mode:** Fully functional dark mode with comprehensive support across all components. Toggle switch saves user preference. All date picker icons properly visible in dark mode.
 -   **Color Scheme:** Utilizes a modern color palette with primary, secondary, and accent colors, along with functional colors for revenues, expenses, and warnings. All colors include dark mode variants.
--   **Gradients:** Modern gradients are used for dashboard cards, sidebar, and active buttons.
--   **Typography & Icons:** Clear, colored icons and legible Arabic typography with proper contrast in both light and dark modes.
--   **Layout:** Collapsible sidebar with state saving.
+-   **Gradients:** Modern gradients are used for dashboard cards, sidebar, active buttons, and filter total cards.
+-   **Typography & Icons:** Clear, colored icons (including TrendingUp in category cards) and legible Arabic typography with proper contrast in both light and dark modes.
+-   **Layout:** Collapsible sidebar with state saving. Modern card designs with responsive grid layouts.
+-   **Category Cards:** Modern rectangular horizontal cards with responsive grid (1-4 columns), icons, hover effects (shadow & translate), and right borders for RTL support.
+-   **Filter Total Card:** Enhanced with gradient backgrounds, stronger shadows, and hover animations.
 -   **Accessibility:** Designed with a 4.5:1 contrast ratio for enhanced accessibility, adhering to Material Design 3 principles.
 
 ### Technical Implementations & Feature Specifications
