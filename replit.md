@@ -47,7 +47,14 @@ The system is built as a single-page application with a modern and professional 
 ### System Design Choices
 -   **Offline First:** Designed to function without an internet connection, storing all data in `localStorage`.
 -   **Modularity:** Codebase structured with utilities and types separated for better maintainability and performance using code splitting, `React.memo`, `useMemo`, and `useCallback`.
--   **Permissions System:** Robust user permissions for different functionalities.
+-   **Role-Based Permissions System:** Comprehensive 6-tier role system with pre-defined permissions and optional custom permissions:
+    -   **🛡️ الأدمن (Admin):** Full system access including admin page. Only one admin account exists (الأدمن الرئيسي).
+    -   **👔 السوبر فايزر (Supervisor):** Full access to all modules except admin page.
+    -   **📊 المدير العام (General Manager):** View-only access to all modules except settings.
+    -   **📦 أمين المخزن (Warehouse Keeper):** Full access to inventory, entry, and withdrawal modules. View-only by default.
+    -   **💼 المحاسب (Accountant):** View access to all modules + approve inventory entries and pending expenses.
+    -   **💰 الكاشير (Cashier):** Approve inventory withdrawals (which adds to pending expenses), manage suspended payments, limited inventory entry access.
+    -   **Security:** Cannot create new admin accounts. Cannot modify or delete the main admin account. Role change triggers automatic permission update.
 
 ## External Dependencies
 -   **Frontend:**

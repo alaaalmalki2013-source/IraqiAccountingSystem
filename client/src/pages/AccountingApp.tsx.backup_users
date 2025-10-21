@@ -4360,9 +4360,7 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
                 id: user.id,
                 email: user.email,
                 password: '', // لا نعرض الباسورد المحفوظة
-                role: user.role || USER_ROLES.CASHIER,
-                customPermissions: user.customPermissions || {},
-                permissions: user.permissions || ROLE_PERMISSIONS[user.role || USER_ROLES.CASHIER]
+                permissions: user.permissions
             });
         } else {
              setCurrentUser(null);
@@ -4371,9 +4369,7 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
                 id: crypto.randomUUID(),
                 email: '',
                 password: '',
-                role: USER_ROLES.CASHIER,
-                permissions: ROLE_PERMISSIONS[USER_ROLES.CASHIER],
-                customPermissions: {}
+                permissions: BASE_PERMISSIONS
              });
         }
         setIsUserModalOpen(true);
@@ -4381,34 +4377,18 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
 
     const handleUserFormSubmit = (e) => {
         e.preventDefault();
-        if (!userForm.username.trim() || !userForm.email.trim()) {
-            showToast('يجب إدخال الاسم والبريد الإلكتروني.', 'error');
+        if (!userForm.username.trim() || !userForm.email.trim() || !userForm.password.trim()) {
+            showToast('يجب إدخال الاسم والبريد وكلمة المرور.', 'error');
             return;
-        }
-
-        // التحقق من كلمة المرور عند إضافة مستخدم جديد فقط
-        if (!currentUser && !userForm.password.trim()) {
-            showToast('يجب إدخال كلمة المرور للمستخدم الجديد.', 'error');
-            return;
-        }
-
-        // منع إنشاء حساب أدمن جديد
-        if (!currentUser && userForm.role === USER_ROLES.ADMIN) {
-            showToast('لا يمكن إنشاء حساب أدمن جديد. يمكن فقط تعديل الحسابات الموجودة.', 'error');
-            return;
-        }
+        }
 
         const userToSave = {
             ...userForm,
             // ضمان وجود صلاحية الرؤية دائما للوحة المعلومات
-            // دمج الصلاحيات الأساسية مع الصلاحيات المخصصة
-            role: userForm.role || USER_ROLES.CASHIER,
-            customPermissions: userForm.customPermissions || {},
-            permissions: {
-                ...ROLE_PERMISSIONS[userForm.role || USER_ROLES.CASHIER],
-                ...userForm.customPermissions,
-                dashboard: { view: true }
-            }
+            permissions: {
+                ...userForm.permissions,
+                dashboard: { view: true },
+            }
         };
 
         handleSettingChange(prev => {
@@ -4624,52 +4604,33 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
                                 <tr>
                                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase">اسم المستخدم</th>
                                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase">البريد الإلكتروني</th>
-                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase">الدور الوظيفي</th>
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase">الصلاحيات الأساسية</th>
                                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase">الإجراءات</th>
                                 </tr>
                             </thead>
-                            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
-                                {settings.users.map(user => (
-                                    <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold">{user.username}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{user.email}</td>
-                                        <td className="px-6 py-4 text-sm">
-                                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${
-                                                user.role === USER_ROLES.ADMIN ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' :
-                                                user.role === USER_ROLES.SUPERVISOR ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300' :
-                                                user.role === USER_ROLES.GENERAL_MANAGER ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' :
-                                                user.role === USER_ROLES.WAREHOUSE_KEEPER ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
-                                                user.role === USER_ROLES.ACCOUNTANT ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300' :
-                                                user.role === USER_ROLES.CASHIER ? 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300' :
-                                                'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300'
-                                            }`}>
-                                                {ROLE_LABELS[user.role] || 'غير محدد'}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                            <div className="flex space-x-3 space-x-reverse">
-                                                <button 
-                                                    onClick={() => openUserModal(user)} 
-                                                    className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300" 
-                                                    title="تعديل الصلاحيات"
-                                                    data-testid={`button-edit-user-${user.id}`}
-                                                >
-                                                    <Edit className="w-5 h-5" />
-                                                </button>
-                                                <button 
-                                                    onClick={() => handleDeleteUser(user.id)} 
-                                                    className={`${user.role === USER_ROLES.ADMIN ? 'text-gray-400 cursor-not-allowed' : 'text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300'}`}
-                                                    title={user.role === USER_ROLES.ADMIN ? 'لا يمكن حذف الأدمن' : 'حذف المستخدم'}
-                                                    disabled={user.role === USER_ROLES.ADMIN}
-                                                    data-testid={`button-delete-user-${user.id}`}
-                                                >
-                                                    <Trash2 className="w-5 h-5" />
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
+                            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
+                                {settings.users.map(user => (
+                                    <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold">{user.username}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{user.email}</td>
+                                        <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
+                                            {user.permissions.revenues?.view ? 'إيرادات، ' : ''}
+                                            {user.permissions.expenses?.view ? 'صرفيات، ' : ''}
+                                            {user.permissions.inventoryEntry?.view ? 'إدخال مخزني' : ''}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                            <div className="flex space-x-3 space-x-reverse">
+                                                <button onClick={() => openUserModal(user)} className="text-indigo-600 hover:text-indigo-900" title="تعديل الصلاحيات">
+                                                    <Edit className="w-5 h-5" />
+                                                </button>
+                                                <button onClick={() => handleDeleteUser(user.id)} className="text-red-600 hover:text-red-900" title="حذف المستخدم">
+                                                    <Trash2 className="w-5 h-5" />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
                         </table>
                     </div>
                 </div>
@@ -4708,84 +4669,8 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
                                 required={!currentUser} // مطلوبة فقط عند إنشاء مستخدم جديد
                             />
                         </div>
-                        
-                        {/* قسم اختيار الدور الوظيفي */}
-                        <div className="p-6 rounded-xl bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-900/30 dark:to-indigo-900/30 border-2 border-purple-300 dark:border-purple-700">
-                            <div className="flex items-center gap-3 mb-4">
-                                <Shield className="w-6 h-6 text-purple-600 dark:text-purple-400" />
-                                <h4 className="text-xl font-bold text-purple-800 dark:text-purple-200">اختيار الدور الوظيفي</h4>
-                            </div>
-                            
-                            <div className="space-y-4">
-                                <div className="flex flex-col space-y-2">
-                                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">الدور الوظيفي</label>
-                                    <select
-                                        value={userForm.role}
-                                        onChange={(e) => {
-                                            const newRole = e.target.value;
-                                            
-                                            // منع تغيير دور الأدمن الموجود
-                                            if (currentUser && currentUser.role === USER_ROLES.ADMIN) {
-                                                showToast('لا يمكن تغيير دور حساب الأدمن الموجود.', 'error');
-                                                return;
-                                            }
-                                            
-                                            // منع اختيار Admin للمستخدمين الجدد
-                                            if (!currentUser && newRole === USER_ROLES.ADMIN) {
-                                                showToast('لا يمكن إنشاء حساب أدمن جديد.', 'error');
-                                                return;
-                                            }
-                                            
-                                            // تحديث الدور والصلاحيات تلقائياً
-                                            setUserForm(prev => ({
-                                                ...prev,
-                                                role: newRole,
-                                                permissions: ROLE_PERMISSIONS[newRole],
-                                                customPermissions: {}
-                                            }));
-                                        }}
-                                        disabled={currentUser && currentUser.role === USER_ROLES.ADMIN}
-                                        className="w-full p-3 border border-purple-300 dark:border-purple-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 focus:ring-purple-500 focus:border-purple-500 transition"
-                                        data-testid="select-user-role"
-                                    >
-                                        {Object.entries(ROLE_LABELS).map(([roleKey, roleLabel]) => (
-                                            <option 
-                                                key={roleKey} 
-                                                value={roleKey}
-                                                disabled={!currentUser && roleKey === USER_ROLES.ADMIN}
-                                            >
-                                                {roleLabel} {!currentUser && roleKey === USER_ROLES.ADMIN ? '(غير متاح للمستخدمين الجدد)' : ''}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                                
-                                {/* رسالة تحذيرية للأدمن الموجود */}
-                                {currentUser && currentUser.role === USER_ROLES.ADMIN && (
-                                    <div className="flex items-start gap-2 p-3 bg-amber-100 dark:bg-amber-900/30 border border-amber-400 dark:border-amber-700 rounded-lg">
-                                        <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-                                        <p className="text-sm text-amber-800 dark:text-amber-200">
-                                            <strong>تنبيه:</strong> لا يمكن تغيير دور حساب الأدمن لأسباب أمنية.
-                                        </p>
-                                    </div>
-                                )}
-                                
-                                {/* عرض وصف الدور المختار */}
-                                {userForm.role && ROLE_DESCRIPTIONS[userForm.role] && (
-                                    <div className="p-4 bg-white/50 dark:bg-gray-800/50 rounded-lg border border-purple-200 dark:border-purple-700">
-                                        <div className="flex items-start gap-2">
-                                            <Info className="w-5 h-5 text-purple-600 dark:text-purple-400 flex-shrink-0 mt-0.5" />
-                                            <div>
-                                                <p className="text-sm font-semibold text-purple-800 dark:text-purple-200 mb-1">وصف الدور:</p>
-                                                <p className="text-sm text-gray-700 dark:text-gray-300">{ROLE_DESCRIPTIONS[userForm.role]}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
                         
-                        <h4 className="text-xl font-bold text-gray-700 dark:text-gray-300 border-b pb-2">الصلاحيات التفصيلية (تحدد تلقائياً حسب الدور)</h4>
+                        <h4 className="text-xl font-bold text-gray-700 dark:text-gray-300 border-b pb-2">تحديد الصلاحيات</h4>
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {availablePermissions.map(perm => (
