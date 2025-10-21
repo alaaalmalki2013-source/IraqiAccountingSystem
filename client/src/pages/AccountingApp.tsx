@@ -506,40 +506,10 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
         };
     }, [revenues, expenses, suspended, advances, employees, payroll]);
 
-    // بناء معادلات الإيرادات والصرفيات
-    const buildRevenueEquation = () => {
-        const categories = Object.keys(summaryData.revenueByCategory);
-        if (categories.length === 0) return null;
-        
-        const parts: Array<{type: string, text: string}> = [];
-        categories.forEach((category, idx) => {
-            if (idx > 0) parts.push({ type: 'operator', text: '+' });
-            parts.push({ type: 'value', text: formatCurrencyDisplay(summaryData.revenueByCategory[category]) });
-        });
-        parts.push({ type: 'operator', text: '=' });
-        parts.push({ type: 'total', text: formatCurrencyDisplay(summaryData.totalRevenues) });
-        return parts;
-    };
-    
-    const buildExpenseEquation = () => {
-        const categories = Object.keys(summaryData.expenseByCategory);
-        if (categories.length === 0) return null;
-        
-        const parts: Array<{type: string, text: string}> = [];
-        categories.forEach((category, idx) => {
-            if (idx > 0) parts.push({ type: 'operator', text: '+' });
-            parts.push({ type: 'value', text: formatCurrencyDisplay(summaryData.expenseByCategory[category]) });
-        });
-        parts.push({ type: 'operator', text: '=' });
-        parts.push({ type: 'total', text: formatCurrencyDisplay(summaryData.totalExpenses) });
-        return parts;
-    };
-
     const primaryCards = [
         { 
             title: t('totalRevenues'), 
             value: formatCurrencyDisplay(summaryData.totalRevenues), 
-            equation: buildRevenueEquation(),
             icon: TrendingUp, 
             color: 'text-emerald-600 dark:text-emerald-400', 
             bg: 'bg-gradient-to-br from-emerald-100 to-emerald-200 dark:from-emerald-950/50 dark:to-emerald-900/50',
@@ -549,7 +519,6 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
         { 
             title: t('totalExpenses'), 
             value: formatCurrencyDisplay(summaryData.totalExpenses), 
-            equation: buildExpenseEquation(),
             icon: TrendingDown, 
             color: 'text-rose-600 dark:text-rose-400', 
             bg: 'bg-gradient-to-br from-rose-100 to-rose-200 dark:from-rose-950/50 dark:to-rose-900/50',
@@ -653,28 +622,7 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
                         <div className="flex items-center justify-between">
                             <div className="space-y-1">
                                 <p className="text-lg font-semibold text-gray-600 dark:text-gray-400">{card.title}</p>
-                                <div className="flex flex-wrap items-center gap-2 text-base font-bold">
-                                    {card.equation ? (
-                                        <>
-                                            {card.equation.map((part, idx) => (
-                                                <span 
-                                                    key={idx} 
-                                                    className={
-                                                        part.type === 'total' 
-                                                            ? `text-3xl font-extrabold ${card.color}` 
-                                                            : part.type === 'value' 
-                                                                ? card.color 
-                                                                : 'text-gray-500 dark:text-gray-400'
-                                                    }
-                                                >
-                                                    {part.text}
-                                                </span>
-                                            ))}
-                                        </>
-                                    ) : (
-                                        <p className={`text-3xl font-extrabold ${card.color}`}>{card.value}</p>
-                                    )}
-                                </div>
+                                <p className={`text-3xl font-extrabold ${card.color}`}>{card.value}</p>
                             </div>
                             <div className={`p-4 rounded-2xl shadow-lg ${card.iconBg}`}>
                                 <card.icon className={`w-8 h-8 ${card.color}`} />
