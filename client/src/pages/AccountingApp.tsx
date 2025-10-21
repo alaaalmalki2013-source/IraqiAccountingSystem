@@ -1396,45 +1396,53 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
     };
 
     const handleApprove = (item) => {
-        // تحديث الحالة إلى "تم الصرف"
-        handleDataAction('pendingExpenses', { ...item, status: 'paid' }, false);
-        
-        // التنقل للصفحة المناسبة مع الملء التلقائي
-        if (item.type === 'expense') {
-            setCurrentPage('expenses');
-            // تعيين البيانات للملء التلقائي في صفحة الصرفيات
-            setTimeout(() => {
-                setInitialExpenseState({
-                    date: item.date,
-                    amount: item.amount,
-                    category: item.category,
-                    description: item.description || '',
-                    vendor: item.vendor || '',
-                    representative: item.representative || '',
-                    invoiceImageUrl: item.invoiceImageUrl || ''
-                });
-            }, 100);
-        } else {
-            setCurrentPage('advances');
-            // تعيين البيانات للملء التلقائي في صفحة السلف
-            setTimeout(() => {
-                setInitialExpenseState({
-                    date: item.date,
-                    amount: item.amount,
-                    category: item.category,
-                    employeeId: item.employeeId,
-                    notes: item.notes || ''
-                });
-            }, 100);
+        if (!window.confirm('هل أنت متأكد من الموافقة على هذا الطلب؟')) {
+            return;
         }
         
-        showToast(`تم تحويلك لصفحة ${item.type === 'expense' ? 'الصرفيات' : 'السلف'}. يرجى مراجعة البيانات والضغط على إضافة.`, 'success');
+        // إنشاء نسخة محدثة من البيانات
+        const updatedData = { ...data };
+        
+        // إضافة العنصر إلى الصرفيات أو السلف
+        if (item.type === 'expense') {
+            const expenseData = {
+                id: crypto.randomUUID(),
+                invoiceNumber: generateInvoiceNumber(),
+                date: item.date,
+                amount: item.amount,
+                category: item.category,
+                description: item.description || '',
+                vendor: item.vendor || '',
+                representative: item.representative || '',
+                invoiceImageUrl: item.invoiceImageUrl || ''
+            };
+            updatedData.expenses = [...updatedData.expenses, expenseData];
+        } else {
+            const advanceData = {
+                id: crypto.randomUUID(),
+                invoiceNumber: generateInvoiceNumber(),
+                date: item.date,
+                amount: item.amount,
+                category: item.category,
+                employeeId: item.employeeId,
+                notes: item.notes || ''
+            };
+            updatedData.advances = [...updatedData.advances, advanceData];
+        }
+        
+        // حذف العنصر من الصرفيات المعلقة
+        updatedData.pendingExpenses = updatedData.pendingExpenses.filter(p => p.id !== item.id);
+        
+        // حفظ البيانات المحدثة مرة واحدة
+        handleDataAction('___FULL_DATA_UPDATE___', updatedData, false);
+        
+        showToast(`تمت الموافقة وإضافة ${item.type === 'expense' ? 'الصرفية' : 'السلفة'} بنجاح!`, 'success');
     };
 
     const handleCancel = (item) => {
-        if (window.confirm('هل أنت متأكد من إلغاء هذا الطلب؟')) {
-            handleDataAction('pendingExpenses', { ...item, status: 'cancelled' }, false);
-            showToast('تم تغيير حالة الطلب إلى "ملغية"', 'success');
+        if (window.confirm('هل أنت متأكد من إلغاء وحذف هذا الطلب؟')) {
+            // حذف العنصر من الصرفيات المعلقة
+            handleDelete('pendingExpenses', item.id, true, true);
         }
     };
 
