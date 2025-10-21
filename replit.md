@@ -1,105 +1,167 @@
 # نظام المحاسبة العراقي - Iraqi Accounting System
 
-## Overview
-This project is a comprehensive Iraqi accounting system designed to manage revenues, expenses, inventory, employees, and payroll. It features a full Arabic RTL interface with a professional design, dark/light mode support, and aims to be a complete solution for financial management tailored for the Iraqi market. The system operates offline, storing data locally, and provides an intelligent AI assistant named "Alaa" specialized in guiding users through the system's functionalities.
+## نظرة عامة
 
-## User Preferences
-I prefer simple, clear language in explanations. I appreciate an iterative development approach. Please ask before making any major architectural changes or introducing new external dependencies. When implementing features, prioritize a modern, professional aesthetic with full RTL support and responsive design. Ensure the system remains functional offline. I prefer detailed explanations of new features and changes, especially regarding performance and code structure.
+نظام محاسبة عراقي متكامل مصمم لإدارة الإيرادات والمصروفات والمخزون والموظفين. يتميز النظام بواجهة عربية كاملة RTL مع تصميم احترافي.
 
-## System Architecture
-The system is built as a single-page application with a modern and professional UI/UX, supporting full RTL and responsive design.
+## المميزات الرئيسية
 
-### UI/UX Decisions
--   **Language Support:** Full Arabic RTL interface designed for the Iraqi market. System operates entirely in Arabic with proper RTL text direction.
--   **Dark/Light Mode:** Fully functional dark mode with comprehensive support across all components. Toggle switch saves user preference.
--   **Color Scheme:** Utilizes a modern color palette with primary, secondary, and accent colors, along with functional colors for revenues, expenses, and warnings. All colors include dark mode variants.
--   **Gradients:** Modern gradients are used for dashboard cards, sidebar, and active buttons.
--   **Typography & Icons:** Clear, colored icons and legible Arabic typography with proper contrast in both light and dark modes.
--   **Layout:** Collapsible sidebar with state saving.
--   **Accessibility:** Designed with a 4.5:1 contrast ratio for enhanced accessibility, adhering to Material Design 3 principles.
+### 1. **لوحة التحكم (Dashboard)**
+- عرض الإحصائيات المالية الشاملة
+- رسوم بيانية تفاعلية للإيرادات والمصروفات
+- تنبيهات أعياد الميلاد القادمة للموظفين
+- ملخص الحالة المالية الحالية
 
-### Technical Implementations & Feature Specifications
--   **Dashboard:** Displays comprehensive financial statistics, interactive charts, and birthday alerts.
--   **Financial Management:** Includes modules for Revenues, Expenses, and Suspended Payments with features like categorization, filtering, search, print, and export.
--   **Employee Management:** Covers Employees (database, birthday tracking, basic salary), Advances (manage various categories of advances, track payments, print vouchers), and Payroll (comprehensive table with salary breakdown, bonuses, deductions, absences, overtime, net salary calculation, payslip printing).
--   **Inventory Management:** Features Inventory Entry (purchase invoice entry, item modification, cash/credit approval, status tracking), Inventory (material database, barcode generation, stock tracking, expenditure tracking, purchase history), and **Inventory Dispatch** (استخراج مخزني - employee material dispatch tracking with autocomplete validation, automatic inventory deduction, and comprehensive history).
--   **Settings:** Manages categories (revenues, expenses, advances), departments, job titles, vendors, representatives, user permissions, and company details.
--   **AI Assistant "Alaa":** A GPT-5-mini powered intelligent assistant integrated into the system, specialized in guiding users on system functionalities, providing accurate and context-aware responses in Arabic.
+### 2. **إدارة الإيرادات (Revenues)**
+- إضافة وتعديل وحذف الإيرادات
+- تصنيف الإيرادات حسب الفئات
+- فلترة متقدمة حسب التاريخ والفئة
+- بحث شامل يدعم الأرقام العربية
+- طباعة وتصدير التقارير إلى CSV
 
-### System Design Choices
--   **Offline First:** Designed to function without an internet connection, storing all data in `localStorage`.
--   **Modularity:** Codebase structured with utilities and types separated for better maintainability and performance using code splitting, `React.memo`, `useMemo`, and `useCallback`.
--   **Permissions System:** Robust user permissions for different functionalities.
+### 3. **إدارة المصروفات (Expenses)**
+- تسجيل المصروفات مع تفاصيل الموردين والمندوبين
+- ربط المصروفات بالمشتريات المخزنية
+- نظام فواتير متقدم
+- طباعة سندات الصرف (80mm و A4)
 
-## External Dependencies
--   **Frontend:**
-    -   React: UI library.
-    -   Tailwind CSS: For styling.
-    -   Lucide React: For icons.
-    -   LocalStorage: For local data storage.
--   **Backend:**
-    -   Express.js: Web server.
-    -   TypeScript: Programming language.
-    -   OpenAI GPT-5 (via Replit AI Integrations): For the intelligent assistant "Alaa" (accessible via `/api/chat` REST API endpoint).
+### 4. **إدارة الموظفين (Employees)**
+- قاعدة بيانات كاملة للموظفين
+- حساب الرواتب مع خصم أيام الغياب
+- تتبع أعياد الميلاد
+- إدارة السلف والمعلقات
 
-## Recent Updates (October 20, 2025)
+### 5. **نظام السلف (Advances)**
+- إدارة السلف المالية للموظفين
+- تتبع المدفوعات والمستحقات
+- طباعة سندات السلف
 
-### New Feature: Inventory Dispatch Page (الاستخراج المخزني) ✅ COMPLETED
--   **Purpose:** Track and manage material dispatches to employees with automatic inventory deduction
--   **Key Features:**
-    -   Employee selection limited to existing employees only (autocomplete validation)
-    -   Department auto-populates from selected employee data
-    -   Material selection validates against existing inventory items only
-    -   Quantity validation ensures stock availability before dispatch
-    -   Automatic inventory stock deduction upon dispatch save
-    -   No pricing/cost information displayed (operational security requirement)
-    -   Comprehensive dispatch history table with search and filtering
-    -   Full details modal for each dispatch record
-    -   Delete functionality for dispatch records
-    -   Export and print capabilities
--   **Data Structure:**
-    -   New `dispatches` array in localStorage
-    -   Each dispatch: id, date, employeeName, department, items[], notes
-    -   Each item: id, materialName, quantity
--   **UI/UX:**
-    -   Packages icon in sidebar navigation
-    -   Full RTL support with proper Arabic alignment
-    -   Dark mode compatible with all color variants
-    -   Responsive design for all screen sizes
-    -   Autocomplete fields with validation feedback
--   **Technical Implementation:**
-    -   Added `Dispatch` and `DispatchItem` types to AccountingApp.tsx
-    -   Implemented dispatch management functions: save, delete, search, filter
-    -   Created reusable autocomplete components for employees and materials
-    -   Integrated with existing employee and inventory data structures
-    -   All template literals replaced with string concatenation for JSX compatibility
--   **Files Modified:**
-    -   `client/src/pages/AccountingApp.tsx`: Added complete dispatch page implementation
-    -   `replit.md`: Updated with new feature documentation
--   **Testing:** Full e2e test passed validating navigation, modals, table display, dark mode, and RTL support
+### 6. **المبالغ المعلقة (Suspended)**
+- تتبع المدفوعات المعلقة
+- إدارة الذمم والدي ون
 
-### System Cleanup - Bilingual Feature Removed ✅ COMPLETED
--   **Decision:** Removed bilingual (Arabic/English) feature per user request to avoid complexity and potential errors
--   **Changes Implemented:**
-    -   Deleted translation infrastructure files:
-        -   `client/src/contexts/LanguageContext.tsx` (deleted)
-        -   `client/src/translations.ts` (deleted)
-    -   Removed all `t()` translation function calls throughout the codebase
-    -   Replaced dynamic translations with static Arabic text
-    -   Removed `useLanguage()` hook usage and language toggle buttons
-    -   Removed `Languages` icon import from lucide-react
-    -   Fixed critical bugs:
-        -   Removed `t` prop from `EmployeePageComponent`, `InventoryPageComponent`, and `InventoryEntryComponent` component definitions
-        -   Removed `t={t}` prop passing in main `PageComponent` render
-        -   Removed obsolete "Language Hook" comment
-    -   System now operates exclusively in Arabic with hardcoded `dir="rtl"`
--   **Result:** Clean, simpler codebase focused solely on Arabic language support with no runtime errors
--   **Files Modified:**
-    -   `client/src/App.tsx`: Removed LanguageProvider wrapper
-    -   `client/src/pages/AccountingApp.tsx`: 
-        -   Removed all translation system references
-        -   Replaced ~80+ t() calls with direct Arabic text
-        -   Fixed component prop signatures to remove `t` parameter
-        -   Removed `t={t}` prop passing to PageComponent
-    -   `replit.md`: Updated documentation to reflect changes
--   **Testing:** Application verified working without errors after changes
+### 7. **الإدخال المخزني (Inventory Entry)**
+- إدخال فواتير المشتريات
+- اعتماد الفواتير (كاش أو آجل)
+- إلغاء الفواتير مع تسجيل السبب
+- تتبع حالات الفواتير (معلقة، معتمدة كاش، معتمدة آجل، ملغاة)
+
+### 8. **إدارة المخزون (Inventory)**
+- قاعدة بيانات كاملة للمواد
+- نظام باركود متكامل
+- تتبع سجل المشتريات لكل مادة
+- صرف المواد من المخزون
+- تتبع المخزون الحالي
+
+### 9. **الإعدادات (Settings)**
+- إدارة الفئات (إيرادات ومصروفات)
+- إدارة الأقسام والمناصب الوظيفية
+- إدارة الموردين والمندوبين
+- نظام صلاحيات المستخدمين
+- إعدادات الشركة (الاسم، الشعار)
+
+## التقنيات المستخدمة
+
+### Frontend
+- **React** - مكتبة واجهة المستخدم
+- **Tailwind CSS** - تصميم الواجهة
+- **Lucide React** - الأيقونات
+- **LocalStorage** - تخزين البيانات محلياً
+
+### Backend (قابل للتوسع)
+- **Express.js** - خادم الويب
+- **TypeScript** - لغة البرمجة
+
+## البنية المعمارية
+
+```
+client/
+  ├── src/
+  │   ├── pages/
+  │   │   └── AccountingApp.tsx  # المكون الرئيسي (3800+ سطر)
+  │   ├── App.tsx                # نقطة الدخول
+  │   ├── index.css              # التصميم الأساسي
+  │   └── ...
+  ├── index.html                 # HTML الرئيسي مع دعم العربية
+server/
+  ├── index.ts                   # خادم Express
+  └── ...
+```
+
+## المميزات التقنية
+
+### 1. **البحث الذكي**
+- دعم الأرقام العربية والإنجليزية
+- بحث شامل في جميع الحقول
+- تمييز النتائج المطابقة
+
+### 2. **الطباعة**
+- طباعة سندات الصرف (80mm للحرارية، A4للعادية)
+- طباعة التقارير الشاملة
+- معاينة قبل الطباعة
+
+### 3. **التصدير**
+- تصدير البيانات إلى CSV
+- دعم الترميز العربي (UTF-8 with BOM)
+
+### 4. **الواجهة RTL**
+- تصميم كامل من اليمين لليسار
+- خطوط عربية احترافية (Cairo, IBM Plex Arabic, Tajawal)
+- ألوان مخصصة للفئات
+
+### 5. **نظام الصلاحيات**
+- صلاحيات مفصلة لكل قسم
+- دعم مستخدمين متعددين
+- التحكم في الرؤية والإضافة والتعديل والحذف
+
+## كيفية الاستخدام
+
+### التشغيل المحلي
+
+```bash
+npm install
+npm run dev
+```
+
+التطبيق سيعمل على: `http://localhost:5000`
+
+### البيانات الافتراضية
+
+- المستخدم الافتراضي: `المدير العام`
+- كلمة المرور: `password`
+- يتضمن موظف تجريبي ومواد مخزنية افتراضية
+
+## الحالة الحالية
+
+- ✅ جميع المكونات الأساسية تعمل
+- ✅ التخزين المحلي (localStorage) نشط
+- ✅ الواجهة العربية الكاملة
+- ✅ نظام الطباعة والتصدير
+- ✅ البحث المتقدم
+- ✅ الإحصائيات والرسوم البيانية
+
+## التطوير المستقبلي
+
+1. **قاعدة بيانات PostgreSQL** - لحفظ البيانات بشكل دائم
+2. **نظام المصادقة** - Replit Auth لتسجيل الدخول الآمن
+3. **الإشعارات** - تنبيهات للعمليات الهامة
+4. **تطبيق الموبايل** - للوصول السريع
+5. **النسخ الاحتياطي التلقائي** - لحماية البيانات
+
+## الملاحظات المهمة
+
+- البيانات محفوظة في `localStorage` تحت المفتاح: `IRAQI_ACCOUNTING_DATA_V3_LOCAL`
+- يمكن تصدير/استيراد البيانات عبر نسخ localStorage
+- النظام مصمم للعمل بدون اتصال بالإنترنت
+
+## الدعم والمساعدة
+
+للحصول على المساعدة أو الإبلاغ عن مشاكل:
+- افتح الكونسول (F12) لرؤية أي أخطاء
+- تحقق من سجل الشبكة (Network)
+- راجع بيانات localStorage
+
+---
+
+آخر تحديث: 2025-10-19
+الإصدار: 3.0 Local
