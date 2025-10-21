@@ -2670,11 +2670,16 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                 </div>
             </div>
 
-            {/* كارتات مجاميع الرواتب */}
+            {/* كارتات مجاميع الرواتب - قابلة للضغط للفلترة */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {/* الكل */}
                 <div 
-                    className="bg-gradient-to-br from-teal-50 to-teal-100 dark:from-teal-950/50 dark:to-teal-900/50 p-6 rounded-2xl shadow-xl border-r-4 border-teal-500 dark:border-teal-400 hover:shadow-2xl transition-all duration-300 transform hover:scale-[1.02]"
+                    onClick={() => setStatusFilter('الكل')}
+                    className={`cursor-pointer p-6 rounded-2xl shadow-xl border-r-4 transition-all duration-300 transform hover:scale-[1.02] ${
+                        statusFilter === 'الكل'
+                            ? 'bg-gradient-to-br from-teal-100 to-teal-200 dark:from-teal-900 dark:to-teal-800 border-r-8 border-teal-600 dark:border-teal-300 shadow-2xl ring-4 ring-teal-300 dark:ring-teal-600'
+                            : 'bg-gradient-to-br from-teal-50 to-teal-100 dark:from-teal-950/50 dark:to-teal-900/50 border-teal-500 dark:border-teal-400 hover:shadow-2xl'
+                    }`}
                     data-testid="card-total-all"
                 >
                     <div className="flex items-center justify-between">
@@ -2692,7 +2697,12 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
 
                 {/* المدفوع */}
                 <div 
-                    className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950/50 dark:to-green-900/50 p-6 rounded-2xl shadow-xl border-r-4 border-green-500 dark:border-green-400 hover:shadow-2xl transition-all duration-300 transform hover:scale-[1.02]"
+                    onClick={() => setStatusFilter('مدفوعة')}
+                    className={`cursor-pointer p-6 rounded-2xl shadow-xl border-r-4 transition-all duration-300 transform hover:scale-[1.02] ${
+                        statusFilter === 'مدفوعة'
+                            ? 'bg-gradient-to-br from-green-100 to-green-200 dark:from-green-900 dark:to-green-800 border-r-8 border-green-600 dark:border-green-300 shadow-2xl ring-4 ring-green-300 dark:ring-green-600'
+                            : 'bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950/50 dark:to-green-900/50 border-green-500 dark:border-green-400 hover:shadow-2xl'
+                    }`}
                     data-testid="card-total-paid"
                 >
                     <div className="flex items-center justify-between">
@@ -2710,7 +2720,12 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
 
                 {/* الغير مدفوع */}
                 <div 
-                    className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950/50 dark:to-orange-900/50 p-6 rounded-2xl shadow-xl border-r-4 border-orange-500 dark:border-orange-400 hover:shadow-2xl transition-all duration-300 transform hover:scale-[1.02]"
+                    onClick={() => setStatusFilter('غير مدفوعة')}
+                    className={`cursor-pointer p-6 rounded-2xl shadow-xl border-r-4 transition-all duration-300 transform hover:scale-[1.02] ${
+                        statusFilter === 'غير مدفوعة'
+                            ? 'bg-gradient-to-br from-orange-100 to-orange-200 dark:from-orange-900 dark:to-orange-800 border-r-8 border-orange-600 dark:border-orange-300 shadow-2xl ring-4 ring-orange-300 dark:ring-orange-600'
+                            : 'bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950/50 dark:to-orange-900/50 border-orange-500 dark:border-orange-400 hover:shadow-2xl'
+                    }`}
                     data-testid="card-total-unpaid"
                 >
                     <div className="flex items-center justify-between">
@@ -2725,24 +2740,6 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                         </div>
                     </div>
                 </div>
-            </div>
-
-            {/* فلتر الحالة */}
-            <div className="flex flex-wrap gap-3">
-                {['الكل', 'مدفوعة', 'غير مدفوعة'].map(status => (
-                    <button
-                        key={status}
-                        onClick={() => setStatusFilter(status)}
-                        className={`px-6 py-2 rounded-xl font-semibold transition ${
-                            statusFilter === status
-                                ? 'bg-purple-600 text-white shadow-lg'
-                                : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                        }`}
-                        data-testid={`filter-${status}`}
-                    >
-                        {status}
-                    </button>
-                ))}
             </div>
 
             {/* البحث */}
