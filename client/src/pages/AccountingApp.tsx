@@ -1396,11 +1396,6 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
         }
     };
 
-    const handleStatusChange = (item, newStatus) => {
-        handleDataAction('pendingExpenses', { ...item, status: newStatus }, false);
-        showToast('تم تحديث الحالة بنجاح', 'success');
-    };
-
     const totalFilteredAmount = filteredList.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
 
     return (
@@ -1602,20 +1597,16 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                                             )}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                            <select
-                                                value={item.status || 'pending'}
-                                                onChange={(e) => handleStatusChange(item, e.target.value)}
-                                                className={`px-3 py-1 rounded-full text-xs font-semibold border-0 focus:ring-2
-                                                    ${item.status === 'pending' ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200' : ''}
-                                                    ${item.status === 'paid' ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' : ''}
-                                                    ${item.status === 'cancelled' ? 'bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200' : ''}
-                                                `}
-                                                data-testid={`select-status-${item.id}`}
-                                            >
-                                                <option value="pending">معلقة</option>
-                                                <option value="paid">تم الصرف</option>
-                                                <option value="cancelled">ملغية</option>
-                                            </select>
+                                            <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold shadow-sm
+                                                ${item.status === 'pending' ? 'bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-700' : ''}
+                                                ${item.status === 'paid' ? 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700' : ''}
+                                                ${item.status === 'cancelled' ? 'bg-rose-100 dark:bg-rose-900/50 text-rose-800 dark:text-rose-200 border border-rose-300 dark:border-rose-700' : ''}
+                                            `} data-testid={`status-badge-${item.id}`}>
+                                                {item.status === 'pending' && <Clock className="w-3 h-3" />}
+                                                {item.status === 'paid' && <CheckCircle className="w-3 h-3" />}
+                                                {item.status === 'cancelled' && <XCircle className="w-3 h-3" />}
+                                                {item.status === 'pending' ? 'معلقة' : item.status === 'paid' ? 'مصروفة' : 'ملغية'}
+                                            </span>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                                             {item.invoiceImageUrl ? (
@@ -1856,21 +1847,6 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                             </>
                         )}
 
-                        {/* حقل الحالة */}
-                        <div className="flex flex-col space-y-1 text-right">
-                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">حالة الصرفية</label>
-                            <select
-                                value={formState.status || 'pending'}
-                                onChange={(e) => setFormState({ ...formState, status: e.target.value })}
-                                className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500 transition duration-150 text-right"
-                                data-testid="select-status-form"
-                            >
-                                <option value="pending">معلقة</option>
-                                <option value="paid">تم الصرف</option>
-                                <option value="cancelled">ملغية</option>
-                            </select>
-                        </div>
-
                         {/* حقل رفع صورة الفاتورة */}
                         <div className="flex flex-col space-y-1 text-right">
                             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">صورة الفاتورة</label>
@@ -1968,12 +1944,15 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
 
                             <div className="col-span-2 sm:col-span-1">
                                 <p className="text-sm font-medium text-gray-600 dark:text-gray-400">الحالة</p>
-                                <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold
-                                    ${viewItem.status === 'pending' ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200' : ''}
-                                    ${viewItem.status === 'paid' ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' : ''}
-                                    ${viewItem.status === 'cancelled' ? 'bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200' : ''}
+                                <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-semibold shadow-sm
+                                    ${viewItem.status === 'pending' ? 'bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-700' : ''}
+                                    ${viewItem.status === 'paid' ? 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700' : ''}
+                                    ${viewItem.status === 'cancelled' ? 'bg-rose-100 dark:bg-rose-900/50 text-rose-800 dark:text-rose-200 border border-rose-300 dark:border-rose-700' : ''}
                                 `}>
-                                    {viewItem.status === 'pending' ? 'معلقة' : viewItem.status === 'paid' ? 'تم الصرف' : 'ملغية'}
+                                    {viewItem.status === 'pending' && <Clock className="w-4 h-4" />}
+                                    {viewItem.status === 'paid' && <CheckCircle className="w-4 h-4" />}
+                                    {viewItem.status === 'cancelled' && <XCircle className="w-4 h-4" />}
+                                    {viewItem.status === 'pending' ? 'معلقة' : viewItem.status === 'paid' ? 'مصروفة' : 'ملغية'}
                                 </span>
                             </div>
 
