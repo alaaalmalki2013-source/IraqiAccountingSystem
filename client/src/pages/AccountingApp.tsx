@@ -6627,8 +6627,8 @@ const AccountingApp = () => {
                         {!isSidebarCollapsed && <span className="text-lg">{isDarkMode ? t("lightMode") : t("darkMode")}</span>}
                     </button>
                     
-                    {/* زر تبديل اللغة */}
-                    <button
+                    {/* زر تبديل اللغة - مخفي */}
+                    {/* <button
                         onClick={toggleLanguage}
                         data-testid="button-toggle-language"
                         title={isSidebarCollapsed ? (language === 'ar' ? 'English' : 'العربية') : ''}
@@ -6636,7 +6636,7 @@ const AccountingApp = () => {
                     >
                         <Languages className={`w-5 h-5 ${!isSidebarCollapsed && "ml-3"}`} />
                         {!isSidebarCollapsed && <span className="text-lg">{t("languageSwitch")}</span>}
-                    </button>
+                    </button> */}
                 </nav>
             </div>
 
@@ -6652,9 +6652,10 @@ const AccountingApp = () => {
                         <button onClick={toggleDarkMode} className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 hover:scale-110 text-gray-700 dark:text-gray-200">
                             {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                         </button>
-                        <button onClick={toggleLanguage} data-testid="button-toggle-language-mobile" title={language === 'ar' ? 'English' : 'العربية'} className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 hover:scale-110 text-gray-700 dark:text-gray-200">
+                        {/* زر تبديل اللغة - مخفي */}
+                        {/* <button onClick={toggleLanguage} data-testid="button-toggle-language-mobile" title={language === 'ar' ? 'English' : 'العربية'} className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 hover:scale-110 text-gray-700 dark:text-gray-200">
                             <Languages className="w-5 h-5" />
-                        </button>
+                        </button> */}
                     </div>
                 </header>
 
