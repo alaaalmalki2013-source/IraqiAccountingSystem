@@ -790,15 +790,23 @@ const DataPageComponent = React.memo(({ 
         } : formState;
         
         // تحقق إضافي لحقول المصروفات
-        if (collectionName === 'expenses' && (!itemToSave.vendor || !itemToSave.representative)) {
-            showToast('يجب اختيار المورد والمندوب للمصروف.', 'error');
+        if (collectionName === 'expenses' && itemToSave.vendor && !itemToSave.representative) {
+            showToast('يجب اختيار المندوب عند اختيار المورد.', 'error');
             return;
         }
 
-        handleDataAction(collectionName, itemToSave, !currentItem);
-        setIsModalOpen(false);
-        setCurrentItem(null);
-    };
+
+        handleDataAction(collectionName, itemToSave, !currentItem);
+        
+        // إذا جاءت البيانات من الموافقة على صرفية معلقة، احذف الصرفية المعلقة
+        if (initialExpenseState?.pendingExpenseId && !currentItem) {
+            handleDelete('pendingExpenses', initialExpenseState.pendingExpenseId);
+            setInitialExpenseState(null);
+        }
+        
+        setIsModalOpen(false);
+        setCurrentItem(null);
+    };
 
     const openModal = (item = null) => {
         setCurrentItem(item); // Triggers re-run of useEffect above to set formState
@@ -1354,6 +1362,7 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
             // تعيين البيانات للملء التلقائي في صفحة الصرفيات
             setTimeout(() => {
                 setInitialExpenseState({
+                    pendingExpenseId: item.id,
                     date: item.date,
                     amount: item.amount,
                     category: item.category,
@@ -1368,6 +1377,7 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
             // تعيين البيانات للملء التلقائي في صفحة السلف
             setTimeout(() => {
                 setInitialExpenseState({
+                    pendingExpenseId: item.id,
                     date: item.date,
                     amount: item.amount,
                     category: item.category,
