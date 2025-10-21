@@ -2801,7 +2801,12 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                             filteredEmployees.map(emp => {
                                 const salaryData = calculateEmployeeSalary(emp, selectedMonth, selectedYear);
                                 return (
-                                    <tr key={emp.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                                    <tr 
+                                        key={emp.id} 
+                                        className="hover:bg-gray-50 dark:hover:bg-gray-700 transition cursor-pointer" 
+                                        onClick={() => { setCurrentEmployee(emp); setIsDetailsModalOpen(true); }}
+                                        data-testid={`row-employee-${emp.id}`}
+                                    >
                                         <td className="px-4 py-4 text-sm font-medium text-blue-600">{highlightText(emp.name, globalSearch)}</td>
                                         <td className="px-4 py-4 text-sm text-gray-500 dark:text-gray-400">{formatCurrencyDisplay(salaryData.baseSalary)}</td>
                                         <td className="px-4 py-4 text-sm text-green-600">+{formatCurrencyDisplay(salaryData.bonuses)}</td>
@@ -2817,19 +2822,13 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                                                 <span className="text-red-600 font-bold" data-testid={`status-unpaid-${emp.id}`}>✗ غير مستلم</span>
                                             )}
                                         </td>
-                                        <td className="px-4 py-4 text-sm">
+                                        <td className="px-4 py-4 text-sm" onClick={(e) => e.stopPropagation()}>
                                             <div className="flex space-x-2 space-x-reverse">
-                                                <button
-                                                    onClick={() => { setCurrentEmployee(emp); setIsDetailsModalOpen(true); }}
-                                                    className="px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                                                    data-testid={`button-details-${emp.id}`}
-                                                >
-                                                    <Eye className="w-4 h-4 inline" />
-                                                </button>
                                                 <button
                                                     onClick={() => handlePrintPayslip(emp, salaryData)}
                                                     className="px-3 py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
                                                     data-testid={`button-print-${emp.id}`}
+                                                    title="طباعة قسيمة الراتب"
                                                 >
                                                     <Printer className="w-4 h-4 inline" />
                                                 </button>
