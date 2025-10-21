@@ -4999,6 +4999,7 @@ const AccountingApp = () => {
         { key: 'employees', label: 'الموظفين', icon: Users, component: EmployeePageComponent, props: { handleRefresh } },
         { key: 'payroll', label: 'الرواتب', icon: Calculator, component: PayrollPageComponent, props: { handleRefresh } },
         { key: 'inventoryEntry', label: 'الإدخال المخزني', icon: ClipboardCheck, component: InventoryEntryComponent, props: { handleRefresh } },
+        { key: 'inventoryWithdrawal', label: 'الاستخراج المخزني', icon: LogOut, component: InventoryWithdrawalComponent, props: { handleRefresh, handleDelete, handleDataAction } },
         { key: 'inventory', label: 'المخزن والمواد', icon: Package, component: InventoryPageComponent, props: { handleRefresh, handleDataAction } },
         { key: 'settings', label: 'الإعدادات', icon: Settings, component: SettingsPage, props: { handleSettingsUpdate } },
     ];
