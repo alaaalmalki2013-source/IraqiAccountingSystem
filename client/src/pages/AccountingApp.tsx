@@ -918,9 +918,9 @@ const DataPageComponent = React.memo(({ 
             )}
 
 
-            <div className="bg-white dark:bg-gray-700 p-6 rounded-xl shadow-lg border border-teal-100 dark:border-teal-700">
+            <div className="bg-white dark:bg-gray-800/50 p-6 rounded-2xl shadow-xl border-2 border-gray-200 dark:border-gray-700">
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 items-center">
-                    <div className="col-span-1 text-xl font-bold p-4 rounded-xl bg-teal-50 dark:bg-teal-900/30 text-teal-800 dark:text-teal-200 flex flex-col items-center justify-center shadow-md border-r-4 border-teal-600 dark:border-teal-400">
+                    <div className="col-span-1 text-xl font-bold p-6 rounded-2xl bg-gradient-to-br from-teal-50 to-teal-100 dark:from-teal-900/40 dark:to-teal-800/30 text-teal-800 dark:text-teal-200 flex flex-col items-center justify-center shadow-xl border-r-4 border-teal-600 dark:border-teal-400 transition-all duration-300 hover:shadow-2xl hover:-translate-y-1">
                         <Calculator className="w-6 h-6 mb-1" />
                         <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">المجموع المفلتر:</span>
                         <span className="font-extrabold text-2xl mt-1">
