@@ -398,6 +398,50 @@
   }
 }
 
+/* ===== Mobile Responsive Improvements ===== */
+@media (max-width: 768px) {
+  /* تحسين الجداول على الموبايل */
+  table {
+    font-size: 0.875rem;
+  }
+  
+  table th,
+  table td {
+    padding: 0.5rem !important;
+  }
+  
+  /* إضافة مؤشر للتمرير الأفقي */
+  .overflow-x-auto::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 30px;
+    background: linear-gradient(to left, rgba(0,0,0,0.1), transparent);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  
+  .dark .overflow-x-auto::after {
+    background: linear-gradient(to left, rgba(255,255,255,0.1), transparent);
+  }
+  
+  /* تحسين الأزرار على الموبايل */
+  button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* تحسين حجم الـ Modal على الموبايل */
+  .modal-content {
+    max-width: 95vw !important;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+}
+
 /* ===== Print Styles ===== */
 @media print {
   @page {
