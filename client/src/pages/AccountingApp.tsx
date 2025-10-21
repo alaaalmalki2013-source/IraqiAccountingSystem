@@ -1636,23 +1636,25 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                                                     تعديل
                                                 </button>
                                                 {item.status === 'pending' && (
-                                                    <button
-                                                        onClick={() => handleApprove(item)}
-                                                        className="px-3 py-1 bg-green-600 dark:bg-green-500 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-600 transition-colors flex items-center gap-1 text-xs font-semibold"
-                                                        data-testid={`button-approve-${item.id}`}
-                                                    >
-                                                        <CheckCircle className="w-4 h-4" />
-                                                        موافقة
-                                                    </button>
+                                                    <>
+                                                        <button
+                                                            onClick={() => handleApprove(item)}
+                                                            className="px-3 py-1 bg-green-600 dark:bg-green-500 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-600 transition-colors flex items-center gap-1 text-xs font-semibold"
+                                                            data-testid={`button-approve-${item.id}`}
+                                                        >
+                                                            <CheckCircle className="w-4 h-4" />
+                                                            موافقة
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleCancel(item)}
+                                                            className="px-3 py-1 bg-red-600 dark:bg-red-500 text-white rounded-lg hover:bg-red-700 dark:hover:bg-red-600 transition-colors flex items-center gap-1 text-xs font-semibold"
+                                                            data-testid={`button-cancel-${item.id}`}
+                                                        >
+                                                            <XCircle className="w-4 h-4" />
+                                                            إلغاء
+                                                        </button>
+                                                    </>
                                                 )}
-                                                <button
-                                                    onClick={() => handleCancel(item)}
-                                                    className="px-3 py-1 bg-red-600 dark:bg-red-500 text-white rounded-lg hover:bg-red-700 dark:hover:bg-red-600 transition-colors flex items-center gap-1 text-xs font-semibold"
-                                                    data-testid={`button-cancel-${item.id}`}
-                                                >
-                                                    <XCircle className="w-4 h-4" />
-                                                    إلغاء
-                                                </button>
                                             </div>
                                         </td>
                                     </tr>
