@@ -1305,6 +1305,7 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
     const [selectedVendor, setSelectedVendor] = useState('');
     const [globalSearch, setGlobalSearch] = useState('');
     const [filterType, setFilterType] = useState('الكل');
+    const [filterStatus, setFilterStatus] = useState('pending'); // فلتر الحالة: pending, cancelled, all
     const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
     
     const initialRange = useMemo(() => getCurrentMonthRange(), []);
@@ -1338,8 +1339,13 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
     const filteredList = useMemo(() => {
         let list = data.pendingExpenses.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
         
-        // إظهار السجلات المعلقة فقط (إخفاء الملغاة والمصروفة)
-        list = list.filter(item => item.status === 'pending');
+        // فلتر الحالة
+        if (filterStatus === 'pending') {
+            list = list.filter(item => item.status === 'pending' || !item.status);
+        } else if (filterStatus === 'cancelled') {
+            list = list.filter(item => item.status === 'cancelled');
+        }
+        // إذا كان filterStatus === 'all' نعرض الكل
         
         if (filterDateFrom) list = list.filter(item => item.date.slice(0, 10) >= filterDateFrom);
         if (filterDateTo) list = list.filter(item => item.date.slice(0, 10) <= filterDateTo);
@@ -1363,7 +1369,7 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
             });
         }
         return list;
-    }, [data.pendingExpenses, data.employees, filterDateFrom, filterDateTo, filterType, globalSearch]);
+    }, [data.pendingExpenses, data.employees, filterDateFrom, filterDateTo, filterType, filterStatus, globalSearch]);
 
     const typeTotals = useMemo(() => {
         const totals = { expense: 0, advance: 0 };
@@ -1443,9 +1449,11 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
     };
 
     const handleCancel = (item) => {
-        if (window.confirm('هل أنت متأكد من إلغاء وحذف هذا الطلب؟')) {
-            // حذف العنصر من الصرفيات المعلقة
-            handleDelete('pendingExpenses', item.id, true, true);
+        if (window.confirm('هل أنت متأكد من إلغاء هذا الطلب؟')) {
+            // تغيير حالة العنصر إلى ملغي بدلاً من حذفه
+            const updatedItem = { ...item, status: 'cancelled' };
+            handleDataAction('pendingExpenses', updatedItem, false);
+            showToast('تم إلغاء الطلب بنجاح!', 'success');
         }
     };
 
@@ -1516,6 +1524,69 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                 </div>
             </div>
 
+            {/* فلتر الحالة */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <button
+                    onClick={() => setFilterStatus('pending')}
+                    className={`p-4 rounded-2xl shadow-lg transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl border-r-4
+                        ${filterStatus === 'pending' 
+                            ? 'bg-amber-200 dark:bg-amber-800 border-amber-600 ring-4 ring-amber-500 ring-opacity-60'
+                            : 'bg-amber-50 dark:bg-amber-900 border-amber-600'
+                        }
+                    `}
+                    data-testid="filter-status-pending"
+                >
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="flex-1 text-right">
+                            <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">الطلبات المعلقة</p>
+                        </div>
+                        <div className="p-2 rounded-lg bg-white/20 dark:bg-black/20">
+                            <Clock className="w-5 h-5 text-amber-800 dark:text-amber-200" />
+                        </div>
+                    </div>
+                </button>
+
+                <button
+                    onClick={() => setFilterStatus('cancelled')}
+                    className={`p-4 rounded-2xl shadow-lg transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl border-r-4
+                        ${filterStatus === 'cancelled' 
+                            ? 'bg-rose-200 dark:bg-rose-800 border-rose-600 ring-4 ring-rose-500 ring-opacity-60'
+                            : 'bg-rose-50 dark:bg-rose-900 border-rose-600'
+                        }
+                    `}
+                    data-testid="filter-status-cancelled"
+                >
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="flex-1 text-right">
+                            <p className="text-sm font-semibold text-rose-800 dark:text-rose-200">الطلبات الملغاة</p>
+                        </div>
+                        <div className="p-2 rounded-lg bg-white/20 dark:bg-black/20">
+                            <XCircle className="w-5 h-5 text-rose-800 dark:text-rose-200" />
+                        </div>
+                    </div>
+                </button>
+
+                <button
+                    onClick={() => setFilterStatus('all')}
+                    className={`p-4 rounded-2xl shadow-lg transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl border-r-4
+                        ${filterStatus === 'all' 
+                            ? 'bg-blue-200 dark:bg-blue-800 border-blue-600 ring-4 ring-blue-500 ring-opacity-60'
+                            : 'bg-blue-50 dark:bg-blue-900 border-blue-600'
+                        }
+                    `}
+                    data-testid="filter-status-all"
+                >
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="flex-1 text-right">
+                            <p className="text-sm font-semibold text-blue-800 dark:text-blue-200">جميع الطلبات</p>
+                        </div>
+                        <div className="p-2 rounded-lg bg-white/20 dark:bg-black/20">
+                            <List className="w-5 h-5 text-blue-800 dark:text-blue-200" />
+                        </div>
+                    </div>
+                </button>
+            </div>
+
             {/* بطاقة المجموع والفلاتر */}
             <div className="bg-white dark:bg-gray-800/50 p-6 rounded-2xl shadow-xl border-2 border-gray-200 dark:border-gray-700">
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 items-center">
@@ -1573,6 +1644,7 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                                 setFilterDateTo(initialRange.end);
                                 setGlobalSearch('');
                                 setFilterType('الكل');
+                                setFilterStatus('pending');
                             }}
                             className="flex items-center justify-center gap-2 px-4 py-3 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors duration-200 font-semibold"
                             data-testid="button-reset-filters"

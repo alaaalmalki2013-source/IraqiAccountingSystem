@@ -23,11 +23,13 @@ The system is built as a single-page application with a modern and professional 
 ### Technical Implementations & Feature Specifications
 -   **Dashboard:** Displays comprehensive financial statistics, interactive charts, and birthday alerts.
 -   **Financial Management:** Includes modules for Revenues, Expenses, Suspended Payments, and **Pending Expenses** (الصرفيات المعلقة) with features like categorization, filtering, search, print, and export.
-    -   **Pending Expenses (New):** Manager approval workflow for expenses and advances. Features include:
+    -   **Pending Expenses:** Manager approval workflow for expenses and advances. Features include:
         -   Dual filter cards showing separate totals for pending expenses and advances with modern horizontal design
         -   Type selection (expense/advance) in submission form
         -   Approval action that directly adds to respective collection (expenses/advances) and removes from pending list
-        -   Cancel action to remove from pending list without approval
+        -   **Cancel action changes status to 'cancelled' instead of deleting** - preserves records for audit trail
+        -   **Status filter:** Three filter buttons (Pending, Cancelled, All) to view different request states
+        -   Status badges showing pending (amber), approved (green), or cancelled (red) states
         -   Modern rectangular cards with gradients, icons (TrendingUp/Down), and RTL support
         -   Responsive grid layout (1-2 columns based on screen size)
 -   **Employee Management:** Covers Employees (database, birthday tracking, basic salary), Advances (manage various categories of advances, track payments, print vouchers), and Payroll (comprehensive table with salary breakdown, bonuses, deductions, absences, overtime, net salary calculation, payslip printing).
