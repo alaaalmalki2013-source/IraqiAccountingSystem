@@ -2,6 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
+/* إصلاح أيقونات التاريخ في الوضع الداكن */
+.dark input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+.dark input[type="date"]::-webkit-calendar-picker-indicator,
+.dark input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  cursor: pointer;
+}
+
+/* تحسين مظهر حقول التاريخ في الوضع الداكن */
+.dark input[type="datetime-local"],
+.dark input[type="date"],
+.dark input[type="time"] {
+  color-scheme: dark;
+}
+
 /* ===== MODERN DESIGN SYSTEM - Iraqi Accounting System ===== */
 
 /* LIGHT MODE - Modern & Vibrant */
