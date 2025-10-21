@@ -136,6 +136,14 @@ export const translations = {
     totalPendingAdvances: 'مجموع السلف المعلقة',
     filterByExpenseType: 'فلترة حسب نوع الصرف',
     pendingReview: 'قيد المراجعة',
+    pendingStatus: 'معلقة',
+    paidStatus: 'تم الصرف',
+    cancelledStatus: 'ملغية',
+    expenseStatus: 'حالة الصرفية',
+    selectStatus: 'اختر الحالة',
+    viewInvoiceImage: 'معاينة الفاتورة',
+    noInvoiceImage: 'لا توجد صورة',
+    uploadInvoiceImage: 'رفع صورة الفاتورة',
     
     // Employees Page
     addEmployee: 'إضافة موظف جديد',

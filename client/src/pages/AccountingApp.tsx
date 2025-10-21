@@ -8,6 +8,7 @@ import {
     Plus,
     X,
     Edit,
+    Edit2,
     Trash2,
     Briefcase,
     List,
@@ -49,7 +50,8 @@ import {
     Minimize2,
     Languages,
     Clock,
-    XCircle
+    XCircle,
+    FileImage
 } from 'lucide-react';
 
 // استيراد الثوابت والأنواع
@@ -1245,11 +1247,14 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
         vendor: '',
         representative: '',
         employeeId: '',
-        notes: ''
+        notes: '',
+        status: 'pending',
+        invoiceImageUrl: ''
     });
     const [selectedVendor, setSelectedVendor] = useState('');
     const [globalSearch, setGlobalSearch] = useState('');
     const [filterType, setFilterType] = useState('الكل');
+    const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
     
     const initialRange = useMemo(() => getCurrentMonthRange(), []);
     const [filterDateFrom, setFilterDateFrom] = useState(initialRange.start);
@@ -1271,7 +1276,9 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                 vendor: '',
                 representative: '',
                 employeeId: data.employees[0]?.id || '',
-                notes: ''
+                notes: '',
+                status: 'pending',
+                invoiceImageUrl: ''
             });
             setSelectedVendor('');
         }
@@ -1321,8 +1328,9 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
             vendor: selectedVendor
         } : formState;
         
-        if (formState.type === 'expense' && (!itemToSave.vendor || !itemToSave.representative)) {
-            showToast('يجب اختيار المورد والمندوب للصرفية.', 'error');
+        // vendor اختياري، لكن إذا تم اختياره، يجب اختيار representative
+        if (formState.type === 'expense' && selectedVendor && !itemToSave.representative) {
+            showToast('يجب اختيار المندوب عند اختيار المورد.', 'error');
             return;
         }
         
@@ -1337,41 +1345,51 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
     };
 
     const handleApprove = (item) => {
-        // إضافة الصرفية أو السلفة مباشرة إلى المجموعة المناسبة
+        // تحديث الحالة إلى "تم الصرف"
+        handleDataAction('pendingExpenses', { ...item, status: 'paid' }, false);
+        
+        // التنقل للصفحة المناسبة مع الملء التلقائي
         if (item.type === 'expense') {
-            handleDataAction('expenses', {
-                date: item.date,
-                amount: item.amount,
-                category: item.category,
-                description: item.description,
-                vendor: item.vendor,
-                representative: item.representative,
-                invoiceImageUrl: item.invoiceImageUrl || ''
-            }, true);
+            setCurrentPage('expenses');
+            // تعيين البيانات للملء التلقائي في صفحة الصرفيات
+            setTimeout(() => {
+                setInitialExpenseState({
+                    date: item.date,
+                    amount: item.amount,
+                    category: item.category,
+                    description: item.description || '',
+                    vendor: item.vendor || '',
+                    representative: item.representative || '',
+                    invoiceImageUrl: item.invoiceImageUrl || ''
+                });
+            }, 100);
         } else {
-            handleDataAction('advances', {
-                date: item.date,
-                amount: item.amount,
-                category: item.category,
-                employeeId: item.employeeId,
-                notes: item.notes || ''
-            }, true);
+            setCurrentPage('advances');
+            // تعيين البيانات للملء التلقائي في صفحة السلف
+            setTimeout(() => {
+                setInitialExpenseState({
+                    date: item.date,
+                    amount: item.amount,
+                    category: item.category,
+                    employeeId: item.employeeId,
+                    notes: item.notes || ''
+                });
+            }, 100);
         }
         
-        // حذف العنصر من pendingExpenses
-        handleDelete('pendingExpenses', item.id, false);
-        
-        // تحديث البيانات
-        handleRefresh();
-        
-        showToast(`تمت الموافقة وإضافة ${item.type === 'expense' ? 'الصرفية' : 'السلفة'} بنجاح`, 'success');
+        showToast(`تم تحويلك لصفحة ${item.type === 'expense' ? 'الصرفيات' : 'السلف'}. يرجى مراجعة البيانات والضغط على إضافة.`, 'success');
     };
 
     const handleCancel = (item) => {
         if (window.confirm('هل أنت متأكد من إلغاء هذا الطلب؟')) {
-            handleDelete('pendingExpenses', item.id);
-            showToast('تم إلغاء الطلب بنجاح', 'success');
+            handleDataAction('pendingExpenses', { ...item, status: 'cancelled' }, false);
+            showToast('تم تغيير حالة الطلب إلى "ملغية"', 'success');
         }
+    };
+
+    const handleStatusChange = (item, newStatus) => {
+        handleDataAction('pendingExpenses', { ...item, status: newStatus }, false);
+        showToast('تم تحديث الحالة بنجاح', 'success');
     };
 
     const totalFilteredAmount = filteredList.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
@@ -1519,13 +1537,15 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                             <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">الفئة</th>
                             <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">المبلغ</th>
                             <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">التفاصيل</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">الحالة</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">الفاتورة</th>
                             <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">الإجراءات</th>
                         </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
                         {filteredList.length === 0 ? (
                             <tr>
-                                <td colSpan={6} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                                <td colSpan={8} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
                                     لا توجد صرفيات معلقة
                                 </td>
                             </tr>
@@ -1558,7 +1578,7 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                                                 <div>
                                                     <p>{item.description}</p>
                                                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                                                        {item.vendor} - {item.representative}
+                                                        {item.vendor && item.representative ? `${item.vendor} - ${item.representative}` : 'بدون مورد'}
                                                     </p>
                                                 </div>
                                             ) : (
@@ -1569,15 +1589,58 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                                             )}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                            <select
+                                                value={item.status || 'pending'}
+                                                onChange={(e) => handleStatusChange(item, e.target.value)}
+                                                className={`px-3 py-1 rounded-full text-xs font-semibold border-0 focus:ring-2
+                                                    ${item.status === 'pending' ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200' : ''}
+                                                    ${item.status === 'paid' ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' : ''}
+                                                    ${item.status === 'cancelled' ? 'bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200' : ''}
+                                                `}
+                                                data-testid={`select-status-${item.id}`}
+                                            >
+                                                <option value="pending">معلقة</option>
+                                                <option value="paid">تم الصرف</option>
+                                                <option value="cancelled">ملغية</option>
+                                            </select>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                            {item.invoiceImageUrl ? (
+                                                <button
+                                                    onClick={() => setImagePreviewUrl(item.invoiceImageUrl)}
+                                                    className="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                                                    data-testid={`button-view-invoice-${item.id}`}
+                                                >
+                                                    <FileImage className="w-4 h-4" />
+                                                    معاينة
+                                                </button>
+                                            ) : (
+                                                <span className="text-gray-400 text-xs">لا توجد</span>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm">
                                             <div className="flex gap-2">
                                                 <button
-                                                    onClick={() => handleApprove(item)}
-                                                    className="px-3 py-1 bg-green-600 dark:bg-green-500 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-600 transition-colors flex items-center gap-1 text-xs font-semibold"
-                                                    data-testid={`button-approve-${item.id}`}
+                                                    onClick={() => {
+                                                        setCurrentItem(item);
+                                                        setIsModalOpen(true);
+                                                    }}
+                                                    className="px-3 py-1 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors flex items-center gap-1 text-xs font-semibold"
+                                                    data-testid={`button-edit-${item.id}`}
                                                 >
-                                                    <CheckCircle className="w-4 h-4" />
-                                                    موافقة
+                                                    <Edit2 className="w-4 h-4" />
+                                                    تعديل
                                                 </button>
+                                                {item.status === 'pending' && (
+                                                    <button
+                                                        onClick={() => handleApprove(item)}
+                                                        className="px-3 py-1 bg-green-600 dark:bg-green-500 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-600 transition-colors flex items-center gap-1 text-xs font-semibold"
+                                                        data-testid={`button-approve-${item.id}`}
+                                                    >
+                                                        <CheckCircle className="w-4 h-4" />
+                                                        موافقة
+                                                    </button>
+                                                )}
                                                 <button
                                                     onClick={() => handleCancel(item)}
                                                     className="px-3 py-1 bg-red-600 dark:bg-red-500 text-white rounded-lg hover:bg-red-700 dark:hover:bg-red-600 transition-colors flex items-center gap-1 text-xs font-semibold"
@@ -1637,45 +1700,53 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                         {formState.type === 'expense' ? (
                             <>
                                 <div className="flex flex-col space-y-1 text-right">
-                                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">الشركة الموردة</label>
+                                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        الشركة الموردة <span className="text-xs text-gray-500">(اختياري)</span>
+                                    </label>
                                     <select
                                         value={selectedVendor}
                                         onChange={(e) => {
                                             const newVendor = e.target.value;
                                             setSelectedVendor(newVendor);
-                                            const defaultRep = data.settings.representatives.find(r => r.vendor === newVendor)?.name || '';
-                                            setFormState(prev => ({ ...prev, representative: defaultRep }));
+                                            if (newVendor) {
+                                                const defaultRep = data.settings.representatives.find(r => r.vendor === newVendor)?.name || '';
+                                                setFormState(prev => ({ ...prev, vendor: newVendor, representative: defaultRep }));
+                                            } else {
+                                                setFormState(prev => ({ ...prev, vendor: '', representative: '' }));
+                                            }
                                         }}
-                                        required
                                         className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500 transition duration-150 text-right"
                                         data-testid="select-vendor"
                                     >
-                                        <option value="" disabled>اختر المورد</option>
+                                        <option value="">بدون مورد</option>
                                         {data.settings.vendors.map(vendor => (
                                             <option key={vendor} value={vendor}>{vendor}</option>
                                         ))}
                                     </select>
                                 </div>
 
-                                <div className="flex flex-col space-y-1 text-right">
-                                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">المندوب المسؤول</label>
-                                    <select
-                                        value={formState.representative || ''}
-                                        onChange={(e) => setFormState({ ...formState, representative: e.target.value })}
-                                        required
-                                        disabled={!selectedVendor}
-                                        className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500 transition duration-150 text-right"
-                                        data-testid="select-representative"
-                                    >
-                                        <option value="" disabled>اختر المندوب</option>
-                                        {data.settings.representatives
-                                            .filter(r => r.vendor === selectedVendor)
-                                            .map(rep => (
-                                                <option key={rep.name} value={rep.name}>{rep.name}</option>
-                                            ))
-                                        }
-                                    </select>
-                                </div>
+                                {selectedVendor && (
+                                    <div className="flex flex-col space-y-1 text-right">
+                                        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                            المندوب المسؤول <span className="text-red-500">*</span>
+                                        </label>
+                                        <select
+                                            value={formState.representative || ''}
+                                            onChange={(e) => setFormState({ ...formState, representative: e.target.value })}
+                                            required
+                                            className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500 transition duration-150 text-right"
+                                            data-testid="select-representative"
+                                        >
+                                            <option value="" disabled>اختر المندوب</option>
+                                            {data.settings.representatives
+                                                .filter(r => r.vendor === selectedVendor)
+                                                .map(rep => (
+                                                    <option key={rep.name} value={rep.name}>{rep.name}</option>
+                                                ))
+                                            }
+                                        </select>
+                                    </div>
+                                )}
 
                                 <div className="flex flex-col space-y-1 text-right">
                                     <label className="text-sm font-medium text-gray-700 dark:text-gray-300">فئة المصروف</label>
@@ -1772,11 +1843,72 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                             </>
                         )}
 
+                        {/* حقل الحالة */}
+                        <div className="flex flex-col space-y-1 text-right">
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">حالة الصرفية</label>
+                            <select
+                                value={formState.status || 'pending'}
+                                onChange={(e) => setFormState({ ...formState, status: e.target.value })}
+                                className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500 transition duration-150 text-right"
+                                data-testid="select-status-form"
+                            >
+                                <option value="pending">معلقة</option>
+                                <option value="paid">تم الصرف</option>
+                                <option value="cancelled">ملغية</option>
+                            </select>
+                        </div>
+
+                        {/* حقل رفع صورة الفاتورة */}
+                        <div className="flex flex-col space-y-1 text-right">
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">صورة الفاتورة</label>
+                            <input
+                                type="url"
+                                placeholder="أدخل رابط الصورة"
+                                value={formState.invoiceImageUrl || ''}
+                                onChange={(e) => setFormState({ ...formState, invoiceImageUrl: e.target.value })}
+                                className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500 transition duration-150 text-right"
+                                data-testid="input-invoice-image"
+                            />
+                            {formState.invoiceImageUrl && (
+                                <button
+                                    type="button"
+                                    onClick={() => setImagePreviewUrl(formState.invoiceImageUrl)}
+                                    className="text-blue-600 dark:text-blue-400 text-sm hover:underline flex items-center gap-1 justify-end mt-1"
+                                >
+                                    <FileImage className="w-4 h-4" />
+                                    معاينة الصورة
+                                </button>
+                            )}
+                        </div>
+
                         <ActionButton type="submit" className="w-full bg-teal-600 hover:bg-teal-700">
                             <Save className="w-5 h-5 ml-2" />
                             {currentItem ? 'حفظ التعديلات' : 'إضافة'}
                         </ActionButton>
                     </form>
+                </Modal>
+            )}
+
+            {/* Modal معاينة الصورة */}
+            {imagePreviewUrl && (
+                <Modal 
+                    title="معاينة صورة الفاتورة" 
+                    onClose={() => setImagePreviewUrl(null)}
+                >
+                    <div className="flex justify-center items-center p-4">
+                        <img 
+                            src={imagePreviewUrl} 
+                            alt="صورة الفاتورة" 
+                            className="max-w-full max-h-96 rounded-lg shadow-lg"
+                            onError={(e) => {
+                                e.target.style.display = 'none';
+                                e.target.nextSibling.style.display = 'block';
+                            }}
+                        />
+                        <div style={{display: 'none'}} className="text-red-600 text-center">
+                            فشل تحميل الصورة. يرجى التحقق من الرابط.
+                        </div>
+                    </div>
                 </Modal>
             )}
         </div>
