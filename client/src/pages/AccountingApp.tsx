@@ -1246,6 +1246,7 @@ const DataPageComponent = React.memo(({ 
 const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDelete, showToast, setCurrentPage, setInitialExpenseState, handleRefresh }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [currentItem, setCurrentItem] = useState(null);
+    const [viewItem, setViewItem] = useState(null);
     const [formState, setFormState] = useState({
         type: 'expense',
         date: getDefaultDateTime(),
@@ -1580,7 +1581,11 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
                                             {item.category}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900 dark:text-gray-100">
+                                        <td 
+                                            className="px-6 py-4 whitespace-nowrap text-sm font-bold text-blue-600 dark:text-blue-400 cursor-pointer hover:underline"
+                                            onClick={() => setViewItem(item)}
+                                            data-testid={`amount-${item.id}`}
+                                        >
                                             {formatCurrencyDisplay(item.amount)}
                                         </td>
                                         <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
@@ -1917,6 +1922,146 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                         />
                         <div style={{display: 'none'}} className="text-red-600 text-center">
                             فشل تحميل الصورة. يرجى التحقق من الرابط.
+                        </div>
+                    </div>
+                </Modal>
+            )}
+
+            {/* Modal معاينة التفاصيل */}
+            {viewItem && (
+                <Modal 
+                    title={`معاينة ${viewItem.type === 'expense' ? 'الصرفية' : 'السلفة'} المعلقة`}
+                    onClose={() => setViewItem(null)}
+                >
+                    <div className="space-y-4 p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-700 rounded-xl">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="col-span-2 sm:col-span-1">
+                                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">التاريخ</p>
+                                <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                                    {new Date(viewItem.date).toLocaleString('ar-IQ')}
+                                </p>
+                            </div>
+                            
+                            <div className="col-span-2 sm:col-span-1">
+                                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">النوع</p>
+                                <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold
+                                    ${viewItem.type === 'expense' 
+                                        ? 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200' 
+                                        : 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200'
+                                    }
+                                `}>
+                                    {viewItem.type === 'expense' ? 'صرفية' : 'سلفة'}
+                                </span>
+                            </div>
+
+                            <div className="col-span-2 sm:col-span-1">
+                                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">المبلغ</p>
+                                <p className="text-2xl font-extrabold text-teal-600 dark:text-teal-400">
+                                    {formatCurrencyDisplay(viewItem.amount)}
+                                </p>
+                            </div>
+
+                            <div className="col-span-2 sm:col-span-1">
+                                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">الفئة</p>
+                                <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                                    {viewItem.category}
+                                </p>
+                            </div>
+
+                            <div className="col-span-2 sm:col-span-1">
+                                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">الحالة</p>
+                                <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold
+                                    ${viewItem.status === 'pending' ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200' : ''}
+                                    ${viewItem.status === 'paid' ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' : ''}
+                                    ${viewItem.status === 'cancelled' ? 'bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200' : ''}
+                                `}>
+                                    {viewItem.status === 'pending' ? 'معلقة' : viewItem.status === 'paid' ? 'تم الصرف' : 'ملغية'}
+                                </span>
+                            </div>
+
+                            {viewItem.type === 'expense' ? (
+                                <>
+                                    <div className="col-span-2">
+                                        <p className="text-sm font-medium text-gray-600 dark:text-gray-400">الوصف</p>
+                                        <p className="text-base text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 p-3 rounded-lg">
+                                            {viewItem.description || 'لا يوجد وصف'}
+                                        </p>
+                                    </div>
+
+                                    {viewItem.vendor && (
+                                        <>
+                                            <div className="col-span-2 sm:col-span-1">
+                                                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">الشركة الموردة</p>
+                                                <p className="text-base font-semibold text-gray-900 dark:text-gray-100">
+                                                    {viewItem.vendor}
+                                                </p>
+                                            </div>
+
+                                            <div className="col-span-2 sm:col-span-1">
+                                                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">المندوب المسؤول</p>
+                                                <p className="text-base font-semibold text-gray-900 dark:text-gray-100">
+                                                    {viewItem.representative || 'غير محدد'}
+                                                </p>
+                                            </div>
+                                        </>
+                                    )}
+
+                                    {viewItem.invoiceImageUrl && (
+                                        <div className="col-span-2">
+                                            <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">صورة الفاتورة</p>
+                                            <button
+                                                onClick={() => setImagePreviewUrl(viewItem.invoiceImageUrl)}
+                                                className="flex items-center gap-2 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
+                                            >
+                                                <FileImage className="w-5 h-5" />
+                                                عرض الصورة
+                                            </button>
+                                        </div>
+                                    )}
+                                </>
+                            ) : (
+                                <>
+                                    <div className="col-span-2">
+                                        <p className="text-sm font-medium text-gray-600 dark:text-gray-400">الموظف المعني</p>
+                                        <p className="text-base font-semibold text-gray-900 dark:text-gray-100">
+                                            {data.employees.find(e => e.id === viewItem.employeeId)?.name || 'غير محدد'}
+                                        </p>
+                                    </div>
+
+                                    <div className="col-span-2">
+                                        <p className="text-sm font-medium text-gray-600 dark:text-gray-400">ملاحظات</p>
+                                        <p className="text-base text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 p-3 rounded-lg">
+                                            {viewItem.notes || 'لا توجد ملاحظات'}
+                                        </p>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+
+                        <div className="flex gap-2 pt-4 border-t border-gray-300 dark:border-gray-600">
+                            <button
+                                onClick={() => {
+                                    setViewItem(null);
+                                    setCurrentItem(viewItem);
+                                    setIsModalOpen(true);
+                                }}
+                                className="flex-1 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+                            >
+                                <Edit2 className="w-4 h-4" />
+                                تعديل
+                            </button>
+                            {viewItem.status === 'pending' && (
+                                <button
+                                    onClick={() => {
+                                        setViewItem(null);
+                                        handleApprove(viewItem);
+                                    }}
+                                    className="flex-1 px-4 py-2 bg-green-600 dark:bg-green-500 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-600 transition-colors flex items-center justify-center gap-2"
+                                >
+                                    <CheckCircle className="w-4 h-4" />
+                                    موافقة
+                                </button>
+                            )}
                         </div>
                     </div>
                 </Modal>
