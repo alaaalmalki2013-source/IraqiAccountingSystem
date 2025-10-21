@@ -3980,8 +3980,6 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
         <div className="p-6 space-y-6 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl">
             <h2 className="text-4xl font-extrabold text-gray-800 dark:text-gray-200 border-b-2 border-teal-500 pb-3">إدارة الإدخال المخزني </h2>
 
-            <div className="flex flex-wrap gap-4 justify-between items-center">
-                 <ActionButton onClick={() => setIsNewInvoiceModalOpen(true)} className="bg-indigo-600 hover:bg-indigo-700">
                 <div className="flex flex-wrap gap-3">
                     {/* الإحصائيات المحدثة */}
                     <div 
@@ -4021,7 +4019,6 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                         <span className="text-xs text-gray-600 dark:text-gray-400">{formatCurrencyDisplay(stats.totalCancelled)}</span>
                     </div>
                 </div>
-            </div>
 
             <div className="bg-white dark:bg-gray-700 p-4 rounded-xl shadow-lg border border-teal-100 dark:border-teal-700 relative">
                  <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">البحث في الفواتير المعلقة</label>
