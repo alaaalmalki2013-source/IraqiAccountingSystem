@@ -1233,7 +1233,7 @@ const DataPageComponent = React.memo(({ 
 /**
  * 3.3. PendingExpenses Component - الصرفيات المعلقة
  */
-const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDelete, showToast, setCurrentPage, handleRefresh }) => {
+const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDelete, showToast, setCurrentPage, setInitialExpenseState, handleRefresh }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [currentItem, setCurrentItem] = useState(null);
     const [formState, setFormState] = useState({
@@ -1337,28 +1337,39 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
     };
 
     const handleApprove = (item) => {
+        // حذف العنصر من pendingExpenses أولاً
+        handleDelete('pendingExpenses', item.id, false);
+        
+        // التنقل للصفحة المناسبة مع الملء التلقائي
         if (item.type === 'expense') {
-            handleDataAction('expenses', {
-                date: item.date,
-                amount: item.amount,
-                category: item.category,
-                description: item.description,
-                vendor: item.vendor,
-                representative: item.representative,
-                invoiceImageUrl: item.invoiceImageUrl || ''
-            }, true);
+            setCurrentPage('expenses');
+            // تعيين البيانات للملء التلقائي في صفحة الصرفيات
+            setTimeout(() => {
+                setInitialExpenseState({
+                    date: item.date,
+                    amount: item.amount,
+                    category: item.category,
+                    description: item.description,
+                    vendor: item.vendor,
+                    representative: item.representative,
+                    invoiceImageUrl: item.invoiceImageUrl || ''
+                });
+            }, 100);
         } else {
-            handleDataAction('advances', {
-                date: item.date,
-                amount: item.amount,
-                category: item.category,
-                employeeId: item.employeeId,
-                notes: item.notes || ''
-            }, true);
+            setCurrentPage('advances');
+            // تعيين البيانات للملء التلقائي في صفحة السلف
+            setTimeout(() => {
+                setInitialExpenseState({
+                    date: item.date,
+                    amount: item.amount,
+                    category: item.category,
+                    employeeId: item.employeeId,
+                    notes: item.notes || ''
+                });
+            }, 100);
         }
         
-        handleDelete('pendingExpenses', item.id);
-        showToast(`تمت الموافقة على ${item.type === 'expense' ? 'الصرفية' : 'السلفة'} وإضافتها بنجاح`, 'success');
+        showToast(`تمت الموافقة على ${item.type === 'expense' ? 'الصرفية' : 'السلفة'}. يرجى مراجعة البيانات والحفظ.`, 'success');
     };
 
     const handleCancel = (item) => {
@@ -5475,7 +5486,7 @@ const AccountingApp = () => {
     const handleDelete = (collectionName, id, showMessage = true) => {
         // **تحديث: فحص صلاحيات الحذف**
         const permissionKey = navItems.find(i => i.key === collectionName)?.key;
-        if (permissionKey && !currentUser?.permissions[permissionName]?.delete && collectionName !== 'inventoryDispatches') {
+        if (permissionKey && !currentUser?.permissions[permissionKey]?.delete && collectionName !== 'inventoryDispatches') {
             showToast(`ليس لديك صلاحية حذف سجلات في قسم ${navItems.find(i => i.key === collectionName)?.label}.`, 'error');
             return;
         }
@@ -5593,7 +5604,7 @@ const AccountingApp = () => {
         { key: 'expenses', label: 'الصرفيات', icon: TrendingDown, component: DataPageComponent, props: { title: 'الصرفيات', type: 'expense', collectionName: 'expenses', categories: data.settings.expenseCategories, fields: [{ key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'category', label: 'فئة المصروف', type: 'select', required: true }, { key: 'description', label: 'الوصف المفصل', type: 'textarea', required: true }], handleRefresh } },
         { key: 'advances', label: 'السلف', icon: Coins, component: DataPageComponent, props: { title: 'السلف', type: 'advance', collectionName: 'advances', categories: data.settings.advanceCategories, fields: [{ key: 'employeeName', label: 'الموظف المعني', type: 'select', required: true }, { key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'category', label: 'فئة السلفة', type: 'select', required: true }, { key: 'notes', label: 'ملاحظات', type: 'textarea' }], handleRefresh } },
         { key: 'suspended', label: 'المعلقة (قيد التسوية)', icon: RotateCcw, component: DataPageComponent, props: { title: 'المعلقة (قيد التسوية)', type: 'suspended', collectionName: 'suspended', fields: [{ key: 'recipientName', label: 'اسم المستلم', required: true }, { key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'notes', label: 'ملاحظات', type: 'textarea' }], handleRefresh } },
-        { key: 'pendingExpenses', label: 'الصرفيات المعلقة', icon: Clock, component: PendingExpensesComponent, props: { handleRefresh, setCurrentPage } },
+        { key: 'pendingExpenses', label: 'الصرفيات المعلقة', icon: Clock, component: PendingExpensesComponent, props: { handleRefresh, setCurrentPage, setInitialExpenseState } },
         { key: 'employees', label: 'الموظفين', icon: Users, component: EmployeePageComponent, props: { handleRefresh } },
         { key: 'payroll', label: 'الرواتب', icon: Calculator, component: PayrollPageComponent, props: { handleRefresh } },
         { key: 'inventoryEntry', label: 'الإدخال المخزني', icon: ClipboardCheck, component: InventoryEntryComponent, props: { handleRefresh } },
