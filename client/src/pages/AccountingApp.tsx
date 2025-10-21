@@ -4313,13 +4313,26 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
             date: getDefaultDateTime(),
         };
 
-        // تحديث الاستخراج
-        handleDataAction('inventoryWithdrawals', withdrawalToSave, !withdrawalForm.id);
+        // **تحديث شامل لكلا المجموعتين في عملية واحدة**
+        const newData = { ...data };
+        
+        // تحديث الاستخراجات
+        if (!withdrawalForm.id) {
+            newData.inventoryWithdrawals = [...(newData.inventoryWithdrawals || []), withdrawalToSave];
+        } else {
+            const index = newData.inventoryWithdrawals.findIndex(w => w.id === withdrawalForm.id);
+            if (index !== -1) {
+                const updatedWithdrawals = [...newData.inventoryWithdrawals];
+                updatedWithdrawals[index] = withdrawalToSave;
+                newData.inventoryWithdrawals = updatedWithdrawals;
+            }
+        }
         
         // تحديث المخزون
-        setTimeout(() => {
-            handleDataAction('inventory', updatedInventory, true, true);
-        }, 100);
+        newData.inventory = updatedInventory;
+        
+        // حفظ كل البيانات مرة واحدة
+        handleDataAction('___FULL_DATA_UPDATE___', newData);
         
         setWithdrawalForm(getDefaultWithdrawalForm());
         setIsNewWithdrawalModalOpen(false);
@@ -4357,13 +4370,13 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
             }
         });
         
-        // حذف الاستخراج
-        handleDelete('inventoryWithdrawals', withdrawal.id, false);
+        // **تحديث شامل لكلا المجموعتين في عملية واحدة**
+        const newData = { ...data };
+        newData.inventoryWithdrawals = newData.inventoryWithdrawals.filter(w => w.id !== withdrawal.id);
+        newData.inventory = updatedInventory;
         
-        // تحديث المخزون
-        setTimeout(() => {
-            handleDataAction('inventory', updatedInventory, true, true);
-        }, 100);
+        // حفظ كل البيانات مرة واحدة
+        handleDataAction('___FULL_DATA_UPDATE___', newData);
         
         showToast(`تم حذف الاستخراج #${withdrawal.withdrawalNumber} وإعادة المواد للمخزون.`, 'success');
     };
@@ -4829,6 +4842,13 @@ const AccountingApp = () => {
 
     // 3. CRUD Logic
     const handleDataAction = (collectionName, item, isNew, overwrite = false) => {
+        // **دعم التحديث الشامل للبيانات**
+        if (collectionName === '___FULL_DATA_UPDATE___') {
+            saveData(item); // item هنا يحتوي على كل البيانات
+            setRefreshKey(prev => prev + 1);
+            return;
+        }
+        
         // فحص صلاحيات الإضافة/التعديل
         const permissionKey = navItems.find(i => i.key === collectionName)?.key;
         const requiredAction = isNew ? 'add' : 'edit';
