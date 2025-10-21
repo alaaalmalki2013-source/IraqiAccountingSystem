@@ -2618,19 +2618,8 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
         payrollRecord.paidDate = null;
         handleDataAction('payroll', payrollRecord, false);
 
-        // إضافة إيراد لإرجاع المبلغ للصندوق
-        const refundRevenue = {
-            id: Date.now().toString(),
-            date: new Date().toISOString(),
-            amount: salaryData.netSalary.toString(),
-            category: 'استرجاع رواتب',
-            description: `استرجاع راتب ${employee.name} - ${monthNames[selectedMonth - 1]} ${selectedYear}`,
-            source: 'استرجاع راتب',
-            invoiceNumber: `REF-${Date.now()}`
-        };
-        handleDataAction('revenues', refundRevenue, true);
-
-        showToast(`تم استرجاع راتب ${employee.name} بنجاح! وأُضيف المبلغ ${formatCurrencyDisplay(salaryData.netSalary)} للصندوق.`, 'success');
+        // المبلغ يرجع تلقائياً للصندوق عند تغيير الحالة إلى "غير مدفوع"
+        showToast(`تم استرجاع راتب ${employee.name} بنجاح! وأُرجع المبلغ ${formatCurrencyDisplay(salaryData.netSalary)} للصندوق.`, 'success');
     };
 
     // دالة طباعة كشف الراتب
