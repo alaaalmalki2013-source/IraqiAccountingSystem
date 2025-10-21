@@ -440,6 +440,76 @@
     max-height: 90vh;
     overflow-y: auto;
   }
+  
+  /* تحسين الكروت (Cards) على الموبايل */
+  .p-6 {
+    padding: 1rem !important;
+  }
+  
+  .p-4 {
+    padding: 0.75rem !important;
+  }
+  
+  .p-3 {
+    padding: 0.5rem !important;
+  }
+  
+  /* تحسين الفلاتر والنماذج */
+  .space-y-6 > * + * {
+    margin-top: 1rem !important;
+  }
+  
+  .space-y-5 > * + * {
+    margin-top: 0.875rem !important;
+  }
+  
+  .space-y-4 > * + * {
+    margin-top: 0.75rem !important;
+  }
+  
+  /* تحسين كروت الفئات والإحصائيات */
+  .min-w-\[120px\] {
+    min-width: 100px !important;
+  }
+  
+  .min-w-\[150px\] {
+    min-width: 120px !important;
+  }
+  
+  /* تقليل حجم النصوص الكبيرة على الموبايل */
+  .text-4xl {
+    font-size: 1.875rem !important;
+  }
+  
+  .text-3xl {
+    font-size: 1.5rem !important;
+  }
+  
+  .text-2xl {
+    font-size: 1.25rem !important;
+  }
+  
+  .text-xl {
+    font-size: 1.125rem !important;
+  }
+  
+  /* تحسين Grid على الموبايل */
+  .grid {
+    gap: 0.75rem !important;
+  }
+  
+  .gap-4 {
+    gap: 0.75rem !important;
+  }
+  
+  .gap-3 {
+    gap: 0.5rem !important;
+  }
+  
+  /* تحسين Flex Wrap */
+  .flex-wrap {
+    gap: 0.5rem !important;
+  }
 }
 
 /* ===== Print Styles ===== */
