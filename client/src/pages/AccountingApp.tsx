@@ -4313,8 +4313,25 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
             date: getDefaultDateTime(),
         };
 
-        handleDataAction('inventoryWithdrawals', withdrawalToSave, !withdrawalForm.id);
-        handleDataAction('inventory', updatedInventory, true, true);
+        // **الحل الصحيح: تحديث كلا المجموعتين في عملية واحدة**
+        const newData = { ...data };
+        
+        // تحديث inventoryWithdrawals
+        if (!withdrawalForm.id) {
+            newData.inventoryWithdrawals = [...newData.inventoryWithdrawals, withdrawalToSave];
+        } else {
+            const index = newData.inventoryWithdrawals.findIndex(w => w.id === withdrawalToSave.id);
+            if (index !== -1) {
+                newData.inventoryWithdrawals[index] = withdrawalToSave;
+            }
+        }
+        
+        // تحديث inventory
+        newData.inventory = updatedInventory;
+        
+        // حفظ مرة واحدة
+        saveData(newData);
+        setRefreshKey(prev => prev + 1);
         
         setWithdrawalForm(getDefaultWithdrawalForm());
         setIsNewWithdrawalModalOpen(false);
@@ -4348,8 +4365,13 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
             }
         });
         
-        handleDelete('inventoryWithdrawals', withdrawal.id);
-        handleDataAction('inventory', updatedInventory, true, true);
+        // **الحل الصحيح: تحديث كلا المجموعتين في عملية واحدة**
+        const newData = { ...data };
+        newData.inventoryWithdrawals = newData.inventoryWithdrawals.filter(w => w.id !== withdrawal.id);
+        newData.inventory = updatedInventory;
+        
+        saveData(newData);
+        setRefreshKey(prev => prev + 1);
         showToast(`تم حذف الاستخراج #${withdrawal.withdrawalNumber} وإعادة المواد للمخزون.`, 'success');
     };
     
