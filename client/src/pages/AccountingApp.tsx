@@ -586,36 +586,25 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
                     </ul>
                 </div>
             )}
-            
             
-            {/* كارت رصيد الصندوق بصيغة معادلة */}
-            <div className="p-8 rounded-2xl shadow-2xl bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-950/50 dark:to-blue-900/50 border-2 border-blue-500 dark:border-blue-400">
-                <h3 className="text-2xl font-bold text-blue-800 dark:text-blue-200 mb-4 flex items-center">
-                    <DollarSign className="w-7 h-7 ml-2" />
-                    { t("currentCashFund") }
-                </h3>
-                <div className="bg-white/80 dark:bg-gray-800/80 p-6 rounded-xl shadow-lg backdrop-blur-sm">
-                    <div className="flex flex-wrap items-center justify-center gap-3 text-lg md:text-xl font-bold text-gray-800 dark:text-gray-200">
-                        <span className="text-emerald-600 dark:text-emerald-400">{formatCurrencyDisplay(summaryData.totalRevenues)}</span>
-                        <span className="text-gray-500 dark:text-gray-400">-</span>
-                        <span className="text-rose-600 dark:text-rose-400">{formatCurrencyDisplay(summaryData.totalExpenses)}</span>
-                        <span className="text-gray-500 dark:text-gray-400">-</span>
-                        <span className="text-violet-600 dark:text-violet-400">{formatCurrencyDisplay(summaryData.totalAdvances)}</span>
-                        <span className="text-gray-500 dark:text-gray-400">-</span>
-                        <span className="text-teal-600 dark:text-teal-400">{formatCurrencyDisplay(summaryData.totalPaidSalaries)}</span>
-                        <span className="text-gray-500 dark:text-gray-400">-</span>
-                        <span className="text-amber-600 dark:text-amber-400">{formatCurrencyDisplay(summaryData.totalSuspended)}</span>
-                        <span className="text-gray-500 dark:text-gray-400">=</span>
-                        <span className={`text-2xl md:text-3xl font-extrabold ${summaryData.totalCashFund >= 0 ? 'text-blue-700 dark:text-blue-300' : 'text-rose-700 dark:text-rose-300'}`}>
-                            {formatCurrencyDisplay(summaryData.totalCashFund)}
-                        </span>
-                    </div>
-                    <div className="mt-4 text-sm text-gray-600 dark:text-gray-400 text-center">
-                        <p>الإيرادات - الصرفيات - السلف - الرواتب المدفوعة - المبالغ المعلقة = رصيد الصندوق</p>
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 border-b-2 border-gradient-to-r from-blue-500 to-purple-500 pb-2">{ t("financialSummary") }</h3>
+            
+            {/* كارت رصيد الصندوق */}
+            <div className="grid grid-cols-1 gap-6">
+                <div className="p-6 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-[1.02] border dark:border-gray-200/10 bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-950/50 dark:to-blue-900/50">
+                    <div className="flex items-center justify-between">
+                        <div className="space-y-1">
+                            <p className="text-lg font-semibold text-gray-600 dark:text-gray-400">{ t("currentCashFund") }</p>
+                            <p className={`text-3xl font-extrabold ${summaryData.totalCashFund >= 0 ? 'text-blue-700 dark:text-blue-300' : 'text-rose-700 dark:text-rose-300'}`}>
+                                {formatCurrencyDisplay(summaryData.totalCashFund)}
+                            </p>
+                        </div>
+                        <div className="p-4 rounded-2xl shadow-lg bg-blue-500/20 dark:bg-blue-500/30">
+                            <DollarSign className={`w-8 h-8 ${summaryData.totalCashFund >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-rose-600 dark:text-rose-400'}`} />
+                        </div>
                     </div>
                 </div>
             </div>
-            <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 border-b-2 border-gradient-to-r from-blue-500 to-purple-500 pb-2">{ t("financialSummary") }</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {primaryCards.map((card, index) => (
                     <div key={index} className={`p-6 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-[1.02] border dark:border-gray-200/10 ${card.bg}`}>
