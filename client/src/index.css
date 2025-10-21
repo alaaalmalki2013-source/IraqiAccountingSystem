@@ -2,84 +2,89 @@
 @tailwind components;
 @tailwind utilities;
 
-/* LIGHT MODE */
+/* ===== MODERN DESIGN SYSTEM - Iraqi Accounting System ===== */
+
+/* LIGHT MODE - Modern & Vibrant */
 :root {
   --button-outline: rgba(0,0,0, .10);
   --badge-outline: rgba(0,0,0, .05);
-
-  /* Automatic computation of border around primary / danger buttons */
-  --opaque-button-border-intensity: -8; /* In terms of percentages */
-
-  /* Backgrounds applied on top of other backgrounds when hovered/active */
+  --opaque-button-border-intensity: -8;
+  
+  /* Elevation system */
   --elevate-1: rgba(0,0,0, .03);
   --elevate-2: rgba(0,0,0, .08);
 
-  --background: 220 13% 97%;
-
-  --foreground: 220 13% 20%;
-
-  --border: 220 13% 89%;
-
+  /* ===== Modern Color Palette ===== */
+  
+  /* Primary - Vibrant Blue */
+  --primary: 220 90% 56%;
+  --primary-foreground: 0 0% 100%;
+  
+  /* Secondary - Purple */
+  --secondary: 280 65% 60%;
+  --secondary-foreground: 0 0% 100%;
+  
+  /* Accent - Turquoise */
+  --accent: 180 70% 50%;
+  --accent-foreground: 0 0% 100%;
+  
+  /* Functional Colors */
+  --revenue: 142 76% 36%;      /* Green for income */
+  --expense: 0 84% 60%;         /* Red for expenses */
+  --warning: 38 92% 50%;        /* Amber for warnings */
+  --info: 217 91% 60%;          /* Blue for info */
+  
+  /* Surfaces & Backgrounds */
+  --background: 220 15% 98%;
+  --foreground: 220 15% 15%;
+  
   --card: 0 0% 100%;
-
-  --card-foreground: 220 13% 20%;
-
+  --card-foreground: 220 15% 15%;
   --card-border: 220 13% 91%;
-
-  --sidebar: 220 13% 95%;
-
-  --sidebar-foreground: 220 13% 20%;
-
-  --sidebar-border: 220 13% 87%;
-
-  --sidebar-primary: 173 58% 45%;
-
-  --sidebar-primary-foreground: 173 58% 98%;
-
-  --sidebar-accent: 220 13% 89%;
-
-  --sidebar-accent-foreground: 220 13% 20%;
-
-  --sidebar-ring: 173 58% 45%;
-
-  --popover: 0 0% 98%;
-
-  --popover-foreground: 220 13% 20%;
-
-  --popover-border: 220 13% 88%;
-
-  --primary: 173 58% 45%;
-
-  --primary-foreground: 173 58% 98%;
-
-  --secondary: 220 13% 85%;
-
-  --secondary-foreground: 220 13% 20%;
-
+  
   --muted: 220 8% 90%;
-
   --muted-foreground: 220 13% 35%;
-
-  --accent: 220 10% 88%;
-
-  --accent-foreground: 220 13% 20%;
-
-  --destructive: 0 84% 50%;
-
-  --destructive-foreground: 0 84% 98%;
-
+  
+  /* Borders & Dividers */
+  --border: 220 13% 89%;
   --input: 220 13% 75%;
-  --ring: 173 58% 45%;
-  --chart-1: 173 76% 36%;
-  --chart-2: 217 91% 50%;
-  --chart-3: 38 92% 45%;
-  --chart-4: 280 65% 50%;
-  --chart-5: 142 71% 40%;
+  --ring: 220 90% 56%;
+  
+  /* Sidebar */
+  --sidebar: 220 13% 95%;
+  --sidebar-foreground: 220 13% 20%;
+  --sidebar-border: 220 13% 87%;
+  --sidebar-primary: 220 90% 56%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 220 13% 89%;
+  --sidebar-accent-foreground: 220 13% 20%;
+  --sidebar-ring: 220 90% 56%;
+  
+  /* Popover */
+  --popover: 0 0% 98%;
+  --popover-foreground: 220 13% 20%;
+  --popover-border: 220 13% 88%;
+  
+  /* Destructive */
+  --destructive: 0 84% 50%;
+  --destructive-foreground: 0 84% 98%;
+  
+  /* Chart Colors */
+  --chart-1: 220 90% 56%;       /* Primary Blue */
+  --chart-2: 280 65% 60%;       /* Purple */
+  --chart-3: 180 70% 50%;       /* Turquoise */
+  --chart-4: 142 76% 36%;       /* Green */
+  --chart-5: 38 92% 50%;        /* Amber */
 
-  --font-sans: 'Cairo', 'Noto Sans Arabic', 'Open Sans', sans-serif;
+  /* Typography */
+  --font-sans: 'Cairo', 'Noto Sans Arabic', 'IBM Plex Sans Arabic', sans-serif;
   --font-serif: Georgia, serif;
   --font-mono: 'Courier New', Menlo, monospace;
-  --radius: .5rem; /* 8px */
+  
+  /* Border Radius */
+  --radius: .5rem;
+  
+  /* Shadows - Enhanced for modern look */
   --shadow-2xs: 0px 1px 2px 0px hsl(220 13% 20% / 0.05);
   --shadow-xs: 0px 1px 3px 0px hsl(220 13% 20% / 0.08);
   --shadow-sm: 0px 2px 4px 0px hsl(220 13% 20% / 0.06), 0px 1px 2px -1px hsl(220 13% 20% / 0.08);
@@ -88,112 +93,103 @@
   --shadow-lg: 0px 10px 20px -4px hsl(220 13% 20% / 0.12), 0px 4px 8px -4px hsl(220 13% 20% / 0.08);
   --shadow-xl: 0px 20px 30px -6px hsl(220 13% 20% / 0.15), 0px 8px 12px -6px hsl(220 13% 20% / 0.10);
   --shadow-2xl: 0px 30px 50px -8px hsl(220 13% 20% / 0.20);
-  --tracking-normal: 0em;
-  --spacing: 0.25rem;
 
-  /* Automatically computed borders - intensity can be controlled by the user by the --opaque-button-border-intensity setting */
-
-  /* Fallback for older browsers */
-  --sidebar-primary-border: hsl(var(--sidebar-primary));
-  --sidebar-primary-border: hsl(from hsl(var(--sidebar-primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-
-  /* Fallback for older browsers */
-  --sidebar-accent-border: hsl(var(--sidebar-accent));
-  --sidebar-accent-border: hsl(from hsl(var(--sidebar-accent)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-
-  /* Fallback for older browsers */
+  /* Computed borders */
   --primary-border: hsl(var(--primary));
   --primary-border: hsl(from hsl(var(--primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-
-  /* Fallback for older browsers */
+  
   --secondary-border: hsl(var(--secondary));
   --secondary-border: hsl(from hsl(var(--secondary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-
-  /* Fallback for older browsers */
+  
   --muted-border: hsl(var(--muted));
   --muted-border: hsl(from hsl(var(--muted)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-
-  /* Fallback for older browsers */
+  
   --accent-border: hsl(var(--accent));
   --accent-border: hsl(from hsl(var(--accent)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-
-  /* Fallback for older browsers */
+  
   --destructive-border: hsl(var(--destructive));
   --destructive-border: hsl(from hsl(var(--destructive)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+  
+  --sidebar-primary-border: hsl(var(--sidebar-primary));
+  --sidebar-primary-border: hsl(from hsl(var(--sidebar-primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+  
+  --sidebar-accent-border: hsl(var(--sidebar-accent));
+  --sidebar-accent-border: hsl(from hsl(var(--sidebar-accent)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
 }
 
+/* DARK MODE - Modern & Sophisticated */
 .dark {
   --button-outline: rgba(255,255,255, .10);
   --badge-outline: rgba(255,255,255, .05);
-
-  --opaque-button-border-intensity: 9;  /* In terms of percentages */
-
-  /* Backgrounds applied on top of other backgrounds when hovered/active */
+  --opaque-button-border-intensity: 9;
+  
+  /* Elevation system */
   --elevate-1: rgba(255,255,255, .04);
   --elevate-2: rgba(255,255,255, .09);
 
-  --background: 220 13% 10%;
-
-  --foreground: 220 5% 92%;
-
-  --border: 220 10% 18%;
-
-  --card: 220 13% 13%;
-
-  --card-foreground: 220 5% 92%;
-
-  --card-border: 220 10% 20%;
-
-  --sidebar: 220 13% 16%;
-
-  --sidebar-foreground: 220 5% 92%;
-
-  --sidebar-border: 220 10% 23%;
-
-  --sidebar-primary: 173 58% 42%;
-
-  --sidebar-primary-foreground: 173 58% 98%;
-
-  --sidebar-accent: 220 12% 22%;
-
-  --sidebar-accent-foreground: 220 5% 92%;
-
-  --sidebar-ring: 173 58% 45%;
-
-  --popover: 220 13% 18%;
-
-  --popover-foreground: 220 5% 92%;
-
-  --popover-border: 220 10% 25%;
-
-  --primary: 173 58% 42%;
-
-  --primary-foreground: 173 58% 98%;
-
-  --secondary: 220 12% 25%;
-
-  --secondary-foreground: 220 5% 92%;
-
+  /* ===== Dark Mode Colors ===== */
+  
+  /* Primary - Brighter Blue for dark bg */
+  --primary: 220 85% 65%;
+  --primary-foreground: 220 15% 10%;
+  
+  /* Secondary - Lighter Purple */
+  --secondary: 280 60% 68%;
+  --secondary-foreground: 280 15% 10%;
+  
+  /* Accent - Brighter Turquoise */
+  --accent: 180 65% 58%;
+  --accent-foreground: 180 15% 10%;
+  
+  /* Functional Colors - Vibrant for dark mode */
+  --revenue: 142 70% 45%;
+  --expense: 0 78% 68%;
+  --warning: 38 88% 58%;
+  --info: 217 85% 68%;
+  
+  /* Surfaces & Backgrounds */
+  --background: 220 15% 8%;
+  --foreground: 0 0% 98%;
+  
+  --card: 220 12% 12%;
+  --card-foreground: 0 0% 98%;
+  --card-border: 220 10% 22%;
+  
   --muted: 220 10% 22%;
-
   --muted-foreground: 220 5% 70%;
-
-  --accent: 220 10% 24%;
-
-  --accent-foreground: 220 5% 92%;
-
-  --destructive: 0 84% 50%;
-
-  --destructive-foreground: 0 84% 98%;
-
+  
+  /* Borders & Dividers */
+  --border: 220 10% 18%;
   --input: 220 10% 35%;
-  --ring: 173 58% 45%;
-  --chart-1: 173 76% 55%;
-  --chart-2: 217 91% 65%;
-  --chart-3: 38 92% 60%;
-  --chart-4: 280 65% 65%;
-  --chart-5: 142 71% 55%;
+  --ring: 220 85% 65%;
+  
+  /* Sidebar */
+  --sidebar: 220 13% 16%;
+  --sidebar-foreground: 220 5% 92%;
+  --sidebar-border: 220 10% 23%;
+  --sidebar-primary: 220 85% 65%;
+  --sidebar-primary-foreground: 220 15% 10%;
+  --sidebar-accent: 220 12% 22%;
+  --sidebar-accent-foreground: 220 5% 92%;
+  --sidebar-ring: 220 85% 65%;
+  
+  /* Popover */
+  --popover: 220 13% 18%;
+  --popover-foreground: 220 5% 92%;
+  --popover-border: 220 10% 25%;
+  
+  /* Destructive */
+  --destructive: 0 84% 50%;
+  --destructive-foreground: 0 84% 98%;
+  
+  /* Chart Colors - Vibrant for dark mode */
+  --chart-1: 220 85% 65%;
+  --chart-2: 280 60% 68%;
+  --chart-3: 180 65% 58%;
+  --chart-4: 142 70% 45%;
+  --chart-5: 38 88% 58%;
 
+  /* Shadows - Enhanced with glow for dark mode */
   --shadow-2xs: 0px 1px 2px 0px hsl(220 13% 5% / 0.30);
   --shadow-xs: 0px 1px 3px 0px hsl(220 13% 5% / 0.40);
   --shadow-sm: 0px 2px 4px 0px hsl(220 13% 5% / 0.35), 0px 1px 2px -1px hsl(220 13% 5% / 0.40);
@@ -203,33 +199,27 @@
   --shadow-xl: 0px 20px 30px -6px hsl(220 13% 5% / 0.60), 0px 8px 12px -6px hsl(220 13% 5% / 0.45);
   --shadow-2xl: 0px 30px 50px -8px hsl(220 13% 5% / 0.70);
 
-  /* Fallback for older browsers */
-  --sidebar-primary-border: hsl(var(--sidebar-primary));
-  --sidebar-primary-border: hsl(from hsl(var(--sidebar-primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-
-  /* Fallback for older browsers */
-  --sidebar-accent-border: hsl(var(--sidebar-accent));
-  --sidebar-accent-border: hsl(from hsl(var(--sidebar-accent)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-
-  /* Fallback for older browsers */
+  /* Computed borders */
   --primary-border: hsl(var(--primary));
   --primary-border: hsl(from hsl(var(--primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-
-  /* Fallback for older browsers */
+  
   --secondary-border: hsl(var(--secondary));
   --secondary-border: hsl(from hsl(var(--secondary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-
-  /* Fallback for older browsers */
+  
   --muted-border: hsl(var(--muted));
   --muted-border: hsl(from hsl(var(--muted)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-
-  /* Fallback for older browsers */
+  
   --accent-border: hsl(var(--accent));
   --accent-border: hsl(from hsl(var(--accent)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-
-  /* Fallback for older browsers */
+  
   --destructive-border: hsl(var(--destructive));
   --destructive-border: hsl(from hsl(var(--destructive)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+  
+  --sidebar-primary-border: hsl(var(--sidebar-primary));
+  --sidebar-primary-border: hsl(from hsl(var(--sidebar-primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+  
+  --sidebar-accent-border: hsl(var(--sidebar-accent));
+  --sidebar-accent-border: hsl(from hsl(var(--sidebar-accent)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
 }
 
 @layer base {
@@ -243,75 +233,47 @@
 }
 
 /**
- * Using the elevate system.
- * Automatic contrast adjustment.
- *
- * <element className="hover-elevate" />
- * <element className="active-elevate-2" />
- *
- * // Using the tailwind utility when a data attribute is "on"
- * <element className="toggle-elevate data-[state=on]:toggle-elevated" />
- * // Or manually controlling the toggle state
- * <element className="toggle-elevate toggle-elevated" />
- *
- * Elevation systems have to handle many states.
- * - not-hovered, vs. hovered vs. active  (three mutually exclusive states)
- * - toggled or not
- * - focused or not (this is not handled with these utilities)
- *
- * Even without handling focused or not, this is six possible combinations that
- * need to be distinguished from eachother visually.
+ * ===== Elevation System =====
+ * Modern hover and active states with automatic contrast
  */
 @layer utilities {
-
-  /* Hide ugly search cancel button in Chrome until we can style it properly */
+  
+  /* Hide search cancel button */
   input[type="search"]::-webkit-search-cancel-button {
     @apply hidden;
   }
 
-  /* Placeholder styling for contentEditable div */
+  /* Placeholder for contentEditable */
   [contenteditable][data-placeholder]:empty::before {
     content: attr(data-placeholder);
     color: hsl(var(--muted-foreground));
     pointer-events: none;
   }
 
-  /* .no-default-hover-elevate/no-default-active-elevate is an escape hatch so consumers of
-   * buttons/badges can remove the automatic brightness adjustment on interactions
-   * and program their own. */
+  /* Elevation escape hatches */
   .no-default-hover-elevate {}
-
   .no-default-active-elevate {}
 
-
-  /**
-   * Toggleable backgrounds go behind the content. Hoverable/active goes on top.
-   * This way they can stack/compound. Both will overlap the parent's borders!
-   * So borders will be automatically adjusted both on toggle, and hover/active,
-   * and they will be compounded.
-   */
+  /* Toggle elevation backgrounds */
   .toggle-elevate::before,
   .toggle-elevate-2::before {
     content: "";
     pointer-events: none;
     position: absolute;
     inset: 0px;
-    /*border-radius: inherit;   match rounded corners */
     border-radius: inherit;
     z-index: -1;
-    /* sits behind content but above backdrop */
   }
 
   .toggle-elevate.toggle-elevated::before {
     background-color: var(--elevate-2);
   }
 
-  /* If there's a 1px border, adjust the inset so that it covers that parent's border */
   .border.toggle-elevate::before {
     inset: -1px;
   }
 
-  /* Does not work on elements with overflow:hidden! */
+  /* Hover and active elevation */
   .hover-elevate:not(.no-default-hover-elevate),
   .active-elevate:not(.no-default-active-elevate),
   .hover-elevate-2:not(.no-default-hover-elevate),
@@ -328,10 +290,8 @@
     pointer-events: none;
     position: absolute;
     inset: 0px;
-    /*border-radius: inherit;   match rounded corners */
     border-radius: inherit;
     z-index: 999;
-    /* sits in front of content */
   }
 
   .hover-elevate:hover:not(.no-default-hover-elevate)::after,
@@ -344,12 +304,161 @@
     background-color: var(--elevate-2);
   }
 
-  /* If there's a 1px border, adjust the inset so that it covers that parent's border */
   .border.hover-elevate:not(.no-hover-interaction-elevate)::after,
   .border.active-elevate:not(.no-active-interaction-elevate)::after,
   .border.hover-elevate-2:not(.no-hover-interaction-elevate)::after,
-  .border.active-elevate-2:not(.no-active-interaction-elevate)::after,
-  .border.hover-elevate:not(.no-hover-interaction-elevate)::after {
+  .border.active-elevate-2:not(.no-active-interaction-elevate)::after {
     inset: -1px;
+  }
+  
+  /* ===== Modern Gradient Utilities ===== */
+  
+  /* Blue Gradient */
+  .bg-gradient-blue {
+    @apply bg-gradient-to-br from-blue-50 to-blue-100;
+  }
+  .dark .bg-gradient-blue {
+    @apply from-blue-950/50 to-blue-900/50;
+  }
+  
+  /* Purple Gradient */
+  .bg-gradient-purple {
+    @apply bg-gradient-to-br from-purple-50 to-purple-100;
+  }
+  .dark .bg-gradient-purple {
+    @apply from-purple-950/50 to-purple-900/50;
+  }
+  
+  /* Turquoise Gradient */
+  .bg-gradient-turquoise {
+    @apply bg-gradient-to-br from-cyan-50 to-cyan-100;
+  }
+  .dark .bg-gradient-turquoise {
+    @apply from-cyan-950/50 to-cyan-900/50;
+  }
+  
+  /* Multi-color Gradient */
+  .bg-gradient-multi {
+    @apply bg-gradient-to-br from-blue-50 via-purple-50 to-cyan-50;
+  }
+  .dark .bg-gradient-multi {
+    @apply from-blue-950/50 via-purple-950/50 to-cyan-950/50;
+  }
+
+  /* ===== Custom Scrollbar Styles (Beautiful Sidebar Scroll) ===== */
+  /* تنسيقات سكرول جميلة للقائمة الجانبية مع دعم الوضع الداكن */
+  
+  .sidebar-scroll::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .sidebar-scroll::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    margin: 8px 0;
+  }
+
+  .sidebar-scroll::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(96, 165, 250, 0.6), rgba(147, 51, 234, 0.6));
+    border-radius: 10px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    transition: all 0.3s ease;
+  }
+
+  .sidebar-scroll::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, rgba(96, 165, 250, 0.9), rgba(147, 51, 234, 0.9));
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 0 8px rgba(96, 165, 250, 0.5);
+  }
+
+  /* Dark mode scrollbar - elegant gray gradient */
+  .dark .sidebar-scroll::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+  }
+
+  .dark .sidebar-scroll::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(75, 85, 99, 0.7), rgba(55, 65, 81, 0.7));
+  }
+
+  .dark .sidebar-scroll::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, rgba(107, 114, 128, 0.95), rgba(75, 85, 99, 0.95));
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 0 8px rgba(107, 114, 128, 0.5);
+  }
+
+  /* Firefox scrollbar support */
+  .sidebar-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(96, 165, 250, 0.6) rgba(255, 255, 255, 0.05);
+  }
+
+  .dark .sidebar-scroll {
+    scrollbar-color: rgba(75, 85, 99, 0.7) rgba(0, 0, 0, 0.2);
+  }
+}
+
+/* ===== Print Styles ===== */
+@media print {
+  @page {
+    margin: 10mm;
+  }
+
+  /* إخفاء العناصر التي لا يجب طباعتها */
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /* إظهار فقط المحتوى المراد طباعته */
+  body {
+    background: white !important;
+  }
+
+  /* أنماط طباعة التقرير الجماعي */
+  .report-table {
+    width: 100%;
+    border-collapse: collapse;
+    page-break-inside: auto;
+  }
+
+  .report-table tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  .report-table th,
+  .report-table td {
+    border: 1px solid #000 !important;
+    padding: 6px;
+    font-size: 8pt;
+    text-align: right;
+    color: #000 !important;
+  }
+
+  .report-table th {
+    background-color: #f2f2f2 !important;
+    font-weight: bold;
+  }
+
+  .report-header {
+    border-bottom: 2px solid #333;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+    text-align: center;
+    color: #000 !important;
+  }
+
+  /* أنماط طباعة قسيمة الراتب (80mm) */
+  @page {
+    size: 80mm auto;
+    margin: 5mm;
+  }
+
+  /* طباعة الباركود */
+  .barcode-sticker {
+    width: 50mm;
+    height: 30mm;
+    background: white;
+    color: #000 !important;
   }
 }

@@ -2,16 +2,16 @@
 
 ## Design Approach
 
-**Selected Approach:** Design System-Based (Material Design + Enterprise Accounting Best Practices)
+**Selected Approach:** Design System-Based (Material Design 3 + Modern Enterprise Dashboard Patterns)
 
-**Justification:** This is a data-intensive, utility-focused accounting application where clarity, efficiency, and trustworthiness are paramount. Drawing inspiration from established accounting platforms (QuickBooks, Xero, Wave) combined with Material Design principles for data-rich interfaces.
+**Justification:** Data-intensive accounting application requiring exceptional clarity, efficiency, and visual appeal. Inspired by modern SaaS dashboards (Linear, Stripe Dashboard, Notion) with Material Design 3's dynamic color system for comprehensive dark mode support.
 
 **Key Design Principles:**
-1. **Clarity First:** Financial data must be immediately readable and unambiguous
-2. **RTL Excellence:** Seamless right-to-left Arabic experience throughout
-3. **Professional Trust:** Conservative, stable design that inspires confidence
-4. **Efficient Workflows:** Minimize clicks, optimize form layouts for speed
-5. **Data Hierarchy:** Clear visual distinction between primary and secondary information
+1. **Visual Clarity:** Financial data presented with modern gradients and color-coded hierarchy
+2. **Dark Mode Excellence:** Sophisticated dual-theme system with vibrant accent colors
+3. **RTL Mastery:** Flawless right-to-left Arabic experience
+4. **Modern Aesthetics:** Contemporary gradients, shadows, and color treatments
+5. **Professional Trust:** Polished interface inspiring confidence
 
 ---
 
@@ -19,165 +19,274 @@
 
 ### A. Color Palette
 
-**Primary Brand Colors:**
-- **Primary:** 13 58% 45% (Teal - professional, trustworthy)
-- **Primary Hover:** 13 58% 38%
-- **Secondary:** 220 13% 20% (Charcoal - for text/headers)
+**Light Mode:**
 
-**Functional Colors:**
-- **Revenue/Income:** 142 76% 36% (Green)
-- **Expense/Cost:** 0 84% 60% (Red)
-- **Warning/Pending:** 38 92% 50% (Amber)
-- **Info/Neutral:** 217 91% 60% (Blue)
-- **Success:** 142 71% 45%
+Primary Colors:
+- Primary: 220 90% 56% (Vibrant Blue)
+- Primary Hover: 220 90% 48%
+- Secondary: 280 65% 60% (Purple)
+- Accent: 180 70% 50% (Turquoise)
 
-**Background & Surfaces:**
-- **Page Background:** 220 13% 97% (Light gray)
-- **Card/Surface:** 0 0% 100% (White)
-- **Border:** 220 13% 91%
-- **Hover State:** 220 13% 95%
+Functional Colors:
+- Revenue: 142 76% 36% (Green)
+- Expense: 0 84% 60% (Red)
+- Warning: 38 92% 50% (Amber)
+- Info: 217 91% 60% (Blue)
 
-**Category-Specific Colors** (as defined in code):
-- Expenses: Yellow-100/800, Red-100/800, Purple-100/800
-- Revenues: Teal-100/800
+Surfaces:
+- Background: 220 15% 98%
+- Card: 0 0% 100%
+- Card Hover: 220 20% 99%
+- Border: 220 13% 91%
+- Divider: 220 13% 88%
+
+Text:
+- Primary: 220 15% 15%
+- Secondary: 220 10% 45%
+- Tertiary: 220 8% 60%
+
+**Dark Mode:**
+
+Primary Colors:
+- Primary: 220 85% 65% (Brighter Blue)
+- Primary Hover: 220 85% 72%
+- Secondary: 280 60% 68% (Lighter Purple)
+- Accent: 180 65% 58% (Brighter Turquoise)
+
+Functional Colors:
+- Revenue: 142 70% 45%
+- Expense: 0 78% 68%
+- Warning: 38 88% 58%
+- Info: 217 85% 68%
+
+Surfaces:
+- Background: 220 15% 8%
+- Card: 220 12% 12%
+- Card Hover: 220 12% 15%
+- Border: 220 10% 22%
+- Divider: 220 8% 18%
+
+Text:
+- Primary: 0 0% 98%
+- Secondary: 220 5% 75%
+- Tertiary: 220 5% 60%
+
+**Gradient Definitions:**
+
+Dashboard Cards (Light):
+- Blue Gradient: from 220 100% 96% to 220 100% 92%
+- Purple Gradient: from 280 100% 97% to 280 100% 94%
+- Turquoise Gradient: from 180 100% 96% to 180 100% 92%
+- Multi Gradient: from 220 100% 96% via 280 100% 96% to 180 100% 96%
+
+Dashboard Cards (Dark):
+- Blue Gradient: from 220 50% 18% to 220 40% 14%
+- Purple Gradient: from 280 45% 18% to 280 35% 14%
+- Turquoise Gradient: from 180 45% 18% to 180 35% 14%
+- Multi Gradient: from 220 40% 16% via 280 40% 16% to 180 40% 16%
 
 ### B. Typography
 
 **Font Families:**
-- **Primary Arabic:** 'Cairo', 'Noto Sans Arabic', sans-serif (Google Fonts)
-- **Numbers/Data:** 'IBM Plex Sans Arabic', 'Tajawal', sans-serif
-- **Monospace (for amounts):** 'Courier New', monospace
+- Primary Arabic: 'Cairo', 'Noto Sans Arabic', sans-serif
+- Numbers/Data: 'IBM Plex Sans Arabic', 'Tajawal', sans-serif
 
 **Hierarchy:**
-- **Page Headers:** text-2xl font-bold (1.5rem)
-- **Section Headers:** text-xl font-semibold (1.25rem)
-- **Card Titles:** text-lg font-medium (1.125rem)
-- **Body Text:** text-base (1rem)
-- **Table Headers:** text-sm font-semibold uppercase tracking-wide
-- **Table Data:** text-sm
-- **Helper Text:** text-xs text-gray-600
+- Page Headers: text-3xl font-bold
+- Section Headers: text-2xl font-semibold
+- Card Titles: text-xl font-medium
+- Metric Numbers: text-4xl font-bold
+- Body Text: text-base
+- Table Headers: text-sm font-semibold uppercase tracking-wide
+- Helper Text: text-xs
 
-**Financial Numbers:** Always bold or semi-bold, larger size for primary amounts (text-lg to text-2xl for dashboard metrics)
+**Number Formatting:** Bold, larger sizes for financial amounts with comma separators and "د.ع" suffix
 
 ### C. Layout System
 
-**Spacing Scale:** Use Tailwind units of **2, 4, 6, 8, 12, 16** consistently
-- Component padding: p-4 to p-6
-- Section spacing: space-y-6 to space-y-8
-- Card margins: m-4
+**Spacing Scale:** Tailwind units of **2, 4, 6, 8, 12, 16, 20**
+
+Component Spacing:
+- Card padding: p-6 to p-8
+- Section spacing: space-y-8
+- Dashboard grid gaps: gap-6
 - Form field gaps: gap-4
 
 **Container Widths:**
-- **Full Dashboard:** max-w-full with px-4 to px-8
-- **Forms/Modals:** max-w-2xl to max-w-4xl
-- **Reports:** max-w-7xl
+- Dashboard: max-w-full with px-6 lg:px-8
+- Forms/Modals: max-w-3xl
+- Reports: max-w-7xl
 
 **Grid Layouts:**
-- **Dashboard Cards:** grid-cols-1 md:grid-cols-2 lg:grid-cols-4
-- **Form Fields:** grid-cols-1 md:grid-cols-2 gap-4
-- **Data Tables:** Full width with horizontal scroll on mobile
+- Stat Cards: grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6
+- Filter Cards: grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4
+- Data Tables: Full width responsive
 
 ### D. Component Library
 
-**Navigation:**
-- **Sidebar:** Fixed right side (RTL), bg-white, width 64-72, shadow-lg
-- **Mobile:** Collapsible hamburger menu (top-right)
-- **Active State:** bg-teal-50 with border-r-4 border-teal-600
-- **Icons:** Lucide icons at 20px, paired with Arabic labels
+**Navigation Sidebar:**
+- Fixed right (RTL), width 72-80
+- Light: bg-white shadow-xl border-l
+- Dark: bg-[220 12% 12%] border-l border-[220 10% 22%]
+- Active: Gradient background with icon color matching section theme
+- Icons: 24px Lucide icons with vibrant colors (blue/purple/turquoise based on section)
+- Hover: Subtle background tint with scale transform
 
-**Cards:**
-- **Standard:** bg-white rounded-lg shadow-md p-6 border border-gray-200
-- **Dashboard Metrics:** Include icon (40px), large number (text-3xl), label, and trend indicator
-- **Hover:** shadow-lg transition-shadow duration-200
+**Dashboard Metric Cards:**
+- Gradient backgrounds per category
+- Large icon (48px) in colored circle with shadow
+- Metric number: text-4xl font-bold
+- Label: text-sm with secondary text color
+- Trend indicator: Colored arrow with percentage
+- Shadow: Light mode (shadow-lg), Dark mode (shadow-2xl with glow)
+- Rounded: rounded-2xl
+- Border: 1px subtle in dark mode for definition
+
+**Filter Section:**
+- Modern card design: rounded-xl with gradient background
+- Light: White with colored gradient overlay at 5% opacity
+- Dark: Elevated card with subtle gradient
+- Soft shadows: shadow-md hover:shadow-lg
+- Input fields with colored focus rings matching theme
+- Date pickers, dropdowns, and search in horizontal layout
+- Icons: Colored to match section theme
 
 **Tables:**
-- **Header:** bg-gray-100 text-gray-700 font-semibold sticky top-0
-- **Rows:** Alternating bg-white/bg-gray-50, hover:bg-teal-50
-- **Borders:** border-b border-gray-200
-- **Cell Padding:** px-4 py-3
-- **Action Buttons:** Icon-only buttons in last column (Edit/Delete) with hover:bg-gray-100 rounded
+- Header: Gradient background subtle, sticky positioning
+- Rows: Alternating transparent/subtle tint
+- Hover: Colored tint (blue/purple/turquoise at 8% opacity)
+- Cell padding: px-6 py-4
+- Borders: Subtle dividers between rows
+- Action buttons: Icon-only with colored hover backgrounds
+- Currency columns: Bold, right-aligned with monospace numbers
 
-**Forms:**
-- **Input Fields:** border-2 border-gray-300 rounded-md px-4 py-2 focus:border-teal-500 focus:ring-2 focus:ring-teal-200
-- **Labels:** text-sm font-medium text-gray-700 mb-1 block
-- **Required Fields:** Red asterisk (*) after label
-- **Validation Errors:** text-red-600 text-xs mt-1
-- **Select Dropdowns:** Same styling as inputs with chevron icon
+**Forms & Inputs:**
+- Light: bg-white border-2 border-gray-200
+- Dark: bg-[220 12% 15%] border-[220 10% 25%]
+- Focus: Colored ring (2px) matching section theme
+- Labels: font-medium with required indicator
+- Validation: Colored borders and helper text
 
 **Buttons:**
-- **Primary:** bg-teal-600 hover:bg-teal-700 text-white px-6 py-2 rounded-md font-medium shadow-sm
-- **Secondary:** bg-gray-200 hover:bg-gray-300 text-gray-800
-- **Danger:** bg-red-600 hover:bg-red-700 text-white
-- **Icon Buttons:** p-2 rounded-full hover:bg-gray-100 (for tables/actions)
-- **Sizes:** Small (px-3 py-1.5), Medium (px-6 py-2), Large (px-8 py-3)
 
-**Modals/Dialogs:**
-- **Overlay:** bg-black/50 backdrop-blur-sm fixed inset-0
-- **Content:** bg-white rounded-lg shadow-2xl max-w-2xl mx-auto mt-20 p-6
-- **Header:** border-b border-gray-200 pb-4 mb-4 with close button (X)
-- **Footer:** border-t border-gray-200 pt-4 mt-4 with action buttons aligned left (RTL)
+Primary:
+- Light: Gradient from primary to primary-hover with shadow-md
+- Dark: Bright gradient with enhanced shadow and subtle glow
+- Text: White, font-semibold
+- Padding: px-8 py-3, rounded-lg
+- Hover: Scale 1.02 with enhanced shadow
 
-**Dashboard Elements:**
-- **Stat Cards:** Icon circle (bg-teal-100 text-teal-600), metric (text-3xl font-bold), label (text-sm text-gray-600), percentage change with up/down arrow
-- **Charts:** Use Chart.js with teal/green/red color scheme, clean grid lines, Arabic labels
-- **Filters:** Compact row with date pickers, category selects, search input - all inline on desktop
+Secondary:
+- Light: bg-gray-100 hover:bg-gray-200
+- Dark: bg-[220 10% 20%] hover:bg-[220 10% 25%]
+- Colored text matching theme
 
-**Data Display:**
-- **Currency Format:** Always show "د.ع." suffix, right-aligned in tables, comma separators
-- **Dates:** Arabic format with Hijri option toggle
-- **Status Badges:** Rounded-full px-3 py-1 text-xs font-semibold (green for paid/approved, yellow for pending, red for overdue)
+Icon Buttons:
+- Circular, colored backgrounds on hover
+- 40px minimum touch target
 
-**Inventory-Specific:**
-- **Barcode Display:** Monospace font in bordered box
-- **Stock Levels:** Color-coded (red < 10, yellow 10-20, green > 20)
-- **Product Cards:** Image placeholder (if applicable), name, barcode, price, stock count
+**Modals:**
+- Overlay: backdrop-blur-md
+- Light: bg-black/40
+- Dark: bg-black/60
+- Content: Matching theme with rounded-2xl and enhanced shadows
+- Header with colored accent border-bottom
+- Footer with button alignment (RTL)
 
-**Reports Section:**
-- **Print Styles:** Clean, minimal, black text on white, company logo header
-- **Export Buttons:** Grouped together (CSV, Print, PDF) with download icon
-- **Report Headers:** Company name, report type, date range, generation timestamp
+**Charts & Visualizations:**
+- Chart.js with gradient fills
+- Color scheme: Blue/Purple/Turquoise based on data category
+- Grid lines: Subtle, matching theme
+- Tooltips: Matching card style with gradients
+- Legend: Arabic labels with colored indicators
+
+**Status Badges:**
+- Rounded-full with gradient backgrounds
+- Light: Colored background at 15% with bold text
+- Dark: Colored background at 25% with bright text
+- Icons paired with status text
+- Shadow for depth
+
+**Empty States:**
+- Large colored icon (96px) with gradient
+- Heading and descriptive text
+- Call-to-action button with gradient
+- Centered layout with breathing room
 
 ### E. Animations
 
-**Minimal & Purposeful Only:**
-- **Page Transitions:** None (instant for performance)
-- **Modal Enter/Exit:** Fade in/out over 150ms
-- **Hover States:** transition-colors duration-150
-- **Loading States:** Spinning circle (border-t-transparent) with "جاري التحميل..." text
-- **Success Feedback:** Brief green checkmark animation (500ms) on save/submit
-- **NO complex scroll animations or decorative motion**
+**Subtle & Modern:**
+- Hover transitions: 200ms ease-in-out
+- Button hover: scale-[1.02] with shadow enhancement
+- Card hover: shadow-lg transition
+- Modal enter: fade + scale from 95% over 250ms
+- Loading states: Gradient shimmer effect
+- Success feedback: Colored checkmark with bounce (400ms)
+- Tab transitions: Smooth color fade
+- NO scroll-based animations
 
 ---
 
-## RTL-Specific Guidelines
+## Dark Mode Implementation
 
-- All layouts use `dir="rtl"` on root element
-- Text alignment: text-right by default
-- Margins/Paddings: Use `mr/ml` carefully (reversed in RTL)
-- Icons: Position on right side of text labels
-- Form layouts: Labels above or to right of inputs
-- Tables: Action column on far right
-- Sidebar: Fixed on right side of viewport
-- Dropdowns: Open to the left
-- Number inputs: Consider LTR direction for numeric entry despite RTL context
+**Strategy:** CSS variables with Tailwind dark: variant throughout
 
----
+**Toggle Control:**
+- Persistent preference in localStorage
+- Icon button in header (sun/moon)
+- Smooth transition on theme change (150ms)
 
-## Accessibility & Usability
-
-- **Contrast Ratio:** Minimum 4.5:1 for all text
-- **Focus States:** Visible 2px teal ring on all interactive elements
-- **Keyboard Navigation:** Full support with logical tab order
-- **Screen Readers:** Proper ARIA labels for icons and dynamic content
-- **Touch Targets:** Minimum 44px height for mobile buttons
-- **Error Handling:** Clear, actionable error messages in Arabic
-- **Confirmation Dialogs:** Required for all destructive actions (delete, cancel)
+**Consistency Rules:**
+- All form inputs styled for both modes
+- Shadows enhanced in dark mode with subtle glows
+- Gradients optimized per mode (lighter in light, vibrant in dark)
+- Icons maintain colored vibrancy in both modes
+- Charts adapt colors for optimal contrast
 
 ---
 
-## Images
+## RTL Excellence
 
-**No hero images required** - This is a functional dashboard application. Only use:
-- **Company Logo:** Placeholder in top-right of sidebar and report headers
-- **Empty States:** Simple illustrations for "no data" scenarios (optional, use icon + text instead)
-- **Product Images:** In inventory system (optional, fallback to icon)
+- Root dir="rtl"
+- Text alignment: text-right default
+- Sidebar: Fixed right side
+- Table actions: Far right column
+- Form labels: Above or right of inputs
+- Icons: Right side of labels
+- Number inputs: LTR direction for numeric entry
+- Dropdowns: Open leftward
+
+---
+
+## Accessibility
+
+- Contrast: 4.5:1 minimum (enhanced in dark mode)
+- Focus rings: 2px colored, visible on all interactive elements
+- Touch targets: 44px minimum
+- ARIA labels: Complete coverage
+- Keyboard navigation: Full support with logical tab order
+- Error messages: Clear, actionable Arabic text
+- Confirmation dialogs: All destructive actions
+
+---
+
+## Visual Enhancements
+
+**Shadows:**
+- Light cards: shadow-md default, shadow-lg hover
+- Dark cards: shadow-xl with subtle colored glow
+- Modals: shadow-2xl
+
+**Borders:**
+- Light: 1px subtle gray
+- Dark: 1px to define elevated surfaces
+
+**Colored Iconography:**
+- Section icons: Blue (accounting), Purple (reports), Turquoise (inventory)
+- Consistent color mapping across all sections
+- 24px standard, 48px for stat cards
+
+**Glass Effects:**
+- Filter sections: Subtle backdrop-blur
+- Modal overlays: backdrop-blur-md
+- Hover states: Slight opacity changes
