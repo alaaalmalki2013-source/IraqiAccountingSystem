@@ -4725,7 +4725,7 @@ const AccountingApp = () => {
             </div>
 
             {/* Main Content Area */}
-            <main className={`flex-grow p-2 sm:p-4 md:p-8 ${isSidebarCollapsed ? 'lg:mr-16' : 'lg:mr-64'}`}>
+            <main className={`flex-grow p-2 sm:p-4 md:p-8 overflow-x-hidden ${isSidebarCollapsed ? 'lg:mr-16' : 'lg:mr-64'}`}>
                 {/* Header for Mobile/Tablet */}
                 <header className="app-header flex justify-between items-center bg-gradient-to-r from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 p-4 mb-4 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 lg:hidden">
                     <button onClick={() => setIsSidebarOpen(true)} className="text-blue-600 dark:text-blue-400 p-2 rounded-lg hover:bg-gray-100 dark:bg-gray-600 dark:hover:bg-gray-700 transition">
