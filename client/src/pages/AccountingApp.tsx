@@ -5287,6 +5287,7 @@ const AccountingApp = () => {
                     {visibleNavItems.map(item => (
                         <button
                             key={item.key}
+                            data-testid={`nav-${item.key}`}
                             onClick={() => {
                                 handleNavigationClick(item.key);
                                 setIsSidebarOpen(false);
