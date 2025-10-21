@@ -1220,7 +1220,7 @@ const DataPageComponent = React.memo(({ 
                         })}
                         
                         {initialExpenseState && collectionName === 'expenses' && !currentItem && (
-                            <div className="p-3 bg-indigo-50 dark:bg-indigo-900 border border-indigo-200 rounded-xl text-indigo-800 font-semibold text-center">
+                            <div className="p-3 bg-indigo-50 dark:bg-indigo-900/50 border border-indigo-200 dark:border-indigo-700 rounded-xl text-indigo-800 dark:text-indigo-200 font-semibold text-center">
                                 تم تعبئة جميع الحقول تلقائياً من فاتورة الإدخال. يرجى الضغط على **إضافة** للتأكيد وإتمام الصرف.
                             </div>
                         )}
