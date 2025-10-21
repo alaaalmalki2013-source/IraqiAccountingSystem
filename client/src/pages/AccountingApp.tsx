@@ -1440,8 +1440,10 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
             updatedData.advances = [...updatedData.advances, advanceData];
         }
         
-        // حذف العنصر من الصرفيات المعلقة
-        updatedData.pendingExpenses = updatedData.pendingExpenses.filter(p => p.id !== item.id);
+        // تغيير حالة العنصر إلى "مصروفة" بدلاً من حذفه
+        updatedData.pendingExpenses = updatedData.pendingExpenses.map(p => 
+            p.id === item.id ? { ...p, status: 'paid' } : p
+        );
         
         // حفظ البيانات المحدثة مرة واحدة
         handleDataAction('___FULL_DATA_UPDATE___', updatedData, false);
