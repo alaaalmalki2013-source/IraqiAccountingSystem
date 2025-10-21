@@ -800,7 +800,7 @@ const DataPageComponent = React.memo(({ 
         
         // إذا جاءت البيانات من الموافقة على صرفية معلقة، احذف الصرفية المعلقة
         if (initialExpenseState?.pendingExpenseId && !currentItem) {
-            handleDelete('pendingExpenses', initialExpenseState.pendingExpenseId);
+            handleDelete('pendingExpenses', initialExpenseState.pendingExpenseId, false, true);
             setInitialExpenseState(null);
         }
         
@@ -5620,10 +5620,10 @@ const AccountingApp = () => {
         setRefreshKey(prev => prev + 1);
     };
 
-    const handleDelete = (collectionName, id, showMessage = true) => {
+    const handleDelete = (collectionName, id, showMessage = true, bypassPermissions = false) => {
         // **تحديث: فحص صلاحيات الحذف**
         const permissionKey = navItems.find(i => i.key === collectionName)?.key;
-        if (permissionKey && !currentUser?.permissions[permissionKey]?.delete && collectionName !== 'inventoryDispatches') {
+        if (!bypassPermissions && permissionKey && !currentUser?.permissions[permissionKey]?.delete && collectionName !== 'inventoryDispatches') {
             showToast(`ليس لديك صلاحية حذف سجلات في قسم ${navItems.find(i => i.key === collectionName)?.label}.`, 'error');
             return;
         }
