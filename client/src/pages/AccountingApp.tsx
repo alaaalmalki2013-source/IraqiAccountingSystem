@@ -1752,19 +1752,19 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                                             <div className="flex gap-2">
-                                                <button
-                                                    onClick={() => {
-                                                        setCurrentItem(item);
-                                                        setIsModalOpen(true);
-                                                    }}
-                                                    className="px-3 py-1 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors flex items-center gap-1 text-xs font-semibold"
-                                                    data-testid={`button-edit-${item.id}`}
-                                                >
-                                                    <Edit2 className="w-4 h-4" />
-                                                    تعديل
-                                                </button>
-                                                {item.status === 'pending' && (
+                                                {item.status === 'pending' ? (
                                                     <>
+                                                        <button
+                                                            onClick={() => {
+                                                                setCurrentItem(item);
+                                                                setIsModalOpen(true);
+                                                            }}
+                                                            className="px-3 py-1 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors flex items-center gap-1 text-xs font-semibold"
+                                                            data-testid={`button-edit-${item.id}`}
+                                                        >
+                                                            <Edit2 className="w-4 h-4" />
+                                                            تعديل
+                                                        </button>
                                                         <button
                                                             onClick={() => handleApprove(item)}
                                                             className="px-3 py-1 bg-green-600 dark:bg-green-500 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-600 transition-colors flex items-center gap-1 text-xs font-semibold"
@@ -1782,6 +1782,15 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                                                             إلغاء
                                                         </button>
                                                     </>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => setViewItem(item)}
+                                                        className="px-3 py-1 bg-gray-600 dark:bg-gray-500 text-white rounded-lg hover:bg-gray-700 dark:hover:bg-gray-600 transition-colors flex items-center gap-1 text-xs font-semibold"
+                                                        data-testid={`button-view-${item.id}`}
+                                                    >
+                                                        <Eye className="w-4 h-4" />
+                                                        معاينة
+                                                    </button>
                                                 )}
                                             </div>
                                         </td>

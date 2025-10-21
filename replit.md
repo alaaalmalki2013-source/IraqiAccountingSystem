@@ -23,13 +23,15 @@ The system is built as a single-page application with a modern and professional 
 ### Technical Implementations & Feature Specifications
 -   **Dashboard:** Displays comprehensive financial statistics, interactive charts, and birthday alerts.
 -   **Financial Management:** Includes modules for Revenues, Expenses, Suspended Payments, and **Pending Expenses** (الصرفيات المعلقة) with features like categorization, filtering, search, print, and export.
-    -   **Pending Expenses:** Manager approval workflow for expenses and advances. Features include:
+    -   **Pending Expenses:** Manager approval workflow for expenses and advances with **permanent record retention**. Features include:
+        -   **No-Delete Policy:** All records remain permanently for audit trail - only status changes
+        -   **Approval Workflow:** Creates copy in expenses/advances collection AND changes original record status to 'paid' (green badge)
+        -   **Cancel Workflow:** Changes record status to 'cancelled' (red badge) without deletion
+        -   **Permission Control:** Edit/delete only available for 'pending' records; 'paid' and 'cancelled' records are view-only
         -   Dual filter cards showing separate totals for pending expenses and advances with modern horizontal design
         -   Type selection (expense/advance) in submission form
-        -   Approval action that directly adds to respective collection (expenses/advances) and removes from pending list
-        -   **Cancel action changes status to 'cancelled' instead of deleting** - preserves records for audit trail
         -   **Status filter:** Three filter buttons (Pending, Cancelled, All) to view different request states
-        -   Status badges showing pending (amber), approved (green), or cancelled (red) states
+        -   Status badges showing pending (amber), paid (green), or cancelled (red) states
         -   Modern rectangular cards with gradients, icons (TrendingUp/Down), and RTL support
         -   Responsive grid layout (1-2 columns based on screen size)
 -   **Employee Management:** Covers Employees (database, birthday tracking, basic salary), Advances (manage various categories of advances, track payments, print vouchers), and Payroll (comprehensive table with salary breakdown, bonuses, deductions, absences, overtime, net salary calculation, payslip printing).
