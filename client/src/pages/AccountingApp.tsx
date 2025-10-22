@@ -3371,6 +3371,25 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
                 <button onClick={() => window.print()} className="p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
                     <Printer className="w-6 h-6" />
                 </button>
+                <button onClick={() => {
+                    const csvContent = [
+                        ['اسم المادة', 'الفئة', 'الباركود', 'السعر', 'الكمية'],
+                        ...filteredList.map(item => [
+                            item.name,
+                            item.category,
+                            item.barcode || 'N/A',
+                            item.price,
+                            item.count
+                        ])
+                    ].map(row => row.join(',')).join('\n');
+                    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = `المخزون_${new Date().toISOString().split('T')[0]}.csv`;
+                    link.click();
+                }} className="p-3 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg transition duration-200">
+                    <Download className="w-6 h-6" />
+                </button>
                 <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200" data-testid="button-refresh-inventory">
                     <RotateCcw className="w-6 h-6" />
                 </button>
@@ -5797,7 +5816,7 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
             </h2>
 
             {/* أزرار الإجراءات */}
-            <div className="flex flex-wrap gap-2 justify-between items-center">
+            <div className="flex flex-wrap items-center justify-between gap-4">
                 <button
                     onClick={() => {
                         setWithdrawalForm(getDefaultWithdrawalForm());
@@ -5809,9 +5828,34 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
                     <Plus className="w-5 h-5 ml-2" />
                     {t('addWithdrawal')}
                 </button>
-                <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
-                    <RotateCcw className="w-6 h-6" />
-                </button>
+
+                <div className="flex flex-wrap gap-2 space-x-reverse">
+                    <button onClick={() => window.print()} className="p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
+                        <Printer className="w-6 h-6" />
+                    </button>
+                    <button onClick={() => {
+                        const csvContent = [
+                            ['رقم الاستخراج', 'التاريخ', 'الموظف', 'عدد المواد', 'الملاحظات'],
+                            ...filteredWithdrawals.map(w => [
+                                w.withdrawalNumber,
+                                formatDateTimeDDMMYYYY(w.date),
+                                w.employeeName,
+                                w.items.reduce((sum, item) => sum + item.count, 0),
+                                w.notes || ''
+                            ])
+                        ].map(row => row.join(',')).join('\n');
+                        const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+                        const link = document.createElement('a');
+                        link.href = URL.createObjectURL(blob);
+                        link.download = `الاستخراجات_المخزنية_${new Date().toISOString().split('T')[0]}.csv`;
+                        link.click();
+                    }} className="p-3 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg transition duration-200">
+                        <Download className="w-6 h-6" />
+                    </button>
+                    <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
+                        <RotateCcw className="w-6 h-6" />
+                    </button>
+                </div>
             </div>
 
             {/* البحث */}
