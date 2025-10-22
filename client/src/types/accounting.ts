@@ -163,7 +163,7 @@ export const defaultSettings = {
     users: [
         { 
             id: 'admin_1', 
-            username: 'الأدمن الرئيسي', 
+            username: 'admin', 
             email: 'admin@system.com',
             password: 'admin123', 
             role: USER_ROLES.ADMIN,
