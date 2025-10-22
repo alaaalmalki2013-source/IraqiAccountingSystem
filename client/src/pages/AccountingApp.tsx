@@ -5500,35 +5500,6 @@ const AdminPage = React.memo(({ data }) => {
                     <p className="text-lg font-bold text-gray-700 dark:text-gray-300">{systemInfo.lastBackup}</p>
                 </div>
             </div>
-
-            <div className="p-6 rounded-xl shadow-lg bg-gradient-to-br from-gray-50 to-white dark:from-gray-700 dark:to-gray-800 border border-gray-200 dark:border-gray-600">
-                <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-4 flex items-center gap-2">
-                    <Info className="w-6 h-6 text-gray-600 dark:text-gray-400" />
-                    معلومات النظام
-                </h3>
-                <div className="space-y-3 text-gray-700 dark:text-gray-300">
-                    <p className="flex items-center gap-2">
-                        <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
-                        <span className="font-semibold">نظام المحاسبة العراقي</span>
-                    </p>
-                    <p className="flex items-center gap-2">
-                        <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
-                        <span>نظام شامل لإدارة الحسابات والمخزون والموظفين</span>
-                    </p>
-                    <p className="flex items-center gap-2">
-                        <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
-                        <span>يعمل دون اتصال بالإنترنت (Offline)</span>
-                    </p>
-                    <p className="flex items-center gap-2">
-                        <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
-                        <span>يدعم الوضع الداكن (Dark Mode)</span>
-                    </p>
-                    <p className="flex items-center gap-2">
-                        <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
-                        <span>واجهة RTL كاملة للغة العربية</span>
-                    </p>
-                </div>
-            </div>
             
             {/* قسم سجل النشاطات */}
             <ActivityLogSection data={data} />
