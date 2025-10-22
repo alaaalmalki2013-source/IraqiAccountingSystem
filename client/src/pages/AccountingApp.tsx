@@ -927,7 +927,7 @@ const DataPageComponent = React.memo(({ 
         <div className="p-6 space-y-6 bg-white dark:bg-gray-800 rounded-3xl app-main-content">
             <h2 className="text-4xl font-extrabold text-gray-800 dark:text-gray-200 border-b-2 border-teal-500 pb-3">{title}</h2>
 
-            <div className="flex flex-wrap gap-2 justify-end items-center">
+            <div className="flex flex-wrap gap-2 justify-start items-center">
                 
                 <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
                     <RotateCcw className="w-6 h-6" />
@@ -1040,7 +1040,7 @@ const DataPageComponent = React.memo(({ 
             </div>
             
             
-             <div className="flex justify-end items-center">
+             <div className="flex justify-start items-center">
                  <button 
                     onClick={() => openModal()} 
                     className="flex items-center px-6 py-3 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-xl hover:from-green-600 hover:to-teal-600 shadow-lg transition duration-200"
@@ -1658,7 +1658,7 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
             </div>
 
 
-            <div className="flex justify-end items-center">
+            <div className="flex justify-start items-center">
                 <button
                     onClick={() => {
                         setCurrentItem(null);
@@ -2348,7 +2348,7 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
                         </button>
                    </div>
 
-            <div className="flex justify-end items-center">
+            <div className="flex justify-start items-center">
                 <button
                     onClick={() => openModal()}
                     className="flex items-center px-6 py-3 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-xl hover:from-green-600 hover:to-teal-600 shadow-lg transition duration-200"
@@ -3354,7 +3354,7 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
                 <Search className="w-5 h-5 absolute right-3 top-1/2 transform translate-y-1/2 text-gray-400 mt-2" />
             </div>
             
-            <div className="flex flex-wrap gap-2 justify-end items-center">
+            <div className="flex flex-wrap gap-2 justify-start items-center">
                 <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200" data-testid="button-refresh-inventory">
                     <RotateCcw className="w-6 h-6" />
                 </button>
@@ -4032,12 +4032,12 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                 <Search className="w-5 h-5 absolute right-3 top-1/2 transform translate-y-1/2 text-gray-400 mt-2" />
             </div>
             
-            <div className="flex flex-wrap gap-2 justify-end items-center">
+            <div className="flex flex-wrap gap-2 justify-start items-center">
                 <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
                     <RotateCcw className="w-6 h-6" />
                 </button>
 
-            <div className="flex justify-end items-center">
+            <div className="flex justify-start items-center">
                 <button
                     onClick={() => setIsNewInvoiceModalOpen(true)}
                     className="flex items-center px-6 py-3 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-xl hover:from-green-600 hover:to-teal-600 shadow-lg transition duration-200"
