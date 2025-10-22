@@ -186,5 +186,6 @@ export const defaultDataStructure = {
     pendingInvoices: [], 
     inventoryWithdrawals: [],
     inventoryDispatches: [],
+    activityLog: [],
     settings: defaultSettings
 };
