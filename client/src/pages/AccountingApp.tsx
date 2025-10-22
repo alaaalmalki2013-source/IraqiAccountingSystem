@@ -57,7 +57,8 @@ import {
     FileImage,
     Shield,
     Upload,
-    FileDown
+    FileDown,
+    Mail
 } from 'lucide-react';
 
 // استيراد الثوابت والأنواع
@@ -6627,21 +6628,68 @@ const AboutSystemModal = ({ onClose }) => (
 
 
 /**
- * 3.9. LoginPage (صفحة تسجيل الدخول)
+ * 3.9. WelcomeMessage (رسالة الترحيب)
  */
-const LoginPage = ({ users, onLogin, showToast, systemExpiryDate }) => {
-    const [username, setUsername] = useState('');
+const WelcomeMessage = ({ user, companyName, onContinue }) => {
+    return (
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 via-purple-800 to-indigo-900 dark:from-gray-900 dark:via-gray-800 dark:to-black p-4" dir="rtl">
+            <div className="w-full max-w-sm md:max-w-md bg-white dark:bg-gray-800 rounded-3xl shadow-2xl p-6 md:p-10 space-y-6 text-center animate-fade-in">
+                <div className="flex justify-center">
+                    <div className="w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br from-green-400 to-teal-500 rounded-full flex items-center justify-center shadow-lg">
+                        <CheckCircle className="w-8 h-8 md:w-10 md:h-10 text-white" />
+                    </div>
+                </div>
+                
+                <div className="space-y-3">
+                    <h2 className="text-2xl md:text-3xl font-extrabold text-gray-800 dark:text-white">
+                        مرحباً بك! 👋
+                    </h2>
+                    <p className="text-base md:text-lg text-gray-600 dark:text-gray-300 font-semibold">
+                        {user.username || user.email}
+                    </p>
+                    <p className="text-sm md:text-base text-gray-500 dark:text-gray-400">
+                        تم تسجيل الدخول بنجاح إلى
+                    </p>
+                    <p className="text-lg md:text-xl font-bold text-blue-600 dark:text-blue-400">
+                        {companyName}
+                    </p>
+                </div>
+
+                <button
+                    onClick={onContinue}
+                    className="w-full py-3 md:py-3.5 text-sm md:text-base bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold rounded-xl shadow-lg transition duration-200 transform hover:scale-105"
+                >
+                    المتابعة إلى النظام
+                </button>
+            </div>
+        </div>
+    );
+};
+
+/**
+ * 3.10. LoginPage (صفحة تسجيل الدخول)
+ */
+const LoginPage = ({ users, onLogin, showToast, systemExpiryDate, companyName }) => {
+    const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
+    const [welcomeUser, setWelcomeUser] = useState(null);
 
     const handleSubmit = (e) => {
         e.preventDefault();
         
-        // البحث عن المستخدم
-        const user = users.find(u => u.username === username && u.password === password);
+        // البحث عن المستخدم بالإيميل أولاً
+        const user = users.find(u => u.email === email);
         
+        // التحقق من وجود الإيميل
         if (!user) {
-            showToast('اسم المستخدم أو كلمة المرور غير صحيحة', 'error');
+            showToast('البريد الإلكتروني غير مسجل في النظام', 'error');
+            return;
+        }
+        
+        // التحقق من كلمة المرور
+        if (user.password !== password) {
+            showToast('كلمة المرور غير صحيحة', 'error');
             return;
         }
 
@@ -6654,44 +6702,57 @@ const LoginPage = ({ users, onLogin, showToast, systemExpiryDate }) => {
             expiryDate.setHours(0, 0, 0, 0);
             
             if (today > expiryDate) {
-                showToast('انتهت صلاحية النظام. يرجى التواصل مع المدير', 'error');
+                showToast('⚠️ انتهى الاشتراك! يرجى التواصل مع إدارة النظام لتجديد الاشتراك', 'error');
                 return;
             }
         }
 
-        // تسجيل الدخول بنجاح
-        onLogin(user);
-        showToast(`مرحباً ${user.username}!`, 'success');
+        // عرض رسالة الترحيب
+        setWelcomeUser(user);
     };
+    
+    // إذا كانت رسالة الترحيب تظهر
+    if (welcomeUser) {
+        return (
+            <WelcomeMessage
+                user={welcomeUser}
+                companyName={companyName}
+                onContinue={() => {
+                    onLogin(welcomeUser);
+                    setWelcomeUser(null);
+                }}
+            />
+        );
+    }
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 via-purple-800 to-indigo-900 dark:from-gray-900 dark:via-gray-800 dark:to-black p-4" dir="rtl">
-            <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-3xl shadow-2xl p-8 space-y-6">
+            <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-3xl shadow-2xl p-6 md:p-8 space-y-6">
                 <div className="text-center space-y-2">
-                    <h1 className="text-3xl font-extrabold text-gray-800 dark:text-white">نظام المحاسبة العراقي</h1>
-                    <p className="text-gray-600 dark:text-gray-300">V3.0</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">قم بتسجيل الدخول للمتابعة</p>
+                    <h1 className="text-2xl md:text-3xl font-extrabold text-gray-800 dark:text-white">{companyName || 'نظام المحاسبة العراقي'}</h1>
+                    <p className="text-gray-600 dark:text-gray-300 text-sm md:text-base">V3.0</p>
+                    <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400">قم بتسجيل الدخول للمتابعة</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-5">
+                <form onSubmit={handleSubmit} className="space-y-4 md:space-y-5">
                     <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">اسم المستخدم</label>
+                        <label className="text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300">البريد الإلكتروني</label>
                         <div className="relative">
-                            <User className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                            <Mail className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 md:w-5 md:h-5" />
                             <input
-                                type="text"
-                                value={username}
-                                onChange={(e) => setUsername(e.target.value)}
+                                type="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
                                 required
-                                placeholder="أدخل اسم المستخدم"
-                                className="w-full pr-12 pl-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-                                data-testid="input-username"
+                                placeholder="example@email.com"
+                                className="w-full pr-10 md:pr-12 pl-4 py-2.5 md:py-3 text-sm md:text-base border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                                data-testid="input-email"
                             />
                         </div>
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">كلمة المرور</label>
+                        <label className="text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300">كلمة المرور</label>
                         <div className="relative">
                             <input
                                 type={showPassword ? 'text' : 'password'}
@@ -6699,32 +6760,27 @@ const LoginPage = ({ users, onLogin, showToast, systemExpiryDate }) => {
                                 onChange={(e) => setPassword(e.target.value)}
                                 required
                                 placeholder="أدخل كلمة المرور"
-                                className="w-full pr-4 pl-12 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                                className="w-full pr-4 pl-10 md:pl-12 py-2.5 md:py-3 text-sm md:text-base border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
                                 data-testid="input-password"
                             />
                             <button
                                 type="button"
                                 onClick={() => setShowPassword(!showPassword)}
-                                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                                className="flex items-center justify-center absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
                             >
-                                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                {showPassword ? <EyeOff className="w-4 h-4 md:w-5 md:h-5" /> : <Eye className="w-4 h-4 md:w-5 md:h-5" />}
                             </button>
                         </div>
                     </div>
 
                     <button
                         type="submit"
-                        className="w-full py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold rounded-xl shadow-lg transition duration-200 transform hover:scale-105"
+                        className="w-full py-2.5 md:py-3 text-sm md:text-base bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold rounded-xl shadow-lg transition duration-200 transform hover:scale-105"
                         data-testid="button-login"
                     >
                         تسجيل الدخول
                     </button>
                 </form>
-
-                <div className="text-center text-sm text-gray-500 dark:text-gray-400">
-                    <p>تصميم: علاء المالكي</p>
-                    <p className="mt-1">07717716205</p>
-                </div>
             </div>
         </div>
     );
@@ -7362,6 +7418,7 @@ const AccountingApp = () => {
                 onLogin={handleLogin}
                 showToast={showToast}
                 systemExpiryDate={data.settings.systemExpiryDate}
+                companyName={data.settings.companyName}
             />
         );
     }
