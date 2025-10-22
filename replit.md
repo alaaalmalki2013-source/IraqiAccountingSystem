@@ -46,7 +46,7 @@ The system is built as a single-page application with a modern and professional 
 -   **Employee Management:** Covers Employees (database, birthday tracking, basic salary), Advances (manage various categories of advances, track payments, print vouchers), and Payroll (comprehensive table with salary breakdown, bonuses, deductions, absences, overtime, net salary calculation, payslip printing).
 -   **Inventory Management:** Features Inventory Entry (purchase invoice entry, item modification, cash/credit approval, status tracking) and Inventory (material database, barcode generation, stock tracking, expenditure tracking, purchase history).
 -   **Settings:** Manages categories (revenues, expenses, advances), departments, job titles, vendors, representatives, user permissions, and company details.
--   **Admin Page (New):** Comprehensive administrative dashboard displaying system information including:
+-   **Admin Page:** Comprehensive administrative dashboard displaying system information including:
     -   System version and statistics
     -   User and employee counts
     -   Revenue and expense counts
@@ -55,6 +55,15 @@ The system is built as a single-page application with a modern and professional 
     -   Last backup information
     -   System features overview
     -   Modern gradient cards with RTL support and full dark mode compatibility
+    -   **Activity Log (سجل النشاطات):** Comprehensive audit trail system that tracks all system operations:
+        -   **Automatic Logging:** Records all add, edit, and delete operations across all modules
+        -   **Detailed Information:** Each log entry includes timestamp, username, action type, module name, and operation details
+        -   **Advanced Filtering:** Filter by action type (إضافة/تعديل/حذف/موافقة/إلغاء), date range (today, last 7/30/90 days, all time)
+        -   **Search Capability:** Full-text search across all log fields (username, action, module, details)
+        -   **Record Counter:** Real-time display of filtered record count
+        -   **Storage Management:** Automatically maintains last 500 log entries to optimize storage
+        -   **Professional UI:** Color-coded badges for different action types, responsive table design, full RTL support
+        -   **Data Structure:** Stored in `data.activityLog` array with fields: id, timestamp, username, action, module, details
 -   **AI Assistant "Alaa":** A GPT-5-mini powered intelligent assistant integrated into the system, specialized in guiding users on system functionalities, providing accurate and context-aware responses in Arabic.
 
 ### System Design Choices
