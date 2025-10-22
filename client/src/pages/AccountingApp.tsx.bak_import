@@ -693,8 +693,6 @@ const DataPageComponent = React.memo(({ 
 }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [currentItem, setCurrentItem] = useState(null);
-    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-    const [selectedFile, setSelectedFile] = useState(null);
     
     const initialRange = useMemo(() => getCurrentMonthRange(), []);
     const [filterDateFrom, setFilterDateFrom] = useState(initialRange.start);
@@ -919,138 +917,11 @@ const DataPageComponent = React.memo(({ 
             } else {
                  return baseItem;
             }
-
         });
 
         exportToCsv(exportContent, `${title}_تقرير`);
         showToast('تم تصدير البيانات إلى Excel بنجاح!', "success");
     };
-
-    // وظيفة تحميل نموذج Excel
-    const downloadExcelTemplate = () => {
-        const templateData = [];
-        
-        // إنشاء صف واحد كمثال
-        const exampleRow = {
-            'التاريخ (yyyy-mm-dd)': '2025-01-01',
-            'رقم الفاتورة': 'INV001',
-            'المبلغ': 100000,
-        };
-        
-        // إضافة حقول إضافية حسب نوع الصفحة
-        if (type === 'revenue') {
-            exampleRow['الفئة'] = 'مبيعات';
-            exampleRow['وصف الإيراد'] = 'مثال على إيراد';
-        } else if (type === 'expense') {
-            exampleRow['الفئة'] = 'رواتب';
-            exampleRow['الوصف'] = 'مثال على مصروف';
-            exampleRow['المورد'] = 'شركة مثال';
-            exampleRow['المندوب'] = 'أحمد';
-        } else if (type === 'advance') {
-            exampleRow['الفئة'] = 'سلفة شخصية';
-            exampleRow['اسم الموظف'] = 'محمد علي';
-            exampleRow['ملاحظات'] = 'سلفة';
-        }
-        
-        templateData.push(exampleRow);
-        
-        // إنشاء workbook وworksheet
-        const ws = XLSX.utils.json_to_sheet(templateData);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'البيانات');
-        
-        // تحميل الملف
-        XLSX.writeFile(wb, `نموذج_${title}_${new Date().toISOString().split('T')[0]}.xlsx`);
-        showToast('تم تحميل نموذج Excel بنجاح!', 'success');
-    };
-    
-    // وظيفة معالجة الملف المرفوع
-    const handleFileUpload = (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        
-        setSelectedFile(file);
-        showToast('تم تحديد الملف. اضغط على "استيراد البيانات" للمتابعة.', 'info');
-    };
-    
-    // وظيفة استيراد البيانات من ملف Excel
-    const importDataFromExcel = () => {
-        if (!selectedFile) {
-            showToast('يرجى اختيار ملف Excel أولاً', 'error');
-            return;
-        }
-        
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                const fileData = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(fileData, { type: 'array' });
-                const sheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[sheetName];
-                const jsonData = XLSX.utils.sheet_to_json(worksheet);
-                
-                if (jsonData.length === 0) {
-                    showToast('الملف فارغ أو غير صالح', 'error');
-                    return;
-                }
-                
-                let successCount = 0;
-                let errorCount = 0;
-                
-                jsonData.forEach((row, index) => {
-                    try {
-                        // التحقق من البيانات الأساسية
-                        if (!row['المبلغ']) {
-                            errorCount++;
-                            return;
-                        }
-                        
-                        const newItem = {
-                            id: crypto.randomUUID(),
-                            date: row['التاريخ (yyyy-mm-dd)'] ? `${row['التاريخ (yyyy-mm-dd)']}T${new Date().toTimeString().slice(0, 5)}` : getDefaultDateTime(),
-                            invoiceNumber: row['رقم الفاتورة'] || generateInvoiceNumber(),
-                            amount: parseFloat(row['المبلغ']) || 0,
-                        };
-                        
-                        // إضافة حقول إضافية حسب نوع الصفحة
-                        if (type === 'revenue') {
-                            newItem.category = row['الفئة'] || categories[0] || '';
-                            newItem.description = row['وصف الإيراد'] || '';
-                            newItem.recipientName = row['اسم المستلم'] || '';
-                        } else if (type === 'expense') {
-                            newItem.category = row['الفئة'] || categories[0] || '';
-                            newItem.description = row['الوصف'] || '';
-                            newItem.vendor = row['المورد'] || '';
-                            newItem.representative = row['المندوب'] || '';
-                        } else if (type === 'advance') {
-                            newItem.category = row['الفئة'] || categories[0] || '';
-                            newItem.notes = row['ملاحظات'] || '';
-                            // البحث عن الموظف بالاسم
-                            const employeeName = row['اسم الموظف'];
-                            const employee = data.employees.find(e => e.name === employeeName);
-                            newItem.employeeId = employee ? employee.id : data.employees[0]?.id || '';
-                        }
-                        
-                        // إضافة العنصر
-                        handleDataAction(collectionName, newItem, true);
-                        successCount++;
-                    } catch (error) {
-                        console.error(`خطأ في معالجة السطر ${index + 1}:`, error);
-                        errorCount++;
-                    }
-                });
-                
-                showToast(`تم استيراد ${successCount} سجل بنجاح${errorCount > 0 ? ` (${errorCount} خطأ)` : ''}`, successCount > 0 ? 'success' : 'error');
-                setIsImportModalOpen(false);
-                setSelectedFile(null);
-            } catch (error) {
-                console.error('خطأ في قراءة ملف Excel:', error);
-                showToast('حدث خطأ في قراءة ملف Excel', 'error');
-            }
-        };
-        
-        reader.readAsArrayBuffer(selectedFile);
-    };
 
     const filteredReps = data.settings.representatives.filter(rep => rep.vendor === selectedVendor);
 
@@ -1182,9 +1053,6 @@ const DataPageComponent = React.memo(({ 
                 <div className="flex flex-wrap gap-2 space-x-reverse">
                     <button onClick={handlePrintAll} className="p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
                         <Printer className="w-6 h-6" />
-                    </button>
-                    <button onClick={() => setIsImportModalOpen(true)} className="p-3 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg transition duration-200" data-testid="button-import-excel">
-                        <Upload className="w-6 h-6" />
                     </button>
                     <button onClick={handleExportAll} className="p-3 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg transition duration-200">
                         <Download className="w-6 h-6" />
@@ -1419,69 +1287,6 @@ const DataPageComponent = React.memo(({ 
                     </form>
                 </Modal>
             )}
-            {/* Import Modal */}
-            {isImportModalOpen && (
-                <Modal title="استيراد البيانات من Excel" onClose={() => setIsImportModalOpen(false)}>
-                    <div className="space-y-6">
-                        <div className="p-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-xl">
-                            <h3 className="font-bold text-blue-800 dark:text-blue-200 mb-2 flex items-center gap-2">
-                                <Info className="w-5 h-5" />
-                                كيفية الاستخدام:
-                            </h3>
-                            <ol className="list-decimal list-inside space-y-1 text-sm text-blue-700 dark:text-blue-300">
-                                <li>قم بتحميل نموذج Excel الفارغ</li>
-                                <li>املأ البيانات في النموذج</li>
-                                <li>ارفع الملف المملوء هنا</li>
-                                <li>اضغط على "استيراد البيانات"</li>
-                            </ol>
-                        </div>
-                        
-                        <div className="flex flex-col gap-4">
-                            <button
-                                onClick={downloadExcelTemplate}
-                                className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-xl hover:from-blue-600 hover:to-cyan-600 shadow-lg transition duration-200"
-                                data-testid="button-download-template"
-                            >
-                                <FileDown className="w-5 h-5" />
-                                تحميل نموذج Excel
-                            </button>
-                            
-                            <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-6">
-                                <label className="flex flex-col items-center justify-center cursor-pointer">
-                                    <Upload className="w-12 h-12 text-gray-400 dark:text-gray-500 mb-2" />
-                                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                        {selectedFile ? selectedFile.name : 'اضغط لاختيار ملف Excel'}
-                                    </span>
-                                    <span className="text-xs text-gray-500 dark:text-gray-400">
-                                        (xlsx, xls)
-                                    </span>
-                                    <input
-                                        type="file"
-                                        accept=".xlsx,.xls"
-                                        onChange={handleFileUpload}
-                                        className="hidden"
-                                        data-testid="input-file-upload"
-                                    />
-                                </label>
-                            </div>
-                            
-                            <button
-                                onClick={importDataFromExcel}
-                                disabled={!selectedFile}
-                                className={`flex items-center justify-center gap-2 px-6 py-3 rounded-xl shadow-lg transition duration-200 ${
-                                    selectedFile
-                                        ? 'bg-gradient-to-r from-green-500 to-teal-500 text-white hover:from-green-600 hover:to-teal-600'
-                                        : 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
-                                }`}
-                                data-testid="button-import-data"
-                            >
-                                <Upload className="w-5 h-5" />
-                                استيراد البيانات
-                            </button>
-                        </div>
-                    </div>
-                </Modal>
-            )}
         </div>
     );
 });
@@ -2533,9 +2338,6 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
                 <div className="flex flex-wrap gap-2 space-x-reverse">
                     <button onClick={handlePrintAll} className="p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
                         <Printer className="w-6 h-6" />
-                    </button>
-                    <button onClick={() => setIsImportModalOpen(true)} className="p-3 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg transition duration-200" data-testid="button-import-excel">
-                        <Upload className="w-6 h-6" />
                     </button>
                     <button onClick={handleExportAll} className="p-3 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg transition duration-200">
                         <Download className="w-6 h-6" />
