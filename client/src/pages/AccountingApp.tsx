@@ -6538,7 +6538,7 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
 const AboutSystemModal = ({ onClose }) => (
     <Modal title="حول نظام المحاسبة العراقي" onClose={onClose} size="sm">
         <div className="space-y-4 text-center p-4">
-            <h3 className="text-2xl font-extrabold text-blue-900">نظام المحاسبة العراقي (V 1.0)</h3>
+            <h3 className="text-2xl font-extrabold text-blue-900 dark:text-blue-300">نظام المحاسبة العراقي (V3.0)</h3>
             {/* **تم تغيير الجملة إلى جملة احترافية** */}
             <p className="text-gray-700 dark:text-gray-300">منصة احترافية متكاملة لإدارة الموارد والمخزون والعمليات التشغيلية بكفاءة عالية.</p>
             
@@ -6546,15 +6546,15 @@ const AboutSystemModal = ({ onClose }) => (
                 {/* **تم تصحيح الاتجاه لليمين** */}
                 <div className="flex justify-between items-center">
                     <span className="font-semibold text-gray-800 dark:text-gray-200">المصمم:</span>
-                    <span className="font-bold text-indigo-600">علاء المالكي</span>
+                    <span className="font-bold text-indigo-600 dark:text-indigo-400">علاء المالكي</span>
                 </div>
                 <div className="flex justify-between items-center">
                     <span className="font-semibold text-gray-800 dark:text-gray-200">رقم الهاتف:</span>
-                    <span className="font-bold text-indigo-600">٠٧٧١٧٧١٦٢٠٥</span>
+                    <span className="font-bold text-indigo-600 dark:text-indigo-400">٠٧٧١٧٧١٦٢٠٥</span>
                 </div>
                 <div className="flex justify-between items-center">
                     <span className="font-semibold text-gray-800 dark:text-gray-200">إصدار التحديث:</span>
-                    <span className="font-bold text-indigo-600">1.0</span>
+                    <span className="font-bold text-indigo-600 dark:text-indigo-400">V3.0</span>
                 </div>
             </div>
             
