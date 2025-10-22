@@ -5997,6 +5997,19 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
                 {t('inventoryWithdrawal')}
             </h2>
 
+            {/* البحث */}
+            <div className="relative">
+                <input
+                    type="text"
+                    value={globalSearch}
+                    onChange={(e) => setGlobalSearch(e.target.value)}
+                    placeholder="البحث برقم الاستخراج، اسم الموظف، أو المادة..."
+                    className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl pr-10 focus:ring-green-500 focus:border-green-500"
+                    data-testid="input-search-withdrawals"
+                />
+                <Search className="w-5 h-5 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            </div>
+
             {/* أزرار الإجراءات */}
             <div className="flex flex-wrap items-center justify-between gap-4">
                 <button
@@ -6038,19 +6051,6 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
                         <RotateCcw className="w-6 h-6" />
                     </button>
                 </div>
-            </div>
-
-            {/* البحث */}
-            <div className="relative">
-                <input
-                    type="text"
-                    value={globalSearch}
-                    onChange={(e) => setGlobalSearch(e.target.value)}
-                    placeholder="البحث برقم الاستخراج، اسم الموظف، أو المادة..."
-                    className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl pr-10 focus:ring-green-500 focus:border-green-500"
-                    data-testid="input-search-withdrawals"
-                />
-                <Search className="w-5 h-5 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             </div>
 
             {/* جدول الاستخراجات */}
