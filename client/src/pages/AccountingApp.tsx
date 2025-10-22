@@ -5529,6 +5529,181 @@ const AdminPage = React.memo(({ data }) => {
                     </p>
                 </div>
             </div>
+            
+            {/* قسم سجل النشاطات */}
+            <ActivityLogSection data={data} />
+        </div>
+    );
+});
+
+/**
+ * قسم سجل النشاطات
+ */
+const ActivityLogSection = React.memo(({ data }) => {
+    const [searchTerm, setSearchTerm] = React.useState('');
+    const [filterAction, setFilterAction] = React.useState('all');
+    const [filterDays, setFilterDays] = React.useState('all');
+    
+    const activityLog = data.activityLog || [];
+    
+    // فلترة السجلات
+    const filteredLogs = React.useMemo(() => {
+        let logs = [...activityLog];
+        
+        // فلترة حسب نوع العملية
+        if (filterAction !== 'all') {
+            logs = logs.filter(log => log.action === filterAction);
+        }
+        
+        // فلترة حسب التاريخ
+        if (filterDays !== 'all') {
+            const daysAgo = parseInt(filterDays);
+            const cutoffDate = new Date();
+            cutoffDate.setDate(cutoffDate.getDate() - daysAgo);
+            logs = logs.filter(log => new Date(log.timestamp) >= cutoffDate);
+        }
+        
+        // بحث في المحتوى
+        if (searchTerm) {
+            logs = logs.filter(log => 
+                log.username.includes(searchTerm) ||
+                log.action.includes(searchTerm) ||
+                log.module.includes(searchTerm) ||
+                (log.details && log.details.includes(searchTerm))
+            );
+        }
+        
+        return logs;
+    }, [activityLog, searchTerm, filterAction, filterDays]);
+    
+    return (
+        <div className="p-6 rounded-xl shadow-lg bg-gradient-to-br from-gray-50 to-white dark:from-gray-700 dark:to-gray-800 border border-gray-200 dark:border-gray-600">
+            <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-6 flex items-center gap-2">
+                <Clock className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+                سجل النشاطات
+            </h3>
+            
+            {/* الفلاتر والبحث */}
+            <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                        بحث
+                    </label>
+                    <input
+                        type="text"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        placeholder="ابحث في السجلات..."
+                        className="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
+                        data-testid="input-activity-search"
+                    />
+                </div>
+                
+                <div>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                        نوع العملية
+                    </label>
+                    <select
+                        value={filterAction}
+                        onChange={(e) => setFilterAction(e.target.value)}
+                        className="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
+                        data-testid="select-action-filter"
+                    >
+                        <option value="all">الكل</option>
+                        <option value="إضافة">إضافة</option>
+                        <option value="تعديل">تعديل</option>
+                        <option value="حذف">حذف</option>
+                        <option value="موافقة">موافقة</option>
+                        <option value="إلغاء">إلغاء</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                        الفترة الزمنية
+                    </label>
+                    <select
+                        value={filterDays}
+                        onChange={(e) => setFilterDays(e.target.value)}
+                        className="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
+                        data-testid="select-days-filter"
+                    >
+                        <option value="all">كل الفترة</option>
+                        <option value="1">اليوم</option>
+                        <option value="7">آخر 7 أيام</option>
+                        <option value="30">آخر 30 يوم</option>
+                        <option value="90">آخر 90 يوم</option>
+                    </select>
+                </div>
+            </div>
+            
+            {/* عداد النتائج */}
+            <div className="mb-4 text-gray-600 dark:text-gray-400">
+                <span className="font-semibold">عدد السجلات: </span>
+                <span className="text-lg font-bold text-gray-800 dark:text-gray-200">{filteredLogs.length}</span>
+            </div>
+            
+            {/* جدول السجلات */}
+            <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-600">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-600">
+                    <thead className="bg-gray-50 dark:bg-gray-700">
+                        <tr>
+                            <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                                التاريخ والوقت
+                            </th>
+                            <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                                المستخدم
+                            </th>
+                            <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                                العملية
+                            </th>
+                            <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                                القسم
+                            </th>
+                            <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                                التفاصيل
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
+                        {filteredLogs.length === 0 ? (
+                            <tr>
+                                <td colSpan={5} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                                    لا توجد سجلات
+                                </td>
+                            </tr>
+                        ) : (
+                            filteredLogs.map((log) => (
+                                <tr key={log.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" data-testid={`row-activity-${log.id}`}>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                                        {formatDateDDMMYYYY(log.timestamp)} {new Date(log.timestamp).toLocaleTimeString('ar-IQ', { hour: '2-digit', minute: '2-digit' })}
+                                    </td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-800 dark:text-gray-200">
+                                        {log.username}
+                                    </td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm">
+                                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                                            log.action === 'إضافة' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
+                                            log.action === 'تعديل' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' :
+                                            log.action === 'حذف' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' :
+                                            log.action === 'موافقة' ? 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300' :
+                                            'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300'
+                                        }`}>
+                                            {log.action}
+                                        </span>
+                                    </td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                                        {log.module}
+                                    </td>
+                                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                                        {log.details || '-'}
+                                    </td>
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
+                </table>
+            </div>
         </div>
     );
 });
