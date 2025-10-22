@@ -1313,7 +1313,7 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
     const [selectedVendor, setSelectedVendor] = useState('');
     const [globalSearch, setGlobalSearch] = useState('');
     const [filterType, setFilterType] = useState('الكل');
-    const [filterStatus, setFilterStatus] = useState('all'); // فلتر الحالة: pending, cancelled, all - الافتراضي: عرض الكل
+    const [filterStatus, setFilterStatus] = useState(null); // فلتر الحالة: pending, cancelled, null - الافتراضي: عرض الكل
     const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
     
     const initialRange = useMemo(() => getCurrentMonthRange(), []);
@@ -1353,7 +1353,7 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
         } else if (filterStatus === 'cancelled') {
             list = list.filter(item => item.status === 'cancelled');
         }
-        // إذا كان filterStatus === 'all' نعرض الكل
+        // إذا كان filterStatus === null نعرض الكل
         
         if (filterDateFrom) list = list.filter(item => item.date.slice(0, 10) >= filterDateFrom);
         if (filterDateTo) list = list.filter(item => item.date.slice(0, 10) <= filterDateTo);
@@ -1524,9 +1524,9 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
             </div>
 
             {/* فلتر الحالة */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <button
-                    onClick={() => setFilterStatus('pending')}
+                    onClick={() => setFilterStatus(filterStatus === 'pending' ? null : 'pending')}
                     className={`p-4 rounded-2xl shadow-lg transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl border-r-4
                         ${filterStatus === 'pending' 
                             ? 'bg-amber-200 dark:bg-amber-800 border-amber-600 ring-4 ring-amber-500 ring-opacity-60'
@@ -1546,7 +1546,7 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                 </button>
 
                 <button
-                    onClick={() => setFilterStatus('cancelled')}
+                    onClick={() => setFilterStatus(filterStatus === 'cancelled' ? null : 'cancelled')}
                     className={`p-4 rounded-2xl shadow-lg transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl border-r-4
                         ${filterStatus === 'cancelled' 
                             ? 'bg-rose-200 dark:bg-rose-800 border-rose-600 ring-4 ring-rose-500 ring-opacity-60'
@@ -1561,26 +1561,6 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                         </div>
                         <div className="p-2 rounded-lg bg-white/20 dark:bg-black/20">
                             <XCircle className="w-5 h-5 text-rose-800 dark:text-rose-200" />
-                        </div>
-                    </div>
-                </button>
-
-                <button
-                    onClick={() => setFilterStatus('all')}
-                    className={`p-4 rounded-2xl shadow-lg transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl border-r-4
-                        ${filterStatus === 'all' 
-                            ? 'bg-blue-200 dark:bg-blue-800 border-blue-600 ring-4 ring-blue-500 ring-opacity-60'
-                            : 'bg-blue-50 dark:bg-blue-900 border-blue-600'
-                        }
-                    `}
-                    data-testid="filter-status-all"
-                >
-                    <div className="flex items-center justify-between gap-3">
-                        <div className="flex-1 text-right">
-                            <p className="text-sm font-semibold text-blue-800 dark:text-blue-200">جميع الطلبات</p>
-                        </div>
-                        <div className="p-2 rounded-lg bg-white/20 dark:bg-black/20">
-                            <List className="w-5 h-5 text-blue-800 dark:text-blue-200" />
                         </div>
                     </div>
                 </button>
@@ -1643,7 +1623,7 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                                 setFilterDateTo(initialRange.end);
                                 setGlobalSearch('');
                                 setFilterType('الكل');
-                                setFilterStatus('pending');
+                                setFilterStatus(null);
                             }}
                             className="flex items-center justify-center gap-2 px-4 py-3 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors duration-200 font-semibold"
                             data-testid="button-reset-filters"
