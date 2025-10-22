@@ -1512,8 +1512,8 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
     });
     const [selectedVendor, setSelectedVendor] = useState('');
     const [globalSearch, setGlobalSearch] = useState('');
-    const [filterType, setFilterType] = useState('الكل');
-    const [filterStatus, setFilterStatus] = useState(null); // فلتر الحالة: pending, cancelled, null - الافتراضي: عرض الكل
+    const [filterTypes, setFilterTypes] = useState([]); // مصفوفة للسماح باختيار متعدد: ['expense', 'advance']
+    const [filterStatuses, setFilterStatuses] = useState([]); // مصفوفة للسماح باختيار متعدد: ['pending', 'cancelled', 'paid']
     const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
     
     const initialRange = useMemo(() => getCurrentMonthRange(), []);
@@ -1547,18 +1547,20 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
     const filteredList = useMemo(() => {
         let list = data.pendingExpenses.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
         
-        // فلتر الحالة
-        if (filterStatus === 'pending') {
-            list = list.filter(item => item.status === 'pending' || !item.status);
-        } else if (filterStatus === 'cancelled') {
-            list = list.filter(item => item.status === 'cancelled');
+        // فلتر الحالة - إذا كان هناك فلاتر محددة، نطبقها
+        if (filterStatuses.length > 0) {
+            list = list.filter(item => {
+                const itemStatus = item.status || 'pending';
+                return filterStatuses.includes(itemStatus);
+            });
         }
-        // إذا كان filterStatus === null نعرض الكل
         
         if (filterDateFrom) list = list.filter(item => item.date.slice(0, 10) >= filterDateFrom);
         if (filterDateTo) list = list.filter(item => item.date.slice(0, 10) <= filterDateTo);
-        if (filterType && filterType !== 'الكل') {
-            list = list.filter(item => item.type === filterType);
+        
+        // فلتر النوع - إذا كان هناك فلاتر محددة، نطبقها
+        if (filterTypes.length > 0) {
+            list = list.filter(item => filterTypes.includes(item.type));
         }
         
         if (globalSearch) {
@@ -1577,13 +1579,22 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
             });
         }
         return list;
-    }, [data.pendingExpenses, data.employees, filterDateFrom, filterDateTo, filterType, filterStatus, globalSearch]);
+    }, [data.pendingExpenses, data.employees, filterDateFrom, filterDateTo, filterTypes, filterStatuses, globalSearch]);
 
     const typeTotals = useMemo(() => {
         const totals = { expense: 0, advance: 0 };
         filteredList.forEach(item => {
             if (item.type === 'expense') totals.expense += parseFloat(item.amount) || 0;
             if (item.type === 'advance') totals.advance += parseFloat(item.amount) || 0;
+        });
+        return totals;
+    }, [filteredList]);
+
+    const statusTotals = useMemo(() => {
+        const totals = { pending: 0, cancelled: 0, paid: 0 };
+        filteredList.forEach(item => {
+            const itemStatus = item.status || 'pending';
+            totals[itemStatus] += parseFloat(item.amount) || 0;
         });
         return totals;
     }, [filteredList]);
@@ -1734,8 +1745,8 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                                 setFilterDateFrom(initialRange.start);
                                 setFilterDateTo(initialRange.end);
                                 setGlobalSearch('');
-                                setFilterType('الكل');
-                                setFilterStatus(null);
+                                setFilterTypes([]);
+                                setFilterStatuses([]);
                             }}
                             className="flex items-center justify-center gap-2 px-4 py-3 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors duration-200 font-semibold"
                             data-testid="button-reset-filters"
@@ -1747,12 +1758,16 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                 </div>
             </div>
 
-            {/* بطاقات الفلتر */}
+            {/* بطاقات فلتر النوع */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div
-                    onClick={() => setFilterType(filterType === 'expense' ? 'الكل' : 'expense')}
+                    onClick={() => setFilterTypes(prev => 
+                        prev.includes('expense') 
+                            ? prev.filter(t => t !== 'expense')
+                            : [...prev, 'expense']
+                    )}
                     className={`p-6 rounded-2xl shadow-lg cursor-pointer transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl border-r-4
-                        ${filterType === 'expense' 
+                        ${filterTypes.includes('expense')
                             ? 'bg-red-200 dark:bg-red-800 border-red-600 ring-4 ring-red-500 ring-opacity-60'
                             : 'bg-red-50 dark:bg-red-900 border-red-600'
                         }
@@ -1761,7 +1776,7 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                 >
                     <div className="flex items-center justify-between gap-3">
                         <div className="flex-1">
-                            <p className="text-sm font-semibold text-red-800 dark:text-red-200 mb-1">الصرفيات المعلقة</p>
+                            <p className="text-sm font-semibold text-red-800 dark:text-red-200 mb-1">الصرفيات</p>
                             <p className="text-2xl font-extrabold text-red-900 dark:text-red-100">{formatCurrencyDisplay(typeTotals.expense)}</p>
                         </div>
                         <div className="p-2 rounded-lg bg-white/20 dark:bg-black/20">
@@ -1771,9 +1786,13 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                 </div>
 
                 <div
-                    onClick={() => setFilterType(filterType === 'advance' ? 'الكل' : 'advance')}
+                    onClick={() => setFilterTypes(prev => 
+                        prev.includes('advance') 
+                            ? prev.filter(t => t !== 'advance')
+                            : [...prev, 'advance']
+                    )}
                     className={`p-6 rounded-2xl shadow-lg cursor-pointer transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl border-r-4
-                        ${filterType === 'advance'
+                        ${filterTypes.includes('advance')
                             ? 'bg-purple-200 dark:bg-purple-800 border-purple-600 ring-4 ring-purple-500 ring-opacity-60'
                             : 'bg-purple-50 dark:bg-purple-900 border-purple-600'
                         }
@@ -1782,7 +1801,7 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                 >
                     <div className="flex items-center justify-between gap-3">
                         <div className="flex-1">
-                            <p className="text-sm font-semibold text-purple-800 dark:text-purple-200 mb-1">السلف المعلقة</p>
+                            <p className="text-sm font-semibold text-purple-800 dark:text-purple-200 mb-1">السلف</p>
                             <p className="text-2xl font-extrabold text-purple-900 dark:text-purple-100">{formatCurrencyDisplay(typeTotals.advance)}</p>
                         </div>
                         <div className="p-2 rounded-lg bg-white/20 dark:bg-black/20">
@@ -1792,12 +1811,16 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                 </div>
             </div>
 
-            {/* فلتر الحالة */}
+            {/* بطاقات فلتر الحالة */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <button
-                    onClick={() => setFilterStatus(filterStatus === 'pending' ? null : 'pending')}
-                    className={`p-4 rounded-2xl shadow-lg transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl border-r-4
-                        ${filterStatus === 'pending' 
+                <div
+                    onClick={() => setFilterStatuses(prev => 
+                        prev.includes('pending') 
+                            ? prev.filter(s => s !== 'pending')
+                            : [...prev, 'pending']
+                    )}
+                    className={`p-6 rounded-2xl shadow-lg cursor-pointer transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl border-r-4
+                        ${filterStatuses.includes('pending')
                             ? 'bg-amber-200 dark:bg-amber-800 border-amber-600 ring-4 ring-amber-500 ring-opacity-60'
                             : 'bg-amber-50 dark:bg-amber-900 border-amber-600'
                         }
@@ -1805,19 +1828,24 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                     data-testid="filter-status-pending"
                 >
                     <div className="flex items-center justify-between gap-3">
-                        <div className="flex-1 text-right">
-                            <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">الطلبات المعلقة</p>
+                        <div className="flex-1">
+                            <p className="text-sm font-semibold text-amber-800 dark:text-amber-200 mb-1">الطلبات المعلقة</p>
+                            <p className="text-2xl font-extrabold text-amber-900 dark:text-amber-100">{formatCurrencyDisplay(statusTotals.pending)}</p>
                         </div>
                         <div className="p-2 rounded-lg bg-white/20 dark:bg-black/20">
                             <Clock className="w-5 h-5 text-amber-800 dark:text-amber-200" />
                         </div>
                     </div>
-                </button>
+                </div>
 
-                <button
-                    onClick={() => setFilterStatus(filterStatus === 'cancelled' ? null : 'cancelled')}
-                    className={`p-4 rounded-2xl shadow-lg transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl border-r-4
-                        ${filterStatus === 'cancelled' 
+                <div
+                    onClick={() => setFilterStatuses(prev => 
+                        prev.includes('cancelled') 
+                            ? prev.filter(s => s !== 'cancelled')
+                            : [...prev, 'cancelled']
+                    )}
+                    className={`p-6 rounded-2xl shadow-lg cursor-pointer transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl border-r-4
+                        ${filterStatuses.includes('cancelled')
                             ? 'bg-rose-200 dark:bg-rose-800 border-rose-600 ring-4 ring-rose-500 ring-opacity-60'
                             : 'bg-rose-50 dark:bg-rose-900 border-rose-600'
                         }
@@ -1825,14 +1853,15 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                     data-testid="filter-status-cancelled"
                 >
                     <div className="flex items-center justify-between gap-3">
-                        <div className="flex-1 text-right">
-                            <p className="text-sm font-semibold text-rose-800 dark:text-rose-200">الطلبات الملغاة</p>
+                        <div className="flex-1">
+                            <p className="text-sm font-semibold text-rose-800 dark:text-rose-200 mb-1">الطلبات الملغاة</p>
+                            <p className="text-2xl font-extrabold text-rose-900 dark:text-rose-100">{formatCurrencyDisplay(statusTotals.cancelled)}</p>
                         </div>
                         <div className="p-2 rounded-lg bg-white/20 dark:bg-black/20">
                             <XCircle className="w-5 h-5 text-rose-800 dark:text-rose-200" />
                         </div>
                     </div>
-                </button>
+                </div>
             </div>
 
 
