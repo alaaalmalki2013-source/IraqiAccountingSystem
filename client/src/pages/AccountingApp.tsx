@@ -1,4 +1,5 @@
 // @ts-nocheck
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import * as XLSX from 'xlsx';
 import {
@@ -4934,6 +4935,11 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
         }));
         showToast('تم حذف المستخدم بنجاح.', 'warning');
     };
+    
+    // دالة طباعة المستخدمين والصلاحيات
+    const handlePrintUsers = () => {
+        window.print();
+    };
     
     const currentItems = settings[currentList] || [];
 
@@ -5113,10 +5119,16 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
                 <div className="lg:col-span-2 space-y-6 p-6 rounded-xl shadow-lg border-l-4 border-purple-500 bg-gray-50 dark:bg-gray-800">
                     <h3 className="text-2xl font-bold text-purple-800 dark:text-purple-300 flex items-center"><Users className="w-6 h-6 ml-2" /> إدارة المستخدمين والصلاحيات</h3>
                     
-                    <ActionButton onClick={() => openUserModal()} className="bg-purple-600 hover:bg-purple-700 px-4 py-2 text-base">
-                        <UserPlus className="w-5 h-5 ml-2" />
-                        إضافة مستخدم جديد
-                    </ActionButton>
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <ActionButton onClick={() => openUserModal()} className="bg-purple-600 hover:bg-purple-700 px-4 py-2 text-base">
+                            <UserPlus className="w-5 h-5 ml-2" />
+                            إضافة مستخدم جديد
+                        </ActionButton>
+                        
+                        <button onClick={handlePrintUsers} className="p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200" data-testid="button-print-users" title="طباعة جدول المستخدمين">
+                            <Printer className="w-6 h-6" />
+                        </button>
+                    </div>
                     
                     <div className="overflow-x-auto shadow-md rounded-xl">
                         <table className="min-w-full divide-y divide-gray-200">
