@@ -110,7 +110,7 @@ const NotificationToast = React.memo(({ message, type, onClose }) => {
 
     return (
         <div className={`fixed top-4 right-4 z-[100] p-4 rounded-xl shadow-2xl ${textColor}  flex items-center space-x-3 space-x-reverse transition-transform duration-300 transform translate-x-0 ${bgColor}`}>
-            <Icon className="w-6 h-6" />
+            <Icon className="w-5 h-5 md:w-6 md:h-6" />
             <span className="font-semibold">{message}</span>
             <button onClick={onClose} className="p-1 rounded-full hover:bg-black hover:bg-opacity-10 transition">
                 <X className="w-4 h-4" />
@@ -194,7 +194,7 @@ const Modal = ({ title, children, onClose, size = 'lg', isPrintModal = false }) 
             <div className="flex justify-between items-center p-4 border-b border-teal-100 dark:border-teal-700 bg-teal-50 dark:bg-teal-900/30 rounded-t-3xl">
                 <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200 flex-grow text-center">{title}</h3> 
                 <button onClick={onClose} className="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition p-1 bg-white dark:bg-gray-700 rounded-full">
-                    <X className="w-6 h-6" />
+                    <X className="w-5 h-5 md:w-6 md:h-6" />
                 </button>
             </div>
             <div className="p-6">
@@ -1181,17 +1181,17 @@ const DataPageComponent = React.memo(({ 
                 </button>
 
                 <div className="flex flex-wrap gap-2 space-x-reverse">
-                    <button onClick={handlePrintAll} className="p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
-                        <Printer className="w-6 h-6" />
+                    <button onClick={handlePrintAll} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
+                        <Printer className="w-5 h-5 md:w-6 md:h-6" />
                     </button>
-                    <button onClick={() => setIsImportModalOpen(true)} className="p-3 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg transition duration-200" data-testid="button-import-excel">
-                        <Upload className="w-6 h-6" />
+                    <button onClick={() => setIsImportModalOpen(true)} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg transition duration-200" data-testid="button-import-excel">
+                        <Upload className="w-5 h-5 md:w-6 md:h-6" />
                     </button>
-                    <button onClick={handleExportAll} className="p-3 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg transition duration-200">
-                        <Download className="w-6 h-6" />
+                    <button onClick={handleExportAll} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg transition duration-200">
+                        <Download className="w-5 h-5 md:w-6 md:h-6" />
                     </button>
-                    <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
-                        <RotateCcw className="w-6 h-6" />
+                    <button onClick={handleRefresh} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
+                        <RotateCcw className="w-5 h-5 md:w-6 md:h-6" />
                     </button>
                 </div>
             </div>
@@ -1879,11 +1879,11 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                 </button>
 
                 <div className="flex flex-wrap gap-2 space-x-reverse">
-                    <button onClick={() => window.print()} className="p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
-                        <Printer className="w-6 h-6" />
+                    <button onClick={() => window.print()} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
+                        <Printer className="w-5 h-5 md:w-6 md:h-6" />
                     </button>
-                    <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
-                        <RotateCcw className="w-6 h-6" />
+                    <button onClick={handleRefresh} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
+                        <RotateCcw className="w-5 h-5 md:w-6 md:h-6" />
                     </button>
                 </div>
             </div>
@@ -2561,17 +2561,17 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
                 </button>
 
                 <div className="flex flex-wrap gap-2 space-x-reverse">
-                    <button onClick={handlePrintAll} className="p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
-                        <Printer className="w-6 h-6" />
+                    <button onClick={handlePrintAll} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
+                        <Printer className="w-5 h-5 md:w-6 md:h-6" />
                     </button>
-                    <button onClick={() => setIsImportModalOpen(true)} className="p-3 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg transition duration-200" data-testid="button-import-excel">
-                        <Upload className="w-6 h-6" />
+                    <button onClick={() => setIsImportModalOpen(true)} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg transition duration-200" data-testid="button-import-excel">
+                        <Upload className="w-5 h-5 md:w-6 md:h-6" />
                     </button>
-                    <button onClick={handleExportAll} className="p-3 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg transition duration-200">
-                        <Download className="w-6 h-6" />
+                    <button onClick={handleExportAll} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg transition duration-200">
+                        <Download className="w-5 h-5 md:w-6 md:h-6" />
                     </button>
-                    <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
-                        <RotateCcw className="w-6 h-6" />
+                    <button onClick={handleRefresh} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
+                        <RotateCcw className="w-5 h-5 md:w-6 md:h-6" />
                     </button>
                 </div>
             </div>
@@ -3077,11 +3077,11 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
             </div>
 
             <div className="flex flex-wrap gap-2 space-x-reverse justify-end">
-                <button onClick={() => window.print()} className="p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
-                    <Printer className="w-6 h-6" />
+                <button onClick={() => window.print()} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
+                    <Printer className="w-5 h-5 md:w-6 md:h-6" />
                 </button>
-                <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
-                    <RotateCcw className="w-6 h-6" />
+                <button onClick={handleRefresh} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
+                    <RotateCcw className="w-5 h-5 md:w-6 md:h-6" />
                 </button>
             </div>
 
@@ -3316,7 +3316,7 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                         <div className="flex justify-between items-center p-4 border-b border-purple-100 dark:border-purple-700 bg-gradient-to-r from-purple-500 to-blue-600 rounded-t-3xl">
                             <h3 className="text-xl font-bold text-white flex-grow text-center">معاينة قسيمة الراتب 🧾</h3> 
                             <button onClick={() => setPayslipToPrint(null)} className="text-white hover:text-gray-200 transition p-1 bg-white/20 rounded-full">
-                                <X className="w-6 h-6" />
+                                <X className="w-5 h-5 md:w-6 md:h-6" />
                             </button>
                         </div>
 
@@ -3580,8 +3580,8 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
             </div>
             
             <div className="flex flex-wrap gap-2 space-x-reverse justify-end">
-                <button onClick={() => window.print()} className="p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
-                    <Printer className="w-6 h-6" />
+                <button onClick={() => window.print()} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
+                    <Printer className="w-5 h-5 md:w-6 md:h-6" />
                 </button>
                 <button onClick={() => {
                     const csvContent = [
@@ -3599,11 +3599,11 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
                     link.href = URL.createObjectURL(blob);
                     link.download = `المخزون_${new Date().toISOString().split('T')[0]}.csv`;
                     link.click();
-                }} className="p-3 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg transition duration-200">
-                    <Download className="w-6 h-6" />
+                }} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg transition duration-200">
+                    <Download className="w-5 h-5 md:w-6 md:h-6" />
                 </button>
-                <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200" data-testid="button-refresh-inventory">
-                    <RotateCcw className="w-6 h-6" />
+                <button onClick={handleRefresh} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200" data-testid="button-refresh-inventory">
+                    <RotateCcw className="w-5 h-5 md:w-6 md:h-6" />
                 </button>
             </div>
             
@@ -3689,7 +3689,7 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
                         <div className="flex justify-between items-center p-4 border-b border-indigo-100 dark:border-indigo-700 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-t-3xl">
                             <h3 className="text-xl font-bold text-white flex-grow text-center">معاينة ستكر الباركود 🏷️</h3> 
                             <button onClick={() => setIsPrintPreviewOpen(false)} className="text-white hover:text-gray-200 transition p-1 bg-white/20 rounded-full">
-                                <X className="w-6 h-6" />
+                                <X className="w-5 h-5 md:w-6 md:h-6" />
                             </button>
                         </div>
 
@@ -4290,11 +4290,11 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                 </button>
 
                 <div className="flex flex-wrap gap-2 space-x-reverse">
-                    <button onClick={() => window.print()} className="p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
-                        <Printer className="w-6 h-6" />
+                    <button onClick={() => window.print()} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
+                        <Printer className="w-5 h-5 md:w-6 md:h-6" />
                     </button>
-                    <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
-                        <RotateCcw className="w-6 h-6" />
+                    <button onClick={handleRefresh} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
+                        <RotateCcw className="w-5 h-5 md:w-6 md:h-6" />
                     </button>
                 </div>
             </div>
@@ -5154,8 +5154,8 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
                             إضافة مستخدم جديد
                         </ActionButton>
                         
-                        <button onClick={handlePrintUsers} className="p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200" data-testid="button-print-users" title="طباعة جدول المستخدمين">
-                            <Printer className="w-6 h-6" />
+                        <button onClick={handlePrintUsers} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200" data-testid="button-print-users" title="طباعة جدول المستخدمين">
+                            <Printer className="w-5 h-5 md:w-6 md:h-6" />
                         </button>
                     </div>
                     
@@ -5769,8 +5769,8 @@ const InventoryDispatchComponent = React.memo(({ data, handleDataAction, showToa
                         />
                         <Search className="w-5 h-5 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                     </div>
-                    <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
-                        <RotateCcw className="w-6 h-6" />
+                    <button onClick={handleRefresh} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
+                        <RotateCcw className="w-5 h-5 md:w-6 md:h-6" />
                     </button>
                 </div>
 
@@ -6212,8 +6212,8 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
                 </button>
 
                 <div className="flex flex-wrap gap-2 space-x-reverse">
-                    <button onClick={() => window.print()} className="p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
-                        <Printer className="w-6 h-6" />
+                    <button onClick={() => window.print()} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
+                        <Printer className="w-5 h-5 md:w-6 md:h-6" />
                     </button>
                     <button onClick={() => {
                         const csvContent = [
@@ -6231,11 +6231,11 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
                         link.href = URL.createObjectURL(blob);
                         link.download = `الاستخراجات_المخزنية_${new Date().toISOString().split('T')[0]}.csv`;
                         link.click();
-                    }} className="p-3 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg transition duration-200">
-                        <Download className="w-6 h-6" />
+                    }} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg transition duration-200">
+                        <Download className="w-5 h-5 md:w-6 md:h-6" />
                     </button>
-                    <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
-                        <RotateCcw className="w-6 h-6" />
+                    <button onClick={handleRefresh} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
+                        <RotateCcw className="w-5 h-5 md:w-6 md:h-6" />
                     </button>
                 </div>
             </div>
@@ -7167,9 +7167,9 @@ const AccountingApp = () => {
                     data-testid="button-toggle-chatbot"
                 >
                     {isOpen ? (
-                        <X className="w-6 h-6" />
+                        <X className="w-5 h-5 md:w-6 md:h-6" />
                     ) : (
-                        <MessageCircle className="w-6 h-6" />
+                        <MessageCircle className="w-5 h-5 md:w-6 md:h-6" />
                     )}
                 </button>
             </div>
@@ -7208,7 +7208,7 @@ const AccountingApp = () => {
                     {!isSidebarCollapsed && <h1 className="text-3xl font-extrabold">{data.settings.companyName}</h1>}
                     {!isSidebarCollapsed && <p className="text-sm opacity-75">مرحباً, {currentUserForApp.username}</p>}
                     <button onClick={() => setIsSidebarOpen(false)} className="absolute left-3 top-4 text-white p-2 rounded-full lg:hidden hover:bg-blue-800">
-                        <X className="w-6 h-6" />
+                        <X className="w-5 h-5 md:w-6 md:h-6" />
                     </button>
                 </div>
                 <nav className={`flex-grow ${isSidebarCollapsed ? 'p-2' : 'p-4'} space-y-2 overflow-y-auto transition-all duration-300 sidebar-scroll`}>
@@ -7268,7 +7268,7 @@ const AccountingApp = () => {
                 {/* Header for Mobile/Tablet */}
                 <header className="app-header flex justify-between items-center bg-gradient-to-r from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 p-4 mb-4 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 lg:hidden">
                     <button onClick={() => setIsSidebarOpen(true)} className="text-blue-600 dark:text-blue-400 p-2 rounded-lg hover:bg-gray-100 dark:bg-gray-600 dark:hover:bg-gray-700 transition">
-                        <Menu className="w-6 h-6" />
+                        <Menu className="w-5 h-5 md:w-6 md:h-6" />
                     </button>
                     <h1 className="text-xl font-bold text-gray-800 dark:text-gray-200 dark:text-gray-100">{navItems.find(item => item.key === currentPage)?.label}</h1>
                 <div className="flex items-center space-x-2 space-x-reverse">
