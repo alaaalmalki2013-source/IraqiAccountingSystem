@@ -1047,17 +1047,17 @@ const DataPageComponent = React.memo(({ 
                  </button>
              </div>
 
-             <div className="flex flex-wrap gap-2 space-x-reverse justify-end">
-                 <button onClick={handlePrintAll} className="p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
+             <div className="flex flex-wrap gap-2 space-x-reverse justify-end">
+                 <button onClick={handlePrintAll} className="p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
+                     <Printer className="w-6 h-6" />
+                 </button>
+                 <button onClick={handleExportAll} className="p-3 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg transition duration-200">
+                     <Download className="w-6 h-6" />
+                 </button>
                  <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
                      <RotateCcw className="w-6 h-6" />
                  </button>
-                     <Printer className="w-6 h-6" />
-                 </button>
-                 <button onClick={handleExportAll} className="p-3 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg transition duration-200">
-                     <Download className="w-6 h-6" />
-                 </button>
-             </div>
+             </div>
 
 
             <div className="bg-white dark:bg-gray-700 p-6 rounded-xl shadow-lg overflow-x-auto">
