@@ -6505,6 +6505,11 @@ const AccountingApp = () => {
             
             if (collectionName !== 'inventory') {
                 showToast(`تم إضافة السجل بنجاح!`, 'success');
+            
+            // تسجيل النشاط
+            const moduleName = navItems.find(i => i.key === collectionName)?.label || collectionName;
+            logActivity("إضافة", moduleName, `${item.description || item.amount || item.name || "سجل جديد"}`);
+
             }
             
             if (collectionName === 'inventory' && !newItem.purchaseHistory) {
@@ -6517,6 +6522,11 @@ const AccountingApp = () => {
             if (index !== -1) {
                 collection[index] = item;
                 newData[collectionName] = collection;
+                
+                // تسجيل النشاط
+                const moduleName = navItems.find(i => i.key === collectionName)?.label || collectionName;
+                logActivity("تعديل", moduleName, `${item.description || item.amount || item.name || "سجل"}`);
+
                 showToast(`تم تعديل السجل بنجاح!`, 'success');
             } else if (collectionName === 'pendingInvoices' && item.status) {
                  const existingIndex = collection.findIndex(i => i.id === item.id);
@@ -6572,6 +6582,12 @@ const AccountingApp = () => {
         }
         
         newData[collectionName] = newData[collectionName].filter(item => item.id !== id);
+        
+        // تسجيل النشاط
+        const moduleName = navItems.find(i => i.key === collectionName)?.label || collectionName;
+        const deletedItem = data[collectionName]?.find(item => item.id === id);
+        logActivity("حذف", moduleName, `${deletedItem?.description || deletedItem?.amount || deletedItem?.name || "سجل"}`);
+
 
         if (showMessage) {
            showToast('تم حذف السجل بنجاح.', 'warning');
@@ -6622,6 +6638,32 @@ const AccountingApp = () => {
             showToast('خطأ في حفظ البيانات محلياً. يرجى التحقق من مساحة التخزين.', 'error');
         }
     };
+    
+    // دالة تسجيل النشاطات
+    const logActivity = (action, module, details = "") => {
+        const newData = { ...data };
+        
+        if (!newData.activityLog) {
+            newData.activityLog = [];
+        }
+        
+        const logEntry = {
+            id: crypto.randomUUID(),
+            timestamp: new Date().toISOString(),
+            username: currentUserForApp?.username || "المستخدم",
+            action,
+            module,
+            details
+        };
+        
+        newData.activityLog.unshift(logEntry);
+        
+        if (newData.activityLog.length > 500) {
+            newData.activityLog = newData.activityLog.slice(0, 500);
+        }
+        
+        saveData(newData);
+    };
 
     // 5. Settings Update
     const handleSettingsUpdate = (newSettings) => {
