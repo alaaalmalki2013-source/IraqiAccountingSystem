@@ -1656,7 +1656,7 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
             </div>
 
 
-            <div className="flex justify-start items-center">
+            <div className="flex flex-wrap items-center justify-between gap-4">
                 <button
                     onClick={() => {
                         setCurrentItem(null);
@@ -1668,6 +1668,15 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                     <Plus className="w-5 h-5 ml-2" />
                     إضافة صرفية معلقة
                 </button>
+
+                <div className="flex flex-wrap gap-2 space-x-reverse">
+                    <button onClick={() => window.print()} className="p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
+                        <Printer className="w-6 h-6" />
+                    </button>
+                    <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
+                        <RotateCcw className="w-6 h-6" />
+                    </button>
+                </div>
             </div>
 
             {/* الجدول */}
@@ -2855,6 +2864,15 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                 <Search className="w-5 h-5 absolute right-3 top-1/2 transform translate-y-1/2 text-gray-400 mt-2" />
             </div>
 
+            <div className="flex flex-wrap gap-2 space-x-reverse justify-end">
+                <button onClick={() => window.print()} className="p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
+                    <Printer className="w-6 h-6" />
+                </button>
+                <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
+                    <RotateCcw className="w-6 h-6" />
+                </button>
+            </div>
+
             {/* جدول الرواتب */}
             <div className="bg-white dark:bg-gray-700 p-6 rounded-xl shadow-lg overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
@@ -3349,7 +3367,10 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
                 <Search className="w-5 h-5 absolute right-3 top-1/2 transform translate-y-1/2 text-gray-400 mt-2" />
             </div>
             
-            <div className="flex flex-wrap gap-2 justify-end items-center">
+            <div className="flex flex-wrap gap-2 space-x-reverse justify-end">
+                <button onClick={() => window.print()} className="p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
+                    <Printer className="w-6 h-6" />
+                </button>
                 <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200" data-testid="button-refresh-inventory">
                     <RotateCcw className="w-6 h-6" />
                 </button>
@@ -4026,13 +4047,8 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                 />
                 <Search className="w-5 h-5 absolute right-3 top-1/2 transform translate-y-1/2 text-gray-400 mt-2" />
             </div>
-            
-            <div className="flex flex-wrap gap-2 justify-end items-center">
-                <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
-                    <RotateCcw className="w-6 h-6" />
-                </button>
-
-            <div className="flex justify-start items-center">
+            
+            <div className="flex flex-wrap items-center justify-between gap-4">
                 <button
                     onClick={() => setIsNewInvoiceModalOpen(true)}
                     className="flex items-center px-6 py-3 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-xl hover:from-green-600 hover:to-teal-600 shadow-lg transition duration-200"
@@ -4041,9 +4057,16 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                     <ClipboardCheck className="w-5 h-5 ml-2" />
                     إدخال فاتورة مشتريات جديدة
                 </button>
-            </div>
 
-            </div>
+                <div className="flex flex-wrap gap-2 space-x-reverse">
+                    <button onClick={() => window.print()} className="p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
+                        <Printer className="w-6 h-6" />
+                    </button>
+                    <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
+                        <RotateCcw className="w-6 h-6" />
+                    </button>
+                </div>
+            </div>
 
 
             <div className="bg-white dark:bg-gray-700 p-6 rounded-xl shadow-lg overflow-x-auto">
