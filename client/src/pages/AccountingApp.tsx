@@ -1047,7 +1047,7 @@ const DataPageComponent = React.memo(({ 
                  </button>
              </div>
 
-             <div className="flex flex-wrap gap-2 space-x-reverse">
+             <div className="flex flex-wrap gap-2 space-x-reverse justify-end">
                  <button onClick={handlePrintAll} className="p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
                  <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
                      <RotateCcw className="w-6 h-6" />
@@ -2331,9 +2331,8 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
                 <Search className="w-5 h-5 absolute right-3 top-1/2 transform translate-y-1/2 text-gray-400 mt-2" />
             </div>
 
-           <div>
 
-                   <div className="flex flex-wrap gap-2 space-x-reverse">
+                   <div className="flex flex-wrap gap-2 space-x-reverse justify-end">
                        <button onClick={handlePrintAll} className="p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
                            <Printer className="w-6 h-6" />
                        </button>
@@ -2355,7 +2354,6 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
                     إضافة موظف جديد
                 </button>
             </div>
-            </div>
 
             <div className="bg-white dark:bg-gray-700 p-6 rounded-xl shadow-lg overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
