@@ -6942,18 +6942,60 @@ const AccountingApp = () => {
     // AI Chatbot Component
     // =================================================================
     const AIChatbot = () => {
-        const [isOpen, setIsOpen] = useState(false);
-        const [messages, setMessages] = useState([
-            {
-                id: 1,
-                text: 'مرحباً! أنا علاء، مساعدك الذكي في نظام الحسابات. كيف يمكنني مساعدتك اليوم؟',
-                sender: 'bot',
-                timestamp: new Date()
+        const CHAT_STORAGE_KEY = 'iraqiAccountingChatHistory';
+        const CHAT_EXPIRY_HOURS = 24;
+        
+        // تحميل المحادثات من localStorage
+        const loadChatHistory = () => {
+            try {
+                const stored = localStorage.getItem(CHAT_STORAGE_KEY);
+                if (stored) {
+                    const parsed = JSON.parse(stored);
+                    const createdAt = new Date(parsed.createdAt);
+                    const now = new Date();
+                    const hoursDiff = (now - createdAt) / (1000 * 60 * 60);
+                    
+                    // إذا مرت أكثر من 24 ساعة، احذف المحادثات القديمة
+                    if (hoursDiff > CHAT_EXPIRY_HOURS) {
+                        localStorage.removeItem(CHAT_STORAGE_KEY);
+                        return getInitialMessages();
+                    }
+                    
+                    return parsed.messages;
+                }
+            } catch (error) {
+                console.error('Error loading chat history:', error);
             }
-        ]);
+            return getInitialMessages();
+        };
+        
+        const getInitialMessages = () => [{
+            id: 1,
+            text: 'مرحباً! أنا علاء، مساعدك الذكي في نظام الحسابات. كيف يمكنني مساعدتك اليوم؟',
+            sender: 'bot',
+            timestamp: new Date().toISOString()
+        }];
+        
+        const [isOpen, setIsOpen] = useState(false);
+        const [messages, setMessages] = useState(loadChatHistory());
         const [inputMessage, setInputMessage] = useState('');
         const [isSending, setIsSending] = useState(false);
         const messagesEndRef = React.useRef(null);
+        
+        // حفظ المحادثات في localStorage عند كل تحديث
+        useEffect(() => {
+            if (messages.length > 0) {
+                try {
+                    const chatData = {
+                        messages: messages,
+                        createdAt: new Date().toISOString()
+                    };
+                    localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(chatData));
+                } catch (error) {
+                    console.error('Error saving chat history:', error);
+                }
+            }
+        }, [messages]);
 
         const scrollToBottom = () => {
             messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -6972,7 +7014,7 @@ const AccountingApp = () => {
                 id: Date.now(),
                 text: inputMessage,
                 sender: 'user',
-                timestamp: new Date()
+                timestamp: new Date().toISOString()
             };
 
             setMessages(prev => [...prev, userMessage]);
@@ -7004,7 +7046,7 @@ const AccountingApp = () => {
                     id: Date.now() + 1,
                     text: data.reply || 'عذراً، حدث خطأ في معالجة طلبك.',
                     sender: 'bot',
-                    timestamp: new Date()
+                    timestamp: new Date().toISOString()
                 };
 
                 setMessages(prev => [...prev, botMessage]);
@@ -7014,7 +7056,7 @@ const AccountingApp = () => {
                     id: Date.now() + 1,
                     text: 'عذراً، حدث خطأ في الاتصال. يرجى المحاولة مرة أخرى.',
                     sender: 'bot',
-                    timestamp: new Date()
+                    timestamp: new Date().toISOString()
                 };
                 setMessages(prev => [...prev, errorMessage]);
             } finally {
