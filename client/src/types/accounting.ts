@@ -159,6 +159,7 @@ export const defaultSettings = {
     representatives: [{ name: 'عبد الله', vendor: 'السامر' }],
     companyName: 'نظام الحسابات',
     companyLogoUrl: 'https://placehold.co/100x40/0d9488/ffffff?text=LOGO',
+    systemExpiryDate: null, // تاريخ انتهاء صلاحية النظام (null = بدون صلاحية)
     users: [
         { 
             id: 'admin_1', 
