@@ -6566,6 +6566,111 @@ const AboutSystemModal = ({ onClose }) => (
 );
 
 
+/**
+ * 3.9. LoginPage (صفحة تسجيل الدخول)
+ */
+const LoginPage = ({ users, onLogin, showToast, systemExpiryDate }) => {
+    const [username, setUsername] = useState('');
+    const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        
+        // البحث عن المستخدم
+        const user = users.find(u => u.username === username && u.password === password);
+        
+        if (!user) {
+            showToast('اسم المستخدم أو كلمة المرور غير صحيحة', 'error');
+            return;
+        }
+
+        // التحقق من صلاحية النظام
+        // الأدمن يمكنه الدخول دائماً
+        if (user.role !== USER_ROLES.ADMIN && systemExpiryDate) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const expiryDate = new Date(systemExpiryDate);
+            expiryDate.setHours(0, 0, 0, 0);
+            
+            if (today > expiryDate) {
+                showToast('انتهت صلاحية النظام. يرجى التواصل مع المدير', 'error');
+                return;
+            }
+        }
+
+        // تسجيل الدخول بنجاح
+        onLogin(user);
+        showToast(`مرحباً ${user.username}!`, 'success');
+    };
+
+    return (
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 via-purple-800 to-indigo-900 dark:from-gray-900 dark:via-gray-800 dark:to-black p-4" dir="rtl">
+            <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-3xl shadow-2xl p-8 space-y-6">
+                <div className="text-center space-y-2">
+                    <h1 className="text-3xl font-extrabold text-gray-800 dark:text-white">نظام المحاسبة العراقي</h1>
+                    <p className="text-gray-600 dark:text-gray-300">V3.0</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">قم بتسجيل الدخول للمتابعة</p>
+                </div>
+
+                <form onSubmit={handleSubmit} className="space-y-5">
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">اسم المستخدم</label>
+                        <div className="relative">
+                            <User className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                            <input
+                                type="text"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                                required
+                                placeholder="أدخل اسم المستخدم"
+                                className="w-full pr-12 pl-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                                data-testid="input-username"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">كلمة المرور</label>
+                        <div className="relative">
+                            <input
+                                type={showPassword ? 'text' : 'password'}
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                required
+                                placeholder="أدخل كلمة المرور"
+                                className="w-full pr-4 pl-12 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                                data-testid="input-password"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                            >
+                                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                            </button>
+                        </div>
+                    </div>
+
+                    <button
+                        type="submit"
+                        className="w-full py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold rounded-xl shadow-lg transition duration-200 transform hover:scale-105"
+                        data-testid="button-login"
+                    >
+                        تسجيل الدخول
+                    </button>
+                </form>
+
+                <div className="text-center text-sm text-gray-500 dark:text-gray-400">
+                    <p>تصميم: علاء المالكي</p>
+                    <p className="mt-1">07717716205</p>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
 // =================================================================
 // 4. المكون الرئيسي للتطبيق (APP COMPONENT)
 // =================================================================
@@ -6594,19 +6699,30 @@ const AccountingApp = () => {
     const [isDarkMode, setIsDarkMode] = useState(false);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); 
     
-    // **تعديل:** إزالة منطق المصادقة والاعتماد على المستخدم الافتراضي
-    const currentUser = data.settings.users[0];
+    const [currentUser, setCurrentUser] = useState(null); // المستخدم المسجل حالياً
+    
+    
+    // تحميل تفضيلات Dark Mode من المستخدم المسجل
+    useEffect(() => {
+        if (currentUser) {
+            setIsDarkMode(currentUser.darkMode || false);
+            setIsSidebarCollapsed(currentUser.sidebarCollapsed || false);
+        }
+    }, [currentUser]);
+
+    // دالة تسجيل الدخول
+    const handleLogin = (user) => {
+        setCurrentUser(user);
+    };
+
+    // دالة تسجيل الخروج
+    const handleLogout = () => {
+        setCurrentUser(null);
+        setCurrentPage('dashboard');
+        setIsSidebarOpen(false);
+    };
     
     // تحميل تفضيلات Dark Mode و Sidebar Collapse من المستخدم
-    useEffect(() => {
-        const user = data.settings.users[0];
-        if (user) {
-            setIsDarkMode(user.darkMode || false);
-            setIsSidebarCollapsed(user.sidebarCollapsed || false);
-        }
-    }, [data.settings.users]);
-
-    // تطبيق dark mode على documentElement (html)
     useEffect(() => {
         if (isDarkMode) {
             document.documentElement.classList.add('dark');
@@ -6825,7 +6941,7 @@ const AccountingApp = () => {
         const logEntry = {
             id: crypto.randomUUID(),
             timestamp: new Date().toISOString(),
-            username: currentUserForApp?.username || "المستخدم",
+            username: currentUser?.username || "المستخدم",
             action,
             module,
             details
@@ -6908,7 +7024,7 @@ const AccountingApp = () => {
     
     // **تعديل:** إزالة منطق تسجيل الدخول
     // ------------------------------------
-    const currentUserForApp = data.settings.users[0]; // المستخدم الافتراضي
+    // const currentUser = data.settings.users[0]; // تم استبداله بـ currentUser من state // المستخدم الافتراضي
     // ------------------------------------
 
     const handleNavigationClick = (key) => {
@@ -7031,7 +7147,7 @@ const AccountingApp = () => {
                         message: inputMessage,
                         context: {
                             currentPage,
-                            user: currentUserForApp.username
+                            user: currentUser.username
                         }
                     }),
                 });
@@ -7176,6 +7292,18 @@ const AccountingApp = () => {
         );
     };
 
+
+    // عرض صفحة تسجيل الدخول إذا لم يكن هناك مستخدم مسجل
+    if (!currentUser) {
+        return (
+            <LoginPage
+                users={data.settings.users}
+                onLogin={handleLogin}
+                showToast={showToast}
+                systemExpiryDate={data.settings.systemExpiryDate}
+            />
+        );
+    }
     return (
         <div className="min-h-screen flex bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950 antialiased text-right overflow-x-hidden" dir="rtl">
             <style>
@@ -7206,7 +7334,7 @@ const AccountingApp = () => {
                         {isSidebarCollapsed ? <ChevronLeft className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
                     </button>
                     {!isSidebarCollapsed && <h1 className="text-3xl font-extrabold">{data.settings.companyName}</h1>}
-                    {!isSidebarCollapsed && <p className="text-sm opacity-75">مرحباً, {currentUserForApp.username}</p>}
+                    {!isSidebarCollapsed && <p className="text-sm opacity-75">مرحباً, {currentUser.username}</p>}
                     <button onClick={() => setIsSidebarOpen(false)} className="absolute left-3 top-4 text-white p-2 rounded-full lg:hidden hover:bg-blue-800">
                         <X className="w-5 h-5 md:w-6 md:h-6" />
                     </button>
@@ -7252,6 +7380,17 @@ const AccountingApp = () => {
                     
                     {/* زر تبديل اللغة - مخفي */}
                     {/* <button
+                    
+                    {/* زر تسجيل الخروج */}
+                    <button
+                        onClick={handleLogout}
+                        data-testid="button-logout"
+                        title={isSidebarCollapsed ? 'تسجيل الخروج' : ''}
+                        className={`w-full flex items-center ${isSidebarCollapsed ? "justify-center p-2" : "text-right p-3"} rounded-xl transition-all duration-200 hover:bg-red-600/50 dark:hover:bg-red-700/50 hover:scale-102 text-red-100 hover:text-white`}
+                    >
+                        <LogOut className={`w-5 h-5 ${!isSidebarCollapsed && "ml-3"}`} />
+                        {!isSidebarCollapsed && <span className="text-lg">تسجيل الخروج</span>}
+                    </button>
                         onClick={toggleLanguage}
                         data-testid="button-toggle-language"
                         title={isSidebarCollapsed ? (language === 'ar' ? 'English' : 'العربية') : ''}
@@ -7299,7 +7438,7 @@ const AccountingApp = () => {
                             initialExpenseState={initialExpenseState} // تمرير حالة المصروف التلقائي
                             setInitialExpenseState={setInitialExpenseState} // تمرير دالة المسح
                             handleRefresh={handleRefresh}
-                            currentUser={currentUserForApp} // تمرير صلاحيات المستخدم الافتراضي
+                            currentUser={currentUser} // تمرير صلاحيات المستخدم الافتراضي
                             onNavigateAttempt={handleSettingsNavigation} // تمرير دالة التنقل الخاصة بـ SettingsPage
                             {...pageProps}
                         />
