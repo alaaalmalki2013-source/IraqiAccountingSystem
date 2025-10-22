@@ -113,7 +113,7 @@ const NotificationToast = React.memo(({ message, type, onClose }) => {
         <div className={`fixed top-4 right-4 z-[100] p-4 rounded-xl shadow-2xl ${textColor}  flex items-center space-x-3 space-x-reverse transition-transform duration-300 transform translate-x-0 ${bgColor}`}>
             <Icon className="w-5 h-5 md:w-6 md:h-6" />
             <span className="font-semibold">{message}</span>
-            <button onClick={onClose} className="p-1 rounded-full hover:bg-black hover:bg-opacity-10 transition">
+            <button onClick={onClose} className="flex items-center justify-center p-1 rounded-full hover:bg-black hover:bg-opacity-10 transition">
                 <X className="w-4 h-4" />
             </button>
         </div>
@@ -194,7 +194,7 @@ const Modal = ({ title, children, onClose, size = 'lg', isPrintModal = false }) 
         `} onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center p-4 border-b border-teal-100 dark:border-teal-700 bg-teal-50 dark:bg-teal-900/30 rounded-t-3xl">
                 <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200 flex-grow text-center">{title}</h3> 
-                <button onClick={onClose} className="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition p-1 bg-white dark:bg-gray-700 rounded-full">
+                <button onClick={onClose} className="flex items-center justify-center text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition p-1 bg-white dark:bg-gray-700 rounded-full">
                     <X className="w-5 h-5 md:w-6 md:h-6" />
                 </button>
             </div>
@@ -3316,7 +3316,7 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                         {/* رأس المودال */}
                         <div className="flex justify-between items-center p-4 border-b border-purple-100 dark:border-purple-700 bg-gradient-to-r from-purple-500 to-blue-600 rounded-t-3xl">
                             <h3 className="text-xl font-bold text-white flex-grow text-center">معاينة قسيمة الراتب 🧾</h3> 
-                            <button onClick={() => setPayslipToPrint(null)} className="text-white hover:text-gray-200 transition p-1 bg-white/20 rounded-full">
+                            <button onClick={() => setPayslipToPrint(null)} className="flex items-center justify-center text-white hover:text-gray-200 transition p-1 bg-white/20 rounded-full">
                                 <X className="w-5 h-5 md:w-6 md:h-6" />
                             </button>
                         </div>
@@ -3689,7 +3689,7 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
                         {/* رأس المودال */}
                         <div className="flex justify-between items-center p-4 border-b border-indigo-100 dark:border-indigo-700 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-t-3xl">
                             <h3 className="text-xl font-bold text-white flex-grow text-center">معاينة ستكر الباركود 🏷️</h3> 
-                            <button onClick={() => setIsPrintPreviewOpen(false)} className="text-white hover:text-gray-200 transition p-1 bg-white/20 rounded-full">
+                            <button onClick={() => setIsPrintPreviewOpen(false)} className="flex items-center justify-center text-white hover:text-gray-200 transition p-1 bg-white/20 rounded-full">
                                 <X className="w-5 h-5 md:w-6 md:h-6" />
                             </button>
                         </div>
@@ -7327,7 +7327,7 @@ const AccountingApp = () => {
                                 <button
                                     type="submit"
                                     disabled={!inputMessage.trim() || isSending}
-                                    className="bg-teal-600 hover:bg-teal-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white p-3 rounded-xl transition duration-200 shadow-lg"
+                                    className="flex items-center justify-center bg-teal-600 hover:bg-teal-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white p-3 rounded-xl transition duration-200 shadow-lg"
                                     data-testid="button-send-message"
                                 >
                                     <Send className="w-5 h-5" />
@@ -7391,12 +7391,12 @@ const AccountingApp = () => {
             <div className={`app-sidebar ${isSidebarCollapsed ? 'w-16' : 'w-64'} bg-gradient-to-b from-blue-900 via-blue-800 to-blue-900 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 text-white flex flex-col shadow-2xl border-l border-blue-700 dark:border-gray-700 fixed top-0 right-0 h-full z-50 transition-all duration-300 ${isSidebarOpen ? 'translate-x-0' : 'rtl:translate-x-full ltr:-translate-x-full'} lg:!translate-x-0`}>
                 <div className={`${isSidebarCollapsed ? 'p-2' : 'p-6'} text-center border-b-2 border-blue-600 dark:border-gray-700 transition-all duration-300 bg-blue-950/30 dark:bg-gray-950/30`}>
                     {/* زر الطي في أعلى Sidebar */}
-                    <button onClick={toggleSidebarCollapse} className={`${isSidebarCollapsed ? 'mx-auto' : 'absolute left-3 top-4'} text-white p-2 rounded-full lg:inline-block hidden hover:bg-blue-800 transition`}>
+                    <button onClick={toggleSidebarCollapse} className={`${isSidebarCollapsed ? 'mx-auto' : 'absolute left-3 top-4'} flex items-center justify-center text-white p-2 rounded-full lg:inline-block hidden hover:bg-blue-800 transition`}>
                         {isSidebarCollapsed ? <ChevronLeft className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
                     </button>
                     {!isSidebarCollapsed && <h1 className="text-3xl font-extrabold">{data.settings.companyName}</h1>}
                     {!isSidebarCollapsed && <p className="text-sm opacity-75">مرحباً, {currentUser.username}</p>}
-                    <button onClick={() => setIsSidebarOpen(false)} className="absolute left-3 top-4 text-white p-2 rounded-full lg:hidden hover:bg-blue-800">
+                    <button onClick={() => setIsSidebarOpen(false)} className="absolute left-3 top-4 flex items-center justify-center text-white p-2 rounded-full lg:hidden hover:bg-blue-800">
                         <X className="w-5 h-5 md:w-6 md:h-6" />
                     </button>
                 </div>
@@ -7459,12 +7459,12 @@ const AccountingApp = () => {
             <main className={`flex-grow p-2 sm:p-4 md:p-8 overflow-x-hidden ${isSidebarCollapsed ? 'lg:mr-16' : 'lg:mr-64'}`}>
                 {/* Header for Mobile/Tablet */}
                 <header className="app-header flex justify-between items-center bg-gradient-to-r from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 p-4 mb-4 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 lg:hidden">
-                    <button onClick={() => setIsSidebarOpen(true)} className="text-blue-600 dark:text-blue-400 p-2 rounded-lg hover:bg-gray-100 dark:bg-gray-600 dark:hover:bg-gray-700 transition">
+                    <button onClick={() => setIsSidebarOpen(true)} className="flex items-center justify-center text-blue-600 dark:text-blue-400 p-2 rounded-lg hover:bg-gray-100 dark:bg-gray-600 dark:hover:bg-gray-700 transition">
                         <Menu className="w-5 h-5 md:w-6 md:h-6" />
                     </button>
                     <h1 className="text-xl font-bold text-gray-800 dark:text-gray-200 dark:text-gray-100">{navItems.find(item => item.key === currentPage)?.label}</h1>
                 <div className="flex items-center space-x-2 space-x-reverse">
-                        <button onClick={toggleDarkMode} className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 hover:scale-110 text-gray-700 dark:text-gray-200">
+                        <button onClick={toggleDarkMode} className="flex items-center justify-center p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 hover:scale-110 text-gray-700 dark:text-gray-200">
                             {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                         </button>
                         {/* زر تبديل اللغة - مخفي */}
