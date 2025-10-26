@@ -207,7 +207,16 @@ export const defaultSettings = {
     warehousePassword: '1234',
     warehouse2Password: '2580',
     cashierPassword: '0000',
-    editorPassword: '3636'
+    editorPassword: '3636',
+    // الصلاحيات المخصصة لكل مستخدم (قابلة للتعديل من الأدمن)
+    customPermissions: {
+        supervisor: ROLE_PERMISSIONS[USER_ROLES.SUPERVISOR],
+        general_manager: ROLE_PERMISSIONS[USER_ROLES.GENERAL_MANAGER],
+        warehouse: ROLE_PERMISSIONS[USER_ROLES.WAREHOUSE_KEEPER],
+        warehouse_2: ROLE_PERMISSIONS[USER_ROLES.WAREHOUSE_KEEPER_2],
+        cashier: ROLE_PERMISSIONS[USER_ROLES.CASHIER],
+        editor: ROLE_PERMISSIONS[USER_ROLES.EDITOR]
+    }
 };
 
 export const defaultDataStructure = {
