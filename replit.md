@@ -67,7 +67,7 @@ The system is built as a single-page application with a modern and professional 
 -   **AI Assistant "Alaa":** A GPT-5-mini powered intelligent assistant integrated into the system, specialized in guiding users on system functionalities, providing accurate and context-aware responses in Arabic.
 
 ### System Design Choices
--   **Offline First:** Designed to function without an internet connection, storing all data in `localStorage`.
+-   **Multi-User PostgreSQL Database:** Transitioned from localStorage to PostgreSQL for multi-user network deployment with real-time synchronization across workstations (warehouse keeper, cashier, manager, etc.). Uses Drizzle ORM for type-safe database operations.
 -   **Modularity:** Codebase structured with utilities and types separated for better maintainability and performance using code splitting, `React.memo`, `useMemo`, and `useCallback`.
 -   **Role-Based Permissions System:** Comprehensive 6-tier role system with pre-defined permissions and optional custom permissions:
     -   **🛡️ الأدمن (Admin):** Full system access including admin page. Only one admin account exists (الأدمن الرئيسي).
@@ -84,8 +84,28 @@ The system is built as a single-page application with a modern and professional 
     -   Tailwind CSS: For styling.
     -   Lucide React: For icons.
     -   xlsx: Excel file processing library for import/export functionality.
-    -   LocalStorage: For local data storage.
+    -   TanStack Query: For data fetching and caching.
 -   **Backend:**
     -   Express.js: Web server.
     -   TypeScript: Programming language.
+    -   PostgreSQL: Database (Neon-backed).
+    -   Drizzle ORM: Type-safe database operations.
     -   OpenAI GPT-5 (via Replit AI Integrations): For the intelligent assistant "Alaa" (accessible via `/api/chat` REST API endpoint).
+
+## Database Architecture
+The system uses PostgreSQL with 13 main tables:
+1. **users** - User accounts with roles and permissions
+2. **revenues** - Income records
+3. **expenses** - Expense records
+4. **employees** - Employee information
+5. **advances** - Employee advances
+6. **suspended** - Suspended payments
+7. **pending_expenses** - Pending expenses/advances for approval
+8. **inventory_items** - Inventory materials
+9. **inventory_entries** - Purchase invoices
+10. **inventory_withdrawals** - Inventory withdrawals
+11. **payrolls** - Salary records
+12. **activity_logs** - System activity audit trail (last 500 entries)
+13. **settings** - System settings and categories
+
+All tables use UUID primary keys and include proper relations via Drizzle ORM. RESTful API endpoints are available for all entities at `/api/<entity-name>`.
