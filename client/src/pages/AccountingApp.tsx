@@ -7962,15 +7962,6 @@ const AccountingApp = () => {
                             {!isSidebarCollapsed && <span className="text-lg">{item.label}</span>}
                         </button>
                     ))}
-                    {/* زر حول النظام */}
-                    <button
-                        onClick={() => { setIsAboutModalOpen(true); setIsSidebarOpen(false); }}
-                        title={isSidebarCollapsed ? t('aboutSystem') : ''}
-                        className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center p-2' : 'text-right p-3'} rounded-xl transition-all duration-200 hover:bg-blue-800/50 dark:hover:bg-gray-700/50 mt-4 border-t-2 border-blue-600 dark:border-gray-700 pt-4 hover:scale-102`}
-                    >
-                        <Info className={`w-5 h-5 ${!isSidebarCollapsed && 'ml-3'}`} />
-                        {!isSidebarCollapsed && <span className="text-lg">{ t('aboutSystem') }</span>}
-                    </button>
                     
                     {/* زر الوضع الداكن/الفاتح */}
                     <button
