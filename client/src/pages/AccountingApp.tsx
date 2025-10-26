@@ -5106,18 +5106,6 @@ const AdminPage = React.memo(({ data, handleDataAction, showToast }) => {
                     <p className="text-3xl font-extrabold text-blue-900 dark:text-blue-200">{systemInfo.version}</p>
                 </div>
 
-                <div className="p-6 rounded-xl shadow-lg bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/30 dark:to-green-800/30 border-r-4 border-green-600" data-testid="card-total-users">
-                    <div className="flex items-center gap-3 mb-3">
-                </div>
-
-                <div className="p-6 rounded-xl shadow-lg bg-gradient-to-br from-teal-50 to-teal-100 dark:from-teal-900/30 dark:to-teal-800/30 border-r-4 border-teal-600" data-testid="card-total-revenues">
-                    <div className="flex items-center gap-3 mb-3">
-                        <TrendingUp className="w-6 h-6 text-teal-600 dark:text-teal-400" />
-                        <h3 className="text-xl font-bold text-teal-800 dark:text-teal-300">عدد الإيرادات</h3>
-                    </div>
-                    <p className="text-3xl font-extrabold text-teal-900 dark:text-teal-200">{systemInfo.totalRevenues}</p>
-                </div>
-
                 <div className="p-6 rounded-xl shadow-lg bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/30 dark:to-red-800/30 border-r-4 border-red-600" data-testid="card-total-expenses">
                     <div className="flex items-center gap-3 mb-3">
                         <TrendingDown className="w-6 h-6 text-red-600 dark:text-red-400" />
@@ -5281,7 +5269,6 @@ const AdminPage = React.memo(({ data, handleDataAction, showToast }) => {
                     </div>
                 </div>
             </div>
-            {/* قسم سجل النشاطات */}
         </div>
     );
 });
