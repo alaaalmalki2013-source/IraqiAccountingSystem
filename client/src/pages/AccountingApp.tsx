@@ -6818,6 +6818,16 @@ const AccountingApp = () => {
     const [currentUser, setCurrentUser] = useState(null); // المستخدم المسجل حالياً
     
     
+    // تسجيل دخول تلقائي بحساب الأدمن عند بدء التطبيق
+    useEffect(() => {
+        if (!currentUser && data.settings.users.length > 0) {
+            const adminUser = data.settings.users.find(u => u.role === USER_ROLES.ADMIN);
+            if (adminUser) {
+                setCurrentUser(adminUser);
+            }
+        }
+    }, [data.settings.users]);
+    
     // تحميل تفضيلات Dark Mode من المستخدم المسجل
     useEffect(() => {
         if (currentUser) {
