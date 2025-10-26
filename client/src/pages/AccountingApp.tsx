@@ -5060,7 +5060,7 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
  * InventoryWithdrawalComponent - صفحة الاستخراج المخزني الكاملة
  * Features: اختيار من المخزون والموظفين، إضافة عدة مواد، تحديث المخزون
  */
-const InventoryWithdrawalComponent = React.memo(({ data, handleDataAction, handleDelete, showToast, handleRefresh }) => {
+const InventoryWithdrawalComponent = React.memo(({ data, handleDataAction, handleDelete, showToast, handleRefresh, currentUser }) => {
     const [isNewWithdrawalModalOpen, setIsNewWithdrawalModalOpen] = useState(false);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     const [currentWithdrawal, setCurrentWithdrawal] = useState(null);
@@ -5295,8 +5295,15 @@ const InventoryWithdrawalComponent = React.memo(({ data, handleDataAction, handl
         newData.inventory = updatedInventory;
         
         // تسجيل النشاط
-        const activityLog = logActivity('إضافة', 'الاستخراج المخزني', `سند رقم ${newWithdrawal.invoiceNumber}`);
-        if (activityLog) {
+        if (currentUser) {
+            const activityLog = {
+                id: crypto.randomUUID(),
+                timestamp: getDefaultDateTime(),
+                username: currentUser.username,
+                action: 'إضافة',
+                module: 'الاستخراج المخزني',
+                details: `سند رقم ${newWithdrawal.invoiceNumber}`
+            };
             const logs = [...(newData.activityLog || [])];
             logs.unshift(activityLog);
             if (logs.length > 500) logs.splice(500);
@@ -6467,7 +6474,7 @@ const AccountingApp = () => {
         { key: 'employees', label: 'الموظفين', icon: Users, component: EmployeePageComponent, props: { handleRefresh } },
         { key: 'payroll', label: 'الرواتب', icon: Calculator, component: PayrollPageComponent, props: { handleRefresh } },
         { key: 'inventoryEntry', label: 'الإدخال المخزني', icon: ClipboardCheck, component: InventoryEntryComponent, props: { handleRefresh } },
-        { key: 'inventoryWithdrawal', label: 'الاستخراج المخزني', icon: PackageOpen, component: InventoryWithdrawalComponent, props: { handleRefresh } },
+        { key: 'inventoryWithdrawal', label: 'الاستخراج المخزني', icon: PackageOpen, component: InventoryWithdrawalComponent, props: { handleRefresh, currentUser } },
         { key: 'inventory', label: 'المخزن والمواد', icon: Package, component: InventoryPageComponent, props: { handleRefresh, handleDataAction } },
         { key: 'settings', label: 'الإعدادات', icon: Settings, component: SettingsPage, props: { handleSettingsUpdate } },
         { key: 'admin', label: 'الإدارة', icon: Shield, component: AdminPage, props: { handleDataAction, showToast } },
