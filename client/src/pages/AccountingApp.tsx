@@ -5189,84 +5189,138 @@ const AdminPage = React.memo(({ data, handleDataAction, showToast }) => {
                     <h3 className="text-2xl font-bold text-rose-800 dark:text-rose-300">إدارة كلمات المرور</h3>
                 </div>
                 
-                <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* كلمة مرور الأدمن */}
                     <div>
                         <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                            كلمة مرور الأدمن (صلاحيات كاملة)
+                            🛡️ الأدمن (كل الصلاحيات)
                         </label>
                         <input
                             type="text"
                             value={data.settings.adminPassword}
                             onChange={(e) => {
-                                const updatedSettings = {
-                                    ...data.settings,
-                                    adminPassword: e.target.value
-                                };
-                                handleDataAction('___FULL_DATA_UPDATE___', {
-                                    ...data,
-                                    settings: updatedSettings
-                                }, false);
+                                const updatedSettings = { ...data.settings, adminPassword: e.target.value };
+                                handleDataAction('___FULL_DATA_UPDATE___', { ...data, settings: updatedSettings }, false);
                             }}
-                            className="w-full px-4 py-3 rounded-lg border-2 border-rose-300 dark:border-rose-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-rose-500 focus:border-transparent"
-                            placeholder="أدخل كلمة المرور"
+                            className="w-full px-4 py-2 rounded-lg border-2 border-rose-300 dark:border-rose-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-rose-500"
+                            placeholder="1234569"
                             data-testid="input-admin-password"
+                        />
+                    </div>
+                    
+                    {/* كلمة مرور السوبر فايزر */}
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                            👔 السوبر فايزر (كل شيء إلا الأدمن)
+                        </label>
+                        <input
+                            type="text"
+                            value={data.settings.supervisorPassword}
+                            onChange={(e) => {
+                                const updatedSettings = { ...data.settings, supervisorPassword: e.target.value };
+                                handleDataAction('___FULL_DATA_UPDATE___', { ...data, settings: updatedSettings }, false);
+                            }}
+                            className="w-full px-4 py-2 rounded-lg border-2 border-rose-300 dark:border-rose-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-rose-500"
+                            placeholder="7777"
+                            data-testid="input-supervisor-password"
+                        />
+                    </div>
+                    
+                    {/* كلمة مرور المدير العام */}
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                            📊 المدير العام (عرض فقط)
+                        </label>
+                        <input
+                            type="text"
+                            value={data.settings.generalManagerPassword}
+                            onChange={(e) => {
+                                const updatedSettings = { ...data.settings, generalManagerPassword: e.target.value };
+                                handleDataAction('___FULL_DATA_UPDATE___', { ...data, settings: updatedSettings }, false);
+                            }}
+                            className="w-full px-4 py-2 rounded-lg border-2 border-rose-300 dark:border-rose-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-rose-500"
+                            placeholder="9999"
+                            data-testid="input-manager-password"
+                        />
+                    </div>
+                    
+                    {/* كلمة مرور المحرر */}
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                            ✏️ المحرر (تعديل وحذف)
+                        </label>
+                        <input
+                            type="text"
+                            value={data.settings.editorPassword}
+                            onChange={(e) => {
+                                const updatedSettings = { ...data.settings, editorPassword: e.target.value };
+                                handleDataAction('___FULL_DATA_UPDATE___', { ...data, settings: updatedSettings }, false);
+                            }}
+                            className="w-full px-4 py-2 rounded-lg border-2 border-rose-300 dark:border-rose-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-rose-500"
+                            placeholder="3636"
+                            data-testid="input-editor-password"
                         />
                     </div>
                     
                     {/* كلمة مرور أمين المخزن */}
                     <div>
                         <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                            كلمة مرور أمين المخزن
+                            📦 أمين المخزن (المخزون)
                         </label>
                         <input
                             type="text"
                             value={data.settings.warehousePassword}
                             onChange={(e) => {
-                                const updatedSettings = {
-                                    ...data.settings,
-                                    warehousePassword: e.target.value
-                                };
-                                handleDataAction('___FULL_DATA_UPDATE___', {
-                                    ...data,
-                                    settings: updatedSettings
-                                }, false);
+                                const updatedSettings = { ...data.settings, warehousePassword: e.target.value };
+                                handleDataAction('___FULL_DATA_UPDATE___', { ...data, settings: updatedSettings }, false);
                             }}
-                            className="w-full px-4 py-3 rounded-lg border-2 border-rose-300 dark:border-rose-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-rose-500 focus:border-transparent"
-                            placeholder="أدخل كلمة المرور"
+                            className="w-full px-4 py-2 rounded-lg border-2 border-rose-300 dark:border-rose-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-rose-500"
+                            placeholder="1234"
                             data-testid="input-warehouse-password"
+                        />
+                    </div>
+                    
+                    {/* كلمة مرور أمين المخزن 2 */}
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                            📦 أمين المخزن 2 (المخزون)
+                        </label>
+                        <input
+                            type="text"
+                            value={data.settings.warehouse2Password}
+                            onChange={(e) => {
+                                const updatedSettings = { ...data.settings, warehouse2Password: e.target.value };
+                                handleDataAction('___FULL_DATA_UPDATE___', { ...data, settings: updatedSettings }, false);
+                            }}
+                            className="w-full px-4 py-2 rounded-lg border-2 border-rose-300 dark:border-rose-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-rose-500"
+                            placeholder="2580"
+                            data-testid="input-warehouse2-password"
                         />
                     </div>
                     
                     {/* كلمة مرور الكاشير */}
                     <div>
                         <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                            كلمة مرور الكاشير
+                            💰 الكاشير (الصرفيات المعلقة)
                         </label>
                         <input
                             type="text"
                             value={data.settings.cashierPassword}
                             onChange={(e) => {
-                                const updatedSettings = {
-                                    ...data.settings,
-                                    cashierPassword: e.target.value
-                                };
-                                handleDataAction('___FULL_DATA_UPDATE___', {
-                                    ...data,
-                                    settings: updatedSettings
-                                }, false);
+                                const updatedSettings = { ...data.settings, cashierPassword: e.target.value };
+                                handleDataAction('___FULL_DATA_UPDATE___', { ...data, settings: updatedSettings }, false);
                             }}
-                            className="w-full px-4 py-3 rounded-lg border-2 border-rose-300 dark:border-rose-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-rose-500 focus:border-transparent"
-                            placeholder="أدخل كلمة المرور"
+                            className="w-full px-4 py-2 rounded-lg border-2 border-rose-300 dark:border-rose-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-rose-500"
+                            placeholder="0000"
                             data-testid="input-cashier-password"
                         />
                     </div>
-                    
-                    <div className="bg-rose-100 dark:bg-rose-900/30 p-4 rounded-lg border border-rose-300 dark:border-rose-700 mt-4">
-                        <p className="text-sm text-rose-900 dark:text-rose-200 font-semibold">
-                            💡 ملاحظة: يتم حفظ التغييرات تلقائياً عند تعديل كلمات المرور
-                        </p>
-                    </div>
+                </div>
+                
+                <div className="bg-rose-100 dark:bg-rose-900/30 p-4 rounded-lg border border-rose-300 dark:border-rose-700 mt-6">
+                    <p className="text-sm text-rose-900 dark:text-rose-200 font-semibold">
+                        💡 ملاحظة: يتم حفظ التغييرات تلقائياً عند تعديل كلمات المرور
+                    </p>
                 </div>
             </div>
         </div>
