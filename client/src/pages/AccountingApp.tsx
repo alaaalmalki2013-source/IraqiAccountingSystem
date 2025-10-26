@@ -5436,6 +5436,346 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
 });
 
 /**
+ * قسم إدارة المستخدمين
+ */
+const UserManagementSection = React.memo(({ data, handleDataAction, showToast }) => {
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingUser, setEditingUser] = useState(null);
+    const [userForm, setUserForm] = useState({
+        username: '',
+        password: '',
+        role: USER_ROLES.GENERAL_MANAGER,
+        customPermissions: {}
+    });
+
+    const handleAddUser = () => {
+        setEditingUser(null);
+        setUserForm({
+            username: '',
+            password: '',
+            role: USER_ROLES.GENERAL_MANAGER,
+            customPermissions: {}
+        });
+        setIsModalOpen(true);
+    };
+
+    const handleEditUser = (user) => {
+        setEditingUser(user);
+        setUserForm({
+            username: user.username,
+            password: user.password,
+            role: user.role,
+            customPermissions: user.customPermissions || {}
+        });
+        setIsModalOpen(true);
+    };
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        
+        if (!userForm.username || !userForm.password) {
+            showToast('يرجى إدخال اسم المستخدم وكلمة المرور', 'error');
+            return;
+        }
+
+        const updatedUsers = [...data.settings.users];
+        
+        if (editingUser) {
+            // تعديل مستخدم موجود
+            const index = updatedUsers.findIndex(u => u.id === editingUser.id);
+            if (index !== -1) {
+                updatedUsers[index] = {
+                    ...updatedUsers[index],
+                    username: userForm.username,
+                    password: userForm.password,
+                    role: userForm.role,
+                    permissions: ROLE_PERMISSIONS[userForm.role],
+                    customPermissions: userForm.customPermissions
+                };
+            }
+            showToast('تم تحديث المستخدم بنجاح', 'success');
+        } else {
+            // إضافة مستخدم جديد
+            const newUser = {
+                id: `user_${Date.now()}`,
+                username: userForm.username,
+                email: `${userForm.username}@system.com`,
+                password: userForm.password,
+                role: userForm.role,
+                permissions: ROLE_PERMISSIONS[userForm.role],
+                customPermissions: userForm.customPermissions,
+                darkMode: false,
+                sidebarCollapsed: false
+            };
+            updatedUsers.push(newUser);
+            showToast('تم إضافة المستخدم بنجاح', 'success');
+        }
+
+        const updatedSettings = {
+            ...data.settings,
+            users: updatedUsers
+        };
+
+        handleDataAction('___FULL_DATA_UPDATE___', {
+            ...data,
+            settings: updatedSettings
+        }, false);
+
+        setIsModalOpen(false);
+    };
+
+    const handleDeleteUser = (user) => {
+        if (user.role === USER_ROLES.ADMIN) {
+            showToast('لا يمكن حذف حساب الأدمن', 'error');
+            return;
+        }
+
+        if (window.confirm(`هل أنت متأكد من حذف المستخدم "${user.username}"؟`)) {
+            const updatedUsers = data.settings.users.filter(u => u.id !== user.id);
+            const updatedSettings = {
+                ...data.settings,
+                users: updatedUsers
+            };
+
+            handleDataAction('___FULL_DATA_UPDATE___', {
+                ...data,
+                settings: updatedSettings
+            }, false);
+
+            showToast('تم حذف المستخدم بنجاح', 'success');
+        }
+    };
+
+    const togglePermission = (module, action) => {
+        setUserForm(prev => ({
+            ...prev,
+            customPermissions: {
+                ...prev.customPermissions,
+                [module]: {
+                    ...prev.customPermissions[module],
+                    [action]: !prev.customPermissions[module]?.[action]
+                }
+            }
+        }));
+    };
+
+    const getCurrentPermissions = (module) => {
+        const rolePerms = ROLE_PERMISSIONS[userForm.role]?.[module] || {};
+        const customPerms = userForm.customPermissions[module] || {};
+        return { ...rolePerms, ...customPerms };
+    };
+
+    const modules = [
+        { key: 'dashboard', name: 'الرئيسية', actions: ['view'] },
+        { key: 'revenues', name: 'الإيرادات', actions: ['view', 'add', 'edit', 'delete'] },
+        { key: 'expenses', name: 'المصروفات', actions: ['view', 'add', 'edit', 'delete'] },
+        { key: 'advances', name: 'السلف', actions: ['view', 'add', 'edit', 'delete'] },
+        { key: 'suspended', name: 'الصرفيات المعلقة', actions: ['view', 'add', 'edit', 'delete'] },
+        { key: 'pendingExpenses', name: 'طلبات الصرف', actions: ['view', 'add', 'edit', 'delete', 'approve', 'cancel'] },
+        { key: 'employees', name: 'الموظفين', actions: ['view', 'add', 'edit', 'delete'] },
+        { key: 'payroll', name: 'الرواتب', actions: ['view', 'add', 'edit', 'delete', 'pay'] },
+        { key: 'inventoryEntry', name: 'الإدخال المخزني', actions: ['view', 'add', 'edit', 'delete', 'approve', 'credit', 'cancel'] },
+        { key: 'inventoryWithdrawal', name: 'الاستخراج المخزني', actions: ['view', 'add', 'edit', 'delete'] },
+        { key: 'inventory', name: 'المخزون', actions: ['view', 'add', 'edit', 'delete'] },
+        { key: 'settings', name: 'الإعدادات', actions: ['view'] },
+        { key: 'admin', name: 'صفحة الإدارة', actions: ['view'] }
+    ];
+
+    const actionLabels = {
+        view: 'مشاهدة',
+        add: 'إضافة',
+        edit: 'تعديل',
+        delete: 'حذف',
+        approve: 'مصادقة',
+        cancel: 'إلغاء',
+        pay: 'دفع',
+        credit: 'آجل'
+    };
+
+    return (
+        <div className="p-6 rounded-xl shadow-lg bg-gradient-to-br from-purple-50 to-white dark:from-purple-900/20 dark:to-gray-800 border border-purple-200 dark:border-purple-700">
+            <div className="flex items-center justify-between mb-6">
+                <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                    <Users className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                    إدارة المستخدمين
+                </h3>
+                <button
+                    onClick={handleAddUser}
+                    className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition"
+                    data-testid="button-add-user"
+                >
+                    <Plus className="w-5 h-5" />
+                    إضافة مستخدم
+                </button>
+            </div>
+
+            {/* جدول المستخدمين */}
+            <div className="overflow-x-auto">
+                <table className="w-full">
+                    <thead className="bg-purple-100 dark:bg-purple-900/30">
+                        <tr>
+                            <th className="p-3 text-right text-sm font-bold text-gray-700 dark:text-gray-300">اسم المستخدم</th>
+                            <th className="p-3 text-right text-sm font-bold text-gray-700 dark:text-gray-300">كلمة المرور</th>
+                            <th className="p-3 text-right text-sm font-bold text-gray-700 dark:text-gray-300">الصلاحية</th>
+                            <th className="p-3 text-center text-sm font-bold text-gray-700 dark:text-gray-300">إجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {data.settings.users.map((user, index) => (
+                            <tr key={user.id} className={index % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-gray-50 dark:bg-gray-700'}>
+                                <td className="p-3 text-sm text-gray-800 dark:text-gray-200">{user.username}</td>
+                                <td className="p-3 text-sm text-gray-800 dark:text-gray-200">{user.password}</td>
+                                <td className="p-3 text-sm">
+                                    <span className="px-3 py-1 bg-purple-200 dark:bg-purple-800 text-purple-800 dark:text-purple-200 rounded-full text-xs font-semibold">
+                                        {ROLE_LABELS[user.role]}
+                                    </span>
+                                </td>
+                                <td className="p-3">
+                                    <div className="flex items-center justify-center gap-2">
+                                        <button
+                                            onClick={() => handleEditUser(user)}
+                                            className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
+                                            data-testid={`button-edit-user-${user.id}`}
+                                        >
+                                            <Edit className="w-4 h-4" />
+                                        </button>
+                                        {user.role !== USER_ROLES.ADMIN && (
+                                            <button
+                                                onClick={() => handleDeleteUser(user)}
+                                                className="p-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition"
+                                                data-testid={`button-delete-user-${user.id}`}
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        )}
+                                    </div>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+
+            {/* مودال إضافة/تعديل مستخدم */}
+            {isModalOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setIsModalOpen(false)}>
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+                        <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-6">
+                            {editingUser ? 'تعديل مستخدم' : 'إضافة مستخدم جديد'}
+                        </h3>
+
+                        <form onSubmit={handleSubmit} className="space-y-6">
+                            {/* معلومات أساسية */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                                        اسم المستخدم
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={userForm.username}
+                                        onChange={(e) => setUserForm(prev => ({ ...prev, username: e.target.value }))}
+                                        className="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                                        required
+                                        data-testid="input-username"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                                        كلمة المرور
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={userForm.password}
+                                        onChange={(e) => setUserForm(prev => ({ ...prev, password: e.target.value }))}
+                                        className="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                                        required
+                                        data-testid="input-user-password"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* اختيار الدور */}
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                                    الصلاحية الافتراضية
+                                </label>
+                                <select
+                                    value={userForm.role}
+                                    onChange={(e) => setUserForm(prev => ({ ...prev, role: e.target.value, customPermissions: {} }))}
+                                    className="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                                    data-testid="select-user-role"
+                                    disabled={editingUser?.role === USER_ROLES.ADMIN}
+                                >
+                                    {Object.entries(ROLE_LABELS).map(([key, label]) => (
+                                        <option key={key} value={key} disabled={key === USER_ROLES.ADMIN && !editingUser}>
+                                            {label}
+                                        </option>
+                                    ))}
+                                </select>
+                                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                    {ROLE_DESCRIPTIONS[userForm.role]}
+                                </p>
+                            </div>
+
+                            {/* صلاحيات مخصصة */}
+                            <div>
+                                <h4 className="text-lg font-bold text-gray-800 dark:text-gray-200 mb-4">
+                                    تخصيص الصلاحيات
+                                </h4>
+                                <div className="space-y-4 max-h-96 overflow-y-auto">
+                                    {modules.map(module => {
+                                        const perms = getCurrentPermissions(module.key);
+                                        return (
+                                            <div key={module.key} className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                                <h5 className="font-semibold text-gray-800 dark:text-gray-200 mb-3">{module.name}</h5>
+                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                                    {module.actions.map(action => (
+                                                        <label key={action} className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={perms[action] || false}
+                                                                onChange={() => togglePermission(module.key, action)}
+                                                                className="w-4 h-4 text-purple-600 focus:ring-purple-500 rounded"
+                                                            />
+                                                            {actionLabels[action]}
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* أزرار الحفظ والإلغاء */}
+                            <div className="flex gap-3">
+                                <button
+                                    type="submit"
+                                    className="flex-1 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold transition"
+                                    data-testid="button-save-user"
+                                >
+                                    {editingUser ? 'حفظ التعديلات' : 'إضافة المستخدم'}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsModalOpen(false)}
+                                    className="px-6 py-3 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-semibold transition"
+                                    data-testid="button-cancel-user"
+                                >
+                                    إلغاء
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+});
+
+/**
  * 3.6.1. AdminPage (صفحة الإدارة)
  * صفحة إدارة النظام والمعلومات الإدارية
  */
@@ -5590,6 +5930,9 @@ const AdminPage = React.memo(({ data, handleDataAction, showToast }) => {
                     <p className="text-lg font-bold text-gray-700 dark:text-gray-300">{systemInfo.lastBackup}</p>
                 </div>
             </div>
+            
+            {/* قسم إدارة المستخدمين */}
+            <UserManagementSection data={data} handleDataAction={handleDataAction} showToast={showToast} />
             
             {/* قسم سجل النشاطات */}
             <ActivityLogSection data={data} />
@@ -6645,7 +6988,7 @@ const WelcomeMessage = ({ user, companyName, onContinue }) => {
                         مرحباً بك! 👋
                     </h2>
                     <p className="text-base md:text-lg text-gray-600 dark:text-gray-300 font-semibold">
-                        {user.username || user.email}
+                        {user.username}
                     </p>
                     <p className="text-sm md:text-base text-gray-500 dark:text-gray-400">
                         تم تسجيل الدخول بنجاح إلى
