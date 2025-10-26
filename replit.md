@@ -64,7 +64,6 @@ The system is built as a single-page application with a modern and professional 
         -   **Storage Management:** Automatically maintains last 500 log entries to optimize storage
         -   **Professional UI:** Color-coded badges for different action types, responsive table design, full RTL support
         -   **Data Structure:** Stored in `data.activityLog` array with fields: id, timestamp, username, action, module, details
--   **AI Assistant "Alaa":** A GPT-5-mini powered intelligent assistant integrated into the system, specialized in guiding users on system functionalities, providing accurate and context-aware responses in Arabic.
 
 ### System Design Choices
 -   **Multi-User PostgreSQL Database:** Transitioned from localStorage to PostgreSQL for multi-user network deployment with real-time synchronization across workstations (warehouse keeper, cashier, manager, etc.). Uses Drizzle ORM for type-safe database operations.
@@ -90,7 +89,6 @@ The system is built as a single-page application with a modern and professional 
     -   TypeScript: Programming language.
     -   PostgreSQL: Database (Neon-backed).
     -   Drizzle ORM: Type-safe database operations.
-    -   OpenAI GPT-5 (via Replit AI Integrations): For the intelligent assistant "Alaa" (accessible via `/api/chat` REST API endpoint).
 
 ## Database Architecture
 The system uses PostgreSQL with 13 main tables:
