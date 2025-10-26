@@ -42,6 +42,7 @@ import {
     LogOut,
     Info,
     Eye,
+    Lock,
     EyeOff,
     Moon,
     Sun,
@@ -5074,7 +5075,6 @@ const AdminPage = React.memo(({ data, handleDataAction, showToast }) => {
     const systemInfo = {
         version: 'V3.0',
         lastBackup: 'لم يتم إنشاء نسخة احتياطية',
-        totalUsers: data.settings.users.length,
         totalEmployees: data.employees.length,
         totalRevenues: data.revenues.length,
         totalExpenses: data.expenses.length,
@@ -5108,18 +5108,6 @@ const AdminPage = React.memo(({ data, handleDataAction, showToast }) => {
 
                 <div className="p-6 rounded-xl shadow-lg bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/30 dark:to-green-800/30 border-r-4 border-green-600" data-testid="card-total-users">
                     <div className="flex items-center gap-3 mb-3">
-                        <Users className="w-6 h-6 text-green-600 dark:text-green-400" />
-                        <h3 className="text-xl font-bold text-green-800 dark:text-green-300">عدد المستخدمين</h3>
-                    </div>
-                    <p className="text-3xl font-extrabold text-green-900 dark:text-green-200">{systemInfo.totalUsers}</p>
-                </div>
-
-                <div className="p-6 rounded-xl shadow-lg bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/30 dark:to-purple-800/30 border-r-4 border-purple-600" data-testid="card-total-employees">
-                    <div className="flex items-center gap-3 mb-3">
-                        <Users className="w-6 h-6 text-purple-600 dark:text-purple-400" />
-                        <h3 className="text-xl font-bold text-purple-800 dark:text-purple-300">عدد الموظفين</h3>
-                    </div>
-                    <p className="text-3xl font-extrabold text-purple-900 dark:text-purple-200">{systemInfo.totalEmployees}</p>
                 </div>
 
                 <div className="p-6 rounded-xl shadow-lg bg-gradient-to-br from-teal-50 to-teal-100 dark:from-teal-900/30 dark:to-teal-800/30 border-r-4 border-teal-600" data-testid="card-total-revenues">
@@ -5203,6 +5191,94 @@ const AdminPage = React.memo(({ data, handleDataAction, showToast }) => {
                         <h3 className="text-xl font-bold text-gray-800 dark:text-gray-300">آخر نسخة احتياطية</h3>
                     </div>
                     <p className="text-lg font-bold text-gray-700 dark:text-gray-300">{systemInfo.lastBackup}</p>
+                </div>
+            </div>
+            
+            {/* قسم إدارة كلمات المرور */}
+            <div className="p-6 rounded-xl shadow-lg bg-gradient-to-br from-rose-50 to-rose-100 dark:from-rose-900/30 dark:to-rose-800/30 border-r-4 border-rose-600">
+                <div className="flex items-center gap-3 mb-6">
+                    <Lock className="w-7 h-7 text-rose-600 dark:text-rose-400" />
+                    <h3 className="text-2xl font-bold text-rose-800 dark:text-rose-300">إدارة كلمات المرور</h3>
+                </div>
+                
+                <div className="space-y-4">
+                    {/* كلمة مرور الأدمن */}
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                            كلمة مرور الأدمن (صلاحيات كاملة)
+                        </label>
+                        <input
+                            type="text"
+                            value={data.settings.adminPassword}
+                            onChange={(e) => {
+                                const updatedSettings = {
+                                    ...data.settings,
+                                    adminPassword: e.target.value
+                                };
+                                handleDataAction('___FULL_DATA_UPDATE___', {
+                                    ...data,
+                                    settings: updatedSettings
+                                }, false);
+                            }}
+                            className="w-full px-4 py-3 rounded-lg border-2 border-rose-300 dark:border-rose-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+                            placeholder="أدخل كلمة المرور"
+                            data-testid="input-admin-password"
+                        />
+                    </div>
+                    
+                    {/* كلمة مرور أمين المخزن */}
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                            كلمة مرور أمين المخزن
+                        </label>
+                        <input
+                            type="text"
+                            value={data.settings.warehousePassword}
+                            onChange={(e) => {
+                                const updatedSettings = {
+                                    ...data.settings,
+                                    warehousePassword: e.target.value
+                                };
+                                handleDataAction('___FULL_DATA_UPDATE___', {
+                                    ...data,
+                                    settings: updatedSettings
+                                }, false);
+                            }}
+                            className="w-full px-4 py-3 rounded-lg border-2 border-rose-300 dark:border-rose-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+                            placeholder="أدخل كلمة المرور"
+                            data-testid="input-warehouse-password"
+                        />
+                    </div>
+                    
+                    {/* كلمة مرور الكاشير */}
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                            كلمة مرور الكاشير
+                        </label>
+                        <input
+                            type="text"
+                            value={data.settings.cashierPassword}
+                            onChange={(e) => {
+                                const updatedSettings = {
+                                    ...data.settings,
+                                    cashierPassword: e.target.value
+                                };
+                                handleDataAction('___FULL_DATA_UPDATE___', {
+                                    ...data,
+                                    settings: updatedSettings
+                                }, false);
+                            }}
+                            className="w-full px-4 py-3 rounded-lg border-2 border-rose-300 dark:border-rose-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+                            placeholder="أدخل كلمة المرور"
+                            data-testid="input-cashier-password"
+                        />
+                    </div>
+                    
+                    <div className="bg-rose-100 dark:bg-rose-900/30 p-4 rounded-lg border border-rose-300 dark:border-rose-700 mt-4">
+                        <p className="text-sm text-rose-900 dark:text-rose-200 font-semibold">
+                            💡 ملاحظة: يتم حفظ التغييرات تلقائياً عند تعديل كلمات المرور
+                        </p>
+                    </div>
                 </div>
             </div>
             {/* قسم سجل النشاطات */}

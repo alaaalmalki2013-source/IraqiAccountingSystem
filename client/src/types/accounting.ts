@@ -94,7 +94,7 @@ export const ROLE_PERMISSIONS = {
         admin: { view: false }
     },
     
-    // أمين المخزن - المخزون فقط
+    // أمين المخزن - الإدخال المخزني، الإخراج المخزني، المخزون، المواد
     [USER_ROLES.WAREHOUSE_KEEPER]: {
         dashboard: { view: false },
         revenues: { view: false, add: false, edit: false, delete: false },
@@ -104,9 +104,9 @@ export const ROLE_PERMISSIONS = {
         pendingExpenses: { view: false, add: false, edit: false, delete: false, approve: false, cancel: false },
         employees: { view: false, add: false, edit: false, delete: false },
         payroll: { view: false, add: false, edit: false, delete: false, pay: false },
-        inventoryEntry: { view: true, add: false, edit: false, delete: false, approve: false, credit: false, cancel: false },
-        inventoryWithdrawal: { view: true, add: false, edit: false, delete: false },
-        inventory: { view: true, add: false, edit: false, delete: false },
+        inventoryEntry: { view: true, add: true, edit: true, delete: true, approve: true, credit: true, cancel: true },
+        inventoryWithdrawal: { view: true, add: true, edit: true, delete: true },
+        inventory: { view: true, add: true, edit: true, delete: true },
         settings: { view: false },
         admin: { view: false }
     },
@@ -128,18 +128,18 @@ export const ROLE_PERMISSIONS = {
         admin: { view: false }
     },
     
-    // الكاشير - صلاحيات خاصة
+    // الكاشير - الإدخال المخزني (مع المصادقة) + الصرفيات المعلقة
     [USER_ROLES.CASHIER]: {
         dashboard: { view: false },
         revenues: { view: false, add: false, edit: false, delete: false },
         expenses: { view: false, add: false, edit: false, delete: false },
         advances: { view: false, add: false, edit: false, delete: false },
-        suspended: { view: true, add: true, edit: true, delete: true },
-        pendingExpenses: { view: true, add: true, edit: true, delete: true, approve: false, cancel: false },
+        suspended: { view: false, add: false, edit: false, delete: false },
+        pendingExpenses: { view: true, add: true, edit: true, delete: true, approve: true, cancel: true },
         employees: { view: false, add: false, edit: false, delete: false },
         payroll: { view: false, add: false, edit: false, delete: false, pay: false },
-        inventoryEntry: { view: true, add: false, edit: false, delete: false, approve: false, credit: false, cancel: false },
-        inventoryWithdrawal: { view: true, add: false, edit: false, delete: false },
+        inventoryEntry: { view: true, add: true, edit: false, delete: false, approve: true, credit: true, cancel: false },
+        inventoryWithdrawal: { view: false, add: false, edit: false, delete: false },
         inventory: { view: false, add: false, edit: false, delete: false },
         settings: { view: false },
         admin: { view: false }
