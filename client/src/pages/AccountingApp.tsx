@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { AboutPage } from "./about-content";
+import { Sidebar } from '../components/Sidebar';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import * as XLSX from 'xlsx';
@@ -7408,25 +7409,45 @@ const AccountingApp = () => {
                     <button onClick={() => setIsSidebarOpen(false)} className="absolute left-3 top-4 flex items-center justify-center text-white p-2 rounded-full lg:hidden hover:bg-blue-800">
                         <X className="w-5 h-5 md:w-6 md:h-6" />
                     </button>
-                </div>
-                <nav className={`flex-grow ${isSidebarCollapsed ? 'p-2' : 'p-4'} space-y-2 overflow-y-auto transition-all duration-300 sidebar-scroll`}>
-                    {visibleNavItems.map(item => (
-                        <button
-                            key={item.key}
-                            data-testid={`nav-${item.key}`}
-                            onClick={() => {
-                                handleNavigationClick(item.key);
-                                setIsSidebarOpen(false);
-                            }}
-                            className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center p-2' : 'text-right p-3'} rounded-xl transition duration-200 ${
-                                currentPage === item.key ? 'bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-500 dark:to-purple-500 shadow-xl font-bold scale-105' : 'hover:bg-blue-800/50 dark:hover:bg-gray-700/50 hover:scale-102'
-                            }`}
-                            title={isSidebarCollapsed ? item.label : ''}
-                        >
-                            <item.icon className={`w-5 h-5 ${!isSidebarCollapsed && 'ml-3'}`} />
-                            {!isSidebarCollapsed && <span className="text-lg">{item.label}</span>}
-                        </button>
-                    ))}
+                </div>
+                <nav className={`flex-grow ${isSidebarCollapsed ? 'p-2' : 'p-4'} space-y-2 overflow-y-auto transition-all duration-300 sidebar-scroll`}>
+                    {visibleNavItems.map((item, index) => {
+                        // تحديد ما إذا كنا بحاجة لفاصل بعد هذا العنصر
+                        const needsSeparator = 
+                            item.key === 'dashboard' || // بعد الرئيسية
+                            item.key === 'advances' || // بعد السلف
+                            item.key === 'pendingExpenses' || // بعد الصرفيات المعلقة
+                            item.key === 'payroll' || // بعد الرواتب
+                            item.key === 'inventory' || // بعد المخزن والمواد
+                            item.key === 'admin'; // بعد الإدارة
+                        
+                        return (
+                            <div key={item.key}>
+                                <button
+                                    data-testid={`nav-${item.key}`}
+                                    onClick={() => {
+                                        handleNavigationClick(item.key);
+                                        setIsSidebarOpen(false);
+                                    }}
+                                    className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center p-2' : 'text-right p-3'} rounded-xl transition duration-200 ${
+                                        currentPage === item.key ? 'bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-500 dark:to-purple-500 shadow-xl font-bold scale-105' : 'hover:bg-blue-800/50 dark:hover:bg-gray-700/50 hover:scale-102'
+                                    }`}
+                                    title={isSidebarCollapsed ? item.label : ''}
+                                >
+                                    <item.icon className={`w-5 h-5 ${!isSidebarCollapsed && 'ml-3'}`} />
+                                    {!isSidebarCollapsed && <span className="text-lg">{item.label}</span>}
+                                </button>
+                                {needsSeparator && (
+                                    <div className="my-3 border-t border-blue-400/30 dark:border-gray-600/50" />
+                                )}
+                            </div>
+                        );
+                    })}
+                    
+                    {/* فاصل قبل الأزرار الثابتة */}
+                    {visibleNavItems.length > 0 && (
+                        <div className="my-3 border-t border-blue-400/30 dark:border-gray-600/50" />
+                    )}
                     
                     {/* زر الوضع الداكن/الفاتح */}
                     <button
@@ -7438,9 +7459,6 @@ const AccountingApp = () => {
                         {isDarkMode ? <Sun className={`w-5 h-5 ${!isSidebarCollapsed && "ml-3"}`} /> : <Moon className={`w-5 h-5 ${!isSidebarCollapsed && "ml-3"}`} />}
                         {!isSidebarCollapsed && <span className="text-lg">{isDarkMode ? t("lightMode") : t("darkMode")}</span>}
                     </button>
-                    
-                    {/* زر تبديل اللغة - مخفي */}
-                    {/* <button
                     
                     {/* زر تسجيل الخروج */}
                     <button
