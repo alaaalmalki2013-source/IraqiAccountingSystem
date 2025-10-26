@@ -5401,8 +5401,8 @@ const InventoryWithdrawalComponent = React.memo(({ data, handleDataAction, handl
 
             {isNewWithdrawalModalOpen && (
                 <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setIsNewWithdrawalModalOpen(false)}>
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-                        <div className="sticky top-0 bg-gradient-to-r from-orange-600 to-orange-700 text-white p-6 rounded-t-2xl flex justify-between items-center z-10">
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+                        <div className="bg-gradient-to-r from-orange-600 to-orange-700 text-white p-6 rounded-t-2xl flex justify-between items-center shrink-0">
                             <h3 className="text-2xl font-bold flex items-center gap-3">
                                 <PackageOpen className="w-7 h-7" />
                                 سند سحب جديد
@@ -5412,8 +5412,8 @@ const InventoryWithdrawalComponent = React.memo(({ data, handleDataAction, handl
                             </button>
                         </div>
 
-                        <div className="p-6 space-y-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="p-6 space-y-6 overflow-y-auto flex-1">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 overflow-visible">
                                 <div className="relative">
                                     <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                                         المستلم (موظف) *
@@ -5424,14 +5424,16 @@ const InventoryWithdrawalComponent = React.memo(({ data, handleDataAction, handl
                                         onChange={(e) => handleEmployeeNameChange(e.target.value)}
                                         className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                                         placeholder="ابحث عن موظف..."
+                                        data-testid="input-employee-name"
                                     />
                                     {showEmployeeSuggestions && employeeSuggestions.length > 0 && (
-                                        <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 rounded-lg shadow-xl z-50 max-h-60 overflow-y-auto">
-                                            {employeeSuggestions.map(emp => (
+                                        <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-700 border-2 border-orange-400 dark:border-orange-600 rounded-lg shadow-xl z-[100] max-h-60 overflow-y-auto" data-testid="suggestions-employees">
+                                            {employeeSuggestions.map((emp, index) => (
                                                 <div
                                                     key={emp.id}
                                                     onClick={() => selectEmployeeSuggestion(emp)}
                                                     className="px-4 py-2 hover:bg-orange-100 dark:hover:bg-orange-900/30 cursor-pointer border-b border-gray-200 dark:border-gray-600 last:border-b-0"
+                                                    data-testid={`suggestion-employee-${index}`}
                                                 >
                                                     <div className="font-semibold text-gray-900 dark:text-gray-100">{emp.name}</div>
                                                     <div className="text-sm text-gray-500 dark:text-gray-400">
@@ -5439,6 +5441,11 @@ const InventoryWithdrawalComponent = React.memo(({ data, handleDataAction, handl
                                                     </div>
                                                 </div>
                                             ))}
+                                        </div>
+                                    )}
+                                    {showEmployeeSuggestions && withdrawalForm.withdrawnBy.length >= 2 && employeeSuggestions.length === 0 && (
+                                        <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 rounded-lg shadow-xl z-[100] px-4 py-3">
+                                            <p className="text-sm text-gray-500 dark:text-gray-400 text-center">لا يوجد موظفون متطابقون</p>
                                         </div>
                                     )}
                                 </div>
@@ -5457,9 +5464,9 @@ const InventoryWithdrawalComponent = React.memo(({ data, handleDataAction, handl
                                 </div>
                             </div>
 
-                            <div className="border-2 border-dashed border-orange-300 dark:border-orange-700 rounded-xl p-4">
+                            <div className="border-2 border-dashed border-orange-300 dark:border-orange-700 rounded-xl p-4 overflow-visible">
                                 <h4 className="text-lg font-bold text-gray-800 dark:text-gray-200 mb-4">إضافة مادة</h4>
-                                <form onSubmit={handleAddItemToWithdrawal} className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                <form onSubmit={handleAddItemToWithdrawal} className="grid grid-cols-1 md:grid-cols-4 gap-4 overflow-visible">
                                     <div className="relative">
                                         <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">اسم المادة *</label>
                                         <input
@@ -5468,14 +5475,16 @@ const InventoryWithdrawalComponent = React.memo(({ data, handleDataAction, handl
                                             onChange={(e) => handleItemNameChange(e.target.value)}
                                             className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                                             placeholder="ابحث عن مادة..."
+                                            data-testid="input-item-name"
                                         />
                                         {showItemSuggestions && itemSuggestions.length > 0 && (
-                                            <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 rounded-lg shadow-xl z-50 max-h-60 overflow-y-auto">
-                                                {itemSuggestions.map(item => (
+                                            <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-700 border-2 border-orange-400 dark:border-orange-600 rounded-lg shadow-xl z-[100] max-h-60 overflow-y-auto" data-testid="suggestions-items">
+                                                {itemSuggestions.map((item, index) => (
                                                     <div
                                                         key={item.id}
                                                         onClick={() => selectItemSuggestion(item)}
                                                         className="px-4 py-2 hover:bg-orange-100 dark:hover:bg-orange-900/30 cursor-pointer border-b border-gray-200 dark:border-gray-600 last:border-b-0"
+                                                        data-testid={`suggestion-item-${index}`}
                                                     >
                                                         <div className="font-semibold text-gray-900 dark:text-gray-100">{item.name}</div>
                                                         <div className="text-sm text-gray-500 dark:text-gray-400">
@@ -5483,6 +5492,11 @@ const InventoryWithdrawalComponent = React.memo(({ data, handleDataAction, handl
                                                         </div>
                                                     </div>
                                                 ))}
+                                            </div>
+                                        )}
+                                        {showItemSuggestions && itemForm.name.length >= 2 && itemSuggestions.length === 0 && (
+                                            <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 rounded-lg shadow-xl z-[100] px-4 py-3">
+                                                <p className="text-sm text-gray-500 dark:text-gray-400 text-center">لا توجد مواد متطابقة</p>
                                             </div>
                                         )}
                                     </div>
