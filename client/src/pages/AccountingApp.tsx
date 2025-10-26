@@ -6627,165 +6627,6 @@ const AboutSystemModal = ({ onClose }) => (
 );
 
 
-/**
- * 3.9. WelcomeMessage (رسالة الترحيب)
- */
-const WelcomeMessage = ({ user, companyName, onContinue }) => {
-    return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 via-purple-800 to-indigo-900 dark:from-gray-900 dark:via-gray-800 dark:to-black p-4" dir="rtl">
-            <div className="w-full max-w-sm md:max-w-md bg-white dark:bg-gray-800 rounded-3xl shadow-2xl p-6 md:p-10 space-y-6 text-center animate-fade-in">
-                <div className="flex justify-center">
-                    <div className="w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br from-green-400 to-teal-500 rounded-full flex items-center justify-center shadow-lg">
-                        <CheckCircle className="w-8 h-8 md:w-10 md:h-10 text-white" />
-                    </div>
-                </div>
-                
-                <div className="space-y-3">
-                    <h2 className="text-2xl md:text-3xl font-extrabold text-gray-800 dark:text-white">
-                        مرحباً بك! 👋
-                    </h2>
-                    <p className="text-base md:text-lg text-gray-600 dark:text-gray-300 font-semibold">
-                        {user.username || user.email}
-                    </p>
-                    <p className="text-sm md:text-base text-gray-500 dark:text-gray-400">
-                        تم تسجيل الدخول بنجاح إلى
-                    </p>
-                    <p className="text-lg md:text-xl font-bold text-blue-600 dark:text-blue-400">
-                        {companyName}
-                    </p>
-                </div>
-
-                <button
-                    onClick={onContinue}
-                    className="w-full py-3 md:py-3.5 text-sm md:text-base bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold rounded-xl shadow-lg transition duration-200 transform hover:scale-105"
-                >
-                    المتابعة إلى النظام
-                </button>
-            </div>
-        </div>
-    );
-};
-
-/**
- * 3.10. LoginPage (صفحة تسجيل الدخول)
- */
-const LoginPage = ({ users, onLogin, showToast, systemExpiryDate, companyName }) => {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [showPassword, setShowPassword] = useState(false);
-    const [welcomeUser, setWelcomeUser] = useState(null);
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        
-        // البحث عن المستخدم بالإيميل أولاً
-        const user = users.find(u => u.email === email);
-        
-        // التحقق من وجود الإيميل
-        if (!user) {
-            showToast('البريد الإلكتروني غير مسجل في النظام', 'error');
-            return;
-        }
-        
-        // التحقق من كلمة المرور
-        if (user.password !== password) {
-            showToast('كلمة المرور غير صحيحة', 'error');
-            return;
-        }
-
-        // التحقق من صلاحية النظام
-        // الأدمن يمكنه الدخول دائماً
-        if (user.role !== USER_ROLES.ADMIN && systemExpiryDate) {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const expiryDate = new Date(systemExpiryDate);
-            expiryDate.setHours(0, 0, 0, 0);
-            
-            if (today > expiryDate) {
-                showToast('⚠️ انتهى الاشتراك! يرجى التواصل مع إدارة النظام لتجديد الاشتراك', 'error');
-                return;
-            }
-        }
-
-        // عرض رسالة الترحيب
-        setWelcomeUser(user);
-    };
-    
-    // إذا كانت رسالة الترحيب تظهر
-    if (welcomeUser) {
-        return (
-            <WelcomeMessage
-                user={welcomeUser}
-                companyName={companyName}
-                onContinue={() => {
-                    onLogin(welcomeUser);
-                    setWelcomeUser(null);
-                }}
-            />
-        );
-    }
-
-    return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 via-purple-800 to-indigo-900 dark:from-gray-900 dark:via-gray-800 dark:to-black p-4" dir="rtl">
-            <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-3xl shadow-2xl p-6 md:p-8 space-y-6">
-                <div className="text-center space-y-2">
-                    <h1 className="text-2xl md:text-3xl font-extrabold text-gray-800 dark:text-white">{companyName || 'نظام المحاسبة العراقي'}</h1>
-                    <p className="text-gray-600 dark:text-gray-300 text-sm md:text-base">V3.0</p>
-                    <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400">قم بتسجيل الدخول للمتابعة</p>
-                </div>
-
-                <form onSubmit={handleSubmit} className="space-y-4 md:space-y-5">
-                    <div className="space-y-2">
-                        <label className="text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300">البريد الإلكتروني</label>
-                        <div className="relative">
-                            <Mail className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 md:w-5 md:h-5" />
-                            <input
-                                type="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                required
-                                placeholder="example@email.com"
-                                className="w-full pr-10 md:pr-12 pl-4 py-2.5 md:py-3 text-sm md:text-base border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-                                data-testid="input-email"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="space-y-2">
-                        <label className="text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300">كلمة المرور</label>
-                        <div className="relative">
-                            <input
-                                type={showPassword ? 'text' : 'password'}
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                required
-                                placeholder="أدخل كلمة المرور"
-                                className="w-full pr-4 pl-10 md:pl-12 py-2.5 md:py-3 text-sm md:text-base border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-                                data-testid="input-password"
-                            />
-                            <button
-                                type="button"
-                                onClick={() => setShowPassword(!showPassword)}
-                                className="flex items-center justify-center absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-                            >
-                                {showPassword ? <EyeOff className="w-4 h-4 md:w-5 md:h-5" /> : <Eye className="w-4 h-4 md:w-5 md:h-5" />}
-                            </button>
-                        </div>
-                    </div>
-
-                    <button
-                        type="submit"
-                        className="w-full py-2.5 md:py-3 text-sm md:text-base bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold rounded-xl shadow-lg transition duration-200 transform hover:scale-105"
-                        data-testid="button-login"
-                    >
-                        تسجيل الدخول
-                    </button>
-                </form>
-            </div>
-        </div>
-    );
-};
-
 
 // =================================================================
 // 4. المكون الرئيسي للتطبيق (APP COMPONENT)
@@ -6813,31 +6654,19 @@ const AccountingApp = () => {
     const [initialExpenseState, setInitialExpenseState] = useState(null);
     const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
     const [isDarkMode, setIsDarkMode] = useState(false);
-    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); 
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); 
+    
+    // مستخدم افتراضي (لا يوجد تسجيل دخول)
+    const currentUser = {
+        username: "المستخدم",
+        email: "user@system.local",
+        role: USER_ROLES.ADMIN,
+        permissions: Object.keys(BASE_PERMISSIONS).reduce((acc, key) => {
+            acc[key] = { view: true, add: true, edit: true, delete: true };
+            return acc;
+        }, {})
+    }; 
     
-    const [currentUser, setCurrentUser] = useState(null); // المستخدم المسجل حالياً
-    
-    
-    // تحميل تفضيلات Dark Mode من المستخدم المسجل
-    useEffect(() => {
-        if (currentUser) {
-            setIsDarkMode(currentUser.darkMode || false);
-            setIsSidebarCollapsed(currentUser.sidebarCollapsed || false);
-        }
-    }, [currentUser]);
-
-    // دالة تسجيل الدخول
-    const handleLogin = (user) => {
-        setCurrentUser(user);
-    };
-
-    // دالة تسجيل الخروج
-    const handleLogout = () => {
-        setCurrentUser(null);
-        setCurrentPage('dashboard');
-        setIsSidebarOpen(false);
-    };
-    
     // تحميل تفضيلات Dark Mode و Sidebar Collapse من المستخدم
     useEffect(() => {
         if (isDarkMode) {
@@ -6851,28 +6680,14 @@ const AccountingApp = () => {
     const toggleDarkMode = () => {
         const newMode = !isDarkMode;
         setIsDarkMode(newMode);
-        const updatedUsers = [...data.settings.users];
-        updatedUsers[0] = { ...updatedUsers[0], darkMode: newMode };
-        handleSettingsUpdate({ ...data.settings, users: updatedUsers });
     };
     
-    // Toggle Language
-    const toggleLanguage = () => {
-        const newLang = language === 'ar' ? 'en' : 'ar';
-        setLanguage(newLang);
-    };
-
     const toggleSidebarCollapse = () => {
         const newCollapse = !isSidebarCollapsed;
         setIsSidebarCollapsed(newCollapse);
-        const updatedUsers = [...data.settings.users];
-        updatedUsers[0] = { ...updatedUsers[0], sidebarCollapsed: newCollapse };
-        handleSettingsUpdate({ ...data.settings, users: updatedUsers });
-    }; 
-
-
-    // دالة تحديث الحالة العامة (لحل مشكلة التحديث الفوري)
-    const handleRefresh = useCallback(() => {
+    };
+    
+    const handleRefresh = useCallback(() => {
         setRefreshKey(prev => prev + 1);
         showToast('تم تحديث بيانات الصفحة.', 'info');
     }, [showToast]);
@@ -7171,257 +6986,6 @@ const AccountingApp = () => {
 
 
 
-    // =================================================================
-    // AI Chatbot Component
-    // =================================================================
-    const AIChatbot = () => {
-        const CHAT_STORAGE_KEY = 'iraqiAccountingChatHistory';
-        const CHAT_EXPIRY_HOURS = 24;
-        
-        // تحميل المحادثات من localStorage
-        const loadChatHistory = () => {
-            try {
-                const stored = localStorage.getItem(CHAT_STORAGE_KEY);
-                if (stored) {
-                    const parsed = JSON.parse(stored);
-                    const createdAt = new Date(parsed.createdAt);
-                    const now = new Date();
-                    const hoursDiff = (now - createdAt) / (1000 * 60 * 60);
-                    
-                    // إذا مرت أكثر من 24 ساعة، احذف المحادثات القديمة
-                    if (hoursDiff > CHAT_EXPIRY_HOURS) {
-                        localStorage.removeItem(CHAT_STORAGE_KEY);
-                        return getInitialMessages();
-                    }
-                    
-                    return parsed.messages;
-                }
-            } catch (error) {
-                console.error('Error loading chat history:', error);
-            }
-            return getInitialMessages();
-        };
-        
-        const getInitialMessages = () => [{
-            id: 1,
-            text: 'مرحباً! أنا علاء، مساعدك الذكي في نظام الحسابات. كيف يمكنني مساعدتك اليوم؟',
-            sender: 'bot',
-            timestamp: new Date().toISOString()
-        }];
-        
-        const [isOpen, setIsOpen] = useState(false);
-        const [messages, setMessages] = useState(loadChatHistory());
-        const [inputMessage, setInputMessage] = useState('');
-        const [isSending, setIsSending] = useState(false);
-        const messagesEndRef = React.useRef(null);
-        
-        // حفظ المحادثات في localStorage عند كل تحديث
-        useEffect(() => {
-            if (messages.length > 0) {
-                try {
-                    const chatData = {
-                        messages: messages,
-                        createdAt: new Date().toISOString()
-                    };
-                    localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(chatData));
-                } catch (error) {
-                    console.error('Error saving chat history:', error);
-                }
-            }
-        }, [messages]);
-
-        const scrollToBottom = () => {
-            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-        };
-
-        useEffect(() => {
-            scrollToBottom();
-        }, [messages]);
-
-        const handleSendMessage = async (e) => {
-            e.preventDefault();
-            
-            if (!inputMessage.trim() || isSending) return;
-
-            const userMessage = {
-                id: Date.now(),
-                text: inputMessage,
-                sender: 'user',
-                timestamp: new Date().toISOString()
-            };
-
-            setMessages(prev => [...prev, userMessage]);
-            setInputMessage('');
-            setIsSending(true);
-
-            try {
-                const response = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ 
-                        message: inputMessage,
-                        context: {
-                            currentPage,
-                            user: currentUser.username
-                        }
-                    }),
-                });
-
-                if (!response.ok) {
-                    throw new Error('فشل في الاتصال بالخادم');
-                }
-
-                const data = await response.json();
-                
-                const botMessage = {
-                    id: Date.now() + 1,
-                    text: data.reply || 'عذراً، حدث خطأ في معالجة طلبك.',
-                    sender: 'bot',
-                    timestamp: new Date().toISOString()
-                };
-
-                setMessages(prev => [...prev, botMessage]);
-            } catch (error) {
-                console.error('Chat error:', error);
-                const errorMessage = {
-                    id: Date.now() + 1,
-                    text: 'عذراً، حدث خطأ في الاتصال. يرجى المحاولة مرة أخرى.',
-                    sender: 'bot',
-                    timestamp: new Date().toISOString()
-                };
-                setMessages(prev => [...prev, errorMessage]);
-            } finally {
-                setIsSending(false);
-            }
-        };
-
-        const formatTime = (date) => {
-            return new Date(date).toLocaleTimeString('ar-IQ', { 
-                hour: '2-digit', 
-                minute: '2-digit' 
-            });
-        };
-
-        return (
-            <div className="fixed bottom-4 left-4 z-50" dir="rtl">
-                {/* Chat Window */}
-                {isOpen && (
-                    <div className="mb-4 w-96 max-w-[calc(100vw-2rem)] bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden transition-all duration-300">
-                        {/* Header */}
-                        <div className="bg-gradient-to-r from-teal-600 to-blue-600 p-4 flex items-center justify-between">
-                            <div className="flex items-center space-x-3 space-x-reverse">
-                                <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
-                                    <MessageCircle className="w-6 h-6 text-teal-600" />
-                                </div>
-                                <div>
-                                    <h3 className="text-white font-bold text-lg">اسأل علاء</h3>
-                                    <p className="text-teal-100 text-xs">متصل الآن</p>
-                                </div>
-                            </div>
-                            <button
-                                onClick={() => setIsOpen(false)}
-                                className="text-white hover:bg-white/20 p-2 rounded-lg transition"
-                                data-testid="button-close-chatbot"
-                            >
-                                <Minimize2 className="w-5 h-5" />
-                            </button>
-                        </div>
-
-                        {/* Messages Container */}
-                        <div className="h-96 overflow-y-auto p-4 space-y-4 bg-gray-50 dark:bg-gray-900">
-                            {messages.map((message) => (
-                                <div
-                                    key={message.id}
-                                    className={`flex ${message.sender === 'user' ? 'justify-start' : 'justify-end'}`}
-                                >
-                                    <div
-                                        className={`max-w-[80%] rounded-2xl p-3 ${
-                                            message.sender === 'user'
-                                                ? 'bg-teal-600 text-white rounded-tr-none'
-                                                : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700 rounded-tl-none'
-                                        }`}
-                                    >
-                                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.text}</p>
-                                        <p className={`text-xs mt-1 ${
-                                            message.sender === 'user' 
-                                                ? 'text-teal-100' 
-                                                : 'text-gray-500 dark:text-gray-400'
-                                        }`}>
-                                            {formatTime(message.timestamp)}
-                                        </p>
-                                    </div>
-                                </div>
-                            ))}
-                            {isSending && (
-                                <div className="flex justify-end">
-                                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl rounded-tl-none p-3">
-                                        <div className="flex space-x-2 space-x-reverse">
-                                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                            <div ref={messagesEndRef} />
-                        </div>
-
-                        {/* Input Form */}
-                        <form onSubmit={handleSendMessage} className="p-4 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
-                            <div className="flex items-center space-x-2 space-x-reverse">
-                                <input
-                                    type="text"
-                                    value={inputMessage}
-                                    onChange={(e) => setInputMessage(e.target.value)}
-                                    placeholder="اكتب رسالتك هنا..."
-                                    disabled={isSending}
-                                    className="flex-1 p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-transparent transition bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
-                                    data-testid="input-chat-message"
-                                />
-                                <button
-                                    type="submit"
-                                    disabled={!inputMessage.trim() || isSending}
-                                    className="flex items-center justify-center bg-teal-600 hover:bg-teal-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white p-3 rounded-xl transition duration-200 shadow-lg"
-                                    data-testid="button-send-message"
-                                >
-                                    <Send className="w-5 h-5" />
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                )}
-
-                {/* Floating Toggle Button */}
-                <button
-                    onClick={() => setIsOpen(!isOpen)}
-                    className="bg-gradient-to-r from-teal-600 to-blue-600 hover:from-teal-700 hover:to-blue-700 text-white w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 hover:scale-110"
-                    data-testid="button-toggle-chatbot"
-                >
-                    {isOpen ? (
-                        <X className="w-5 h-5 md:w-6 md:h-6" />
-                    ) : (
-                        <MessageCircle className="w-5 h-5 md:w-6 md:h-6" />
-                    )}
-                </button>
-            </div>
-        );
-    };
-
-
-    // عرض صفحة تسجيل الدخول إذا لم يكن هناك مستخدم مسجل
-    if (!currentUser) {
-        return (
-            <LoginPage
-                users={data.settings.users}
-                onLogin={handleLogin}
-                showToast={showToast}
-                systemExpiryDate={data.settings.systemExpiryDate}
-                companyName={data.settings.companyName}
-            />
-        );
-    }
     return (
         <div className="min-h-screen flex bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950 antialiased text-right overflow-x-hidden" dir="rtl">
             <style>
@@ -7497,19 +7061,8 @@ const AccountingApp = () => {
                     </button>
                     
                     {/* زر تبديل اللغة - مخفي */}
-                    {/* <button
-                    
-                    {/* زر تسجيل الخروج */}
-                    <button
-                        onClick={handleLogout}
-                        data-testid="button-logout"
-                        title={isSidebarCollapsed ? 'تسجيل الخروج' : ''}
-                        className={`w-full flex items-center ${isSidebarCollapsed ? "justify-center p-2" : "text-right p-3"} rounded-xl transition-all duration-200 hover:bg-red-600/50 dark:hover:bg-red-700/50 hover:scale-102 text-red-100 hover:text-white`}
-                    >
-                        <LogOut className={`w-5 h-5 ${!isSidebarCollapsed && "ml-3"}`} />
-                        {!isSidebarCollapsed && <span className="text-lg">تسجيل الخروج</span>}
-                    </button>
                 </nav>
+                    
             </div>
 
             {/* Main Content Area */}
@@ -7591,8 +7144,6 @@ const AccountingApp = () => {
                 />
             )}
 
-            {/* AI Chatbot */}
-            <AIChatbot />
         </div>
     );
 };
