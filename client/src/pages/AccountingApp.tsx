@@ -58,7 +58,8 @@ import {
     Shield,
     Upload,
     FileDown,
-    Mail
+    Mail,
+    Key
 } from 'lucide-react';
 
 // استيراد الثوابت والأنواع
