@@ -160,6 +160,7 @@ export const defaultSettings = {
     companyName: 'نظام الحسابات',
     companyLogoUrl: 'https://placehold.co/100x40/0d9488/ffffff?text=LOGO',
     systemExpiryDate: null, // تاريخ انتهاء صلاحية النظام (null = بدون صلاحية)
+    masterKey: '8809912@..Alaa', // المفتاح الرئيسي للأدمن
     users: [
         { 
             id: 'admin_1', 
