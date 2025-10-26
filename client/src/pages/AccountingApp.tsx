@@ -6368,7 +6368,7 @@ const AccountingApp = () => {
         { key: 'employees', label: 'الموظفين', icon: Users, component: EmployeePageComponent, props: { handleRefresh } },
         { key: 'payroll', label: 'الرواتب', icon: Calculator, component: PayrollPageComponent, props: { handleRefresh } },
         { key: 'inventoryEntry', label: 'الإدخال المخزني', icon: ClipboardCheck, component: InventoryEntryComponent, props: { handleRefresh } },
-        { key: 'inventoryWithdrawal', label: 'الاستخراج المخزني', icon: PackageOpen, component: DataPageComponent, props: { title: 'الاستخراج المخزني', type: 'inventoryWithdrawal', collectionName: 'inventoryWithdrawals', fields: [{ key: 'itemName', label: 'اسم المادة', required: true }, { key: 'quantity', label: 'الكمية', type: 'number', required: true }, { key: 'withdrawnBy', label: 'المستلم', required: true }, { key: 'purpose', label: 'الغرض', type: 'textarea', required: true }, { key: 'notes', label: 'ملاحظات', type: 'textarea' }], handleRefresh } },
+        { key: 'inventoryWithdrawal', label: 'الاستخراج المخزني', icon: PackageOpen, component: InventoryWithdrawalComponent, props: { handleRefresh } },
         { key: 'inventory', label: 'المخزن والمواد', icon: Package, component: InventoryPageComponent, props: { handleRefresh, handleDataAction } },
         { key: 'settings', label: 'الإعدادات', icon: Settings, component: SettingsPage, props: { handleSettingsUpdate } },
         { key: 'admin', label: 'الإدارة', icon: Shield, component: AdminPage, props: { handleDataAction, showToast } },
