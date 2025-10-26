@@ -6191,6 +6191,34 @@ const AccountingApp = () => {
         showToast('تم تحديث بيانات الصفحة.', 'info');
     }, [showToast]);
 
+    
+    // دالة تسجيل النشاطات
+    const logActivity = useCallback((action, module, details) => {
+        if (!currentUser) return;
+        
+        const newLog = {
+            id: crypto.randomUUID(),
+            timestamp: getDefaultDateTime(),
+            username: currentUser.username,
+            action, // إضافة، تعديل، حذف، موافقة، إلغاء
+            module, // اسم القسم
+            details // تفاصيل العملية
+        };
+        
+        const newData = { ...data };
+        const logs = [...(newData.activityLog || [])];
+        
+        // إضافة السجل الجديد في البداية
+        logs.unshift(newLog);
+        
+        // الاحتفاظ بآخر 500 سجل فقط
+        if (logs.length > 500) {
+            logs.splice(500);
+        }
+        
+        newData.activityLog = logs;
+        saveData(newData);
+    }, [data, currentUser]);
     // 3. CRUD Logic
     const handleDataAction = (collectionName, item, isNew, overwrite = false) => {
         // **دعم التحديث الشامل للبيانات**
@@ -6224,6 +6252,11 @@ const AccountingApp = () => {
             collection.push(newItem);
             newData[collectionName] = collection;
             
+            // تسجيل النشاط
+            const moduleName = navItems.find(i => i.key === collectionName)?.label || collectionName;
+            const details = `${newItem.name || newItem.invoiceNumber || newItem.id}`;
+            logActivity('إضافة', moduleName, details);
+            
             if (collectionName !== 'inventory') {
                 showToast(`تم إضافة السجل بنجاح!`, 'success');
             }
@@ -6238,6 +6271,12 @@ const AccountingApp = () => {
             if (index !== -1) {
                 collection[index] = item;
                 newData[collectionName] = collection;
+                
+                // تسجيل النشاط
+                const moduleName = navItems.find(i => i.key === collectionName)?.label || collectionName;
+                const details = `${item.name || item.invoiceNumber || item.id}`;
+                logActivity('تعديل', moduleName, details);
+                
                 showToast(`تم تعديل السجل بنجاح!`, 'success');
             } else if (collectionName === 'pendingInvoices' && item.status) {
                  const existingIndex = collection.findIndex(i => i.id === item.id);
@@ -6310,6 +6349,14 @@ const AccountingApp = () => {
                 newData.inventory = updatedInventory;
             }
         }
+        // تسجيل النشاط قبل الحذف
+        const itemToDelete = data[collectionName]?.find(item => item.id === id);
+        if (itemToDelete) {
+            const moduleName = navItems.find(i => i.key === collectionName)?.label || collectionName;
+            const details = `${itemToDelete.name || itemToDelete.invoiceNumber || itemToDelete.id}`;
+            logActivity('حذف', moduleName, details);
+        }
+
         newData[collectionName] = newData[collectionName].filter(item => item.id !== id);
         
 
