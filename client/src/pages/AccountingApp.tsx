@@ -7150,7 +7150,25 @@ const AccountingApp = () => {
 
     // دالة تسجيل الدخول
     const handleLogin = (user) => {
-        setCurrentUser(user);
+        // دمج صلاحيات الدور مع الصلاحيات المخصصة
+        const mergedPermissions = { ...ROLE_PERMISSIONS[user.role] };
+        
+        if (user.customPermissions) {
+            Object.keys(user.customPermissions).forEach(module => {
+                if (!mergedPermissions[module]) {
+                    mergedPermissions[module] = {};
+                }
+                mergedPermissions[module] = {
+                    ...mergedPermissions[module],
+                    ...user.customPermissions[module]
+                };
+            });
+        }
+        
+        setCurrentUser({
+            ...user,
+            permissions: mergedPermissions
+        });
     };
 
     // دالة تسجيل الخروج
