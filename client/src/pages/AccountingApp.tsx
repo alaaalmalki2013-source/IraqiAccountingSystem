@@ -5120,6 +5120,7 @@ const InventoryWithdrawalComponent = React.memo(({ data, handleDataAction, handl
     }, []);
 
     const handleItemNameChange = useCallback((value) => {
+        console.log('🔍 البحث عن:', value, 'عدد المواد في المخزن:', data.inventory.length);
         setItemForm(prev => ({ ...prev, name: value }));
         
         if (value.length >= 2) {
@@ -5129,6 +5130,7 @@ const InventoryWithdrawalComponent = React.memo(({ data, handleDataAction, handl
                 return itemNameNorm.includes(searchNormalized) && item.quantity > 0;
             }).slice(0, 5);
             
+            console.log('✅ الاقتراحات الموجودة:', filtered.length, filtered);
             setItemSuggestions(filtered);
             setShowItemSuggestions(true);
         } else {
