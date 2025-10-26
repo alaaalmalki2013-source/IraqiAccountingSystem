@@ -1,7 +1,5 @@
 // @ts-nocheck
-
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import * as XLSX from 'xlsx';
 import {
     Home,
     DollarSign,
@@ -54,9 +52,7 @@ import {
     Clock,
     XCircle,
     FileImage,
-    Shield,
-    Upload,
-    FileDown
+    Shield
 } from 'lucide-react';
 
 // استيراد الثوابت والأنواع
@@ -110,7 +106,7 @@ const NotificationToast = React.memo(({ message, type, onClose }) => {
 
     return (
         <div className={`fixed top-4 right-4 z-[100] p-4 rounded-xl shadow-2xl ${textColor}  flex items-center space-x-3 space-x-reverse transition-transform duration-300 transform translate-x-0 ${bgColor}`}>
-            <Icon className="w-5 h-5 md:w-6 md:h-6" />
+            <Icon className="w-6 h-6" />
             <span className="font-semibold">{message}</span>
             <button onClick={onClose} className="p-1 rounded-full hover:bg-black hover:bg-opacity-10 transition">
                 <X className="w-4 h-4" />
@@ -194,7 +190,7 @@ const Modal = ({ title, children, onClose, size = 'lg', isPrintModal = false }) 
             <div className="flex justify-between items-center p-4 border-b border-teal-100 dark:border-teal-700 bg-teal-50 dark:bg-teal-900/30 rounded-t-3xl">
                 <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200 flex-grow text-center">{title}</h3> 
                 <button onClick={onClose} className="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition p-1 bg-white dark:bg-gray-700 rounded-full">
-                    <X className="w-5 h-5 md:w-6 md:h-6" />
+                    <X className="w-6 h-6" />
                 </button>
             </div>
             <div className="p-6">
@@ -694,8 +690,6 @@ const DataPageComponent = React.memo(({ 
 }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [currentItem, setCurrentItem] = useState(null);
-    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-    const [selectedFile, setSelectedFile] = useState(null);
     
     const initialRange = useMemo(() => getCurrentMonthRange(), []);
     const [filterDateFrom, setFilterDateFrom] = useState(initialRange.start);
@@ -920,138 +914,11 @@ const DataPageComponent = React.memo(({ 
             } else {
                  return baseItem;
             }
-
         });
 
         exportToCsv(exportContent, `${title}_تقرير`);
         showToast('تم تصدير البيانات إلى Excel بنجاح!', "success");
     };
-
-    // وظيفة تحميل نموذج Excel
-    const downloadExcelTemplate = () => {
-        const templateData = [];
-        
-        // إنشاء صف واحد كمثال
-        const exampleRow = {
-            'التاريخ (yyyy-mm-dd)': '2025-01-01',
-            'رقم الفاتورة': 'INV001',
-            'المبلغ': 100000,
-        };
-        
-        // إضافة حقول إضافية حسب نوع الصفحة
-        if (type === 'revenue') {
-            exampleRow['الفئة'] = 'مبيعات';
-            exampleRow['وصف الإيراد'] = 'مثال على إيراد';
-        } else if (type === 'expense') {
-            exampleRow['الفئة'] = 'رواتب';
-            exampleRow['الوصف'] = 'مثال على مصروف';
-            exampleRow['المورد'] = 'شركة مثال';
-            exampleRow['المندوب'] = 'أحمد';
-        } else if (type === 'advance') {
-            exampleRow['الفئة'] = 'سلفة شخصية';
-            exampleRow['اسم الموظف'] = 'محمد علي';
-            exampleRow['ملاحظات'] = 'سلفة';
-        }
-        
-        templateData.push(exampleRow);
-        
-        // إنشاء workbook وworksheet
-        const ws = XLSX.utils.json_to_sheet(templateData);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'البيانات');
-        
-        // تحميل الملف
-        XLSX.writeFile(wb, `نموذج_${title}_${new Date().toISOString().split('T')[0]}.xlsx`);
-        showToast('تم تحميل نموذج Excel بنجاح!', 'success');
-    };
-    
-    // وظيفة معالجة الملف المرفوع
-    const handleFileUpload = (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        
-        setSelectedFile(file);
-        showToast('تم تحديد الملف. اضغط على "استيراد البيانات" للمتابعة.', 'info');
-    };
-    
-    // وظيفة استيراد البيانات من ملف Excel
-    const importDataFromExcel = () => {
-        if (!selectedFile) {
-            showToast('يرجى اختيار ملف Excel أولاً', 'error');
-            return;
-        }
-        
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                const fileData = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(fileData, { type: 'array' });
-                const sheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[sheetName];
-                const jsonData = XLSX.utils.sheet_to_json(worksheet);
-                
-                if (jsonData.length === 0) {
-                    showToast('الملف فارغ أو غير صالح', 'error');
-                    return;
-                }
-                
-                let successCount = 0;
-                let errorCount = 0;
-                
-                jsonData.forEach((row, index) => {
-                    try {
-                        // التحقق من البيانات الأساسية
-                        if (!row['المبلغ']) {
-                            errorCount++;
-                            return;
-                        }
-                        
-                        const newItem = {
-                            id: crypto.randomUUID(),
-                            date: row['التاريخ (yyyy-mm-dd)'] ? `${row['التاريخ (yyyy-mm-dd)']}T${new Date().toTimeString().slice(0, 5)}` : getDefaultDateTime(),
-                            invoiceNumber: row['رقم الفاتورة'] || generateInvoiceNumber(),
-                            amount: parseFloat(row['المبلغ']) || 0,
-                        };
-                        
-                        // إضافة حقول إضافية حسب نوع الصفحة
-                        if (type === 'revenue') {
-                            newItem.category = row['الفئة'] || categories[0] || '';
-                            newItem.description = row['وصف الإيراد'] || '';
-                            newItem.recipientName = row['اسم المستلم'] || '';
-                        } else if (type === 'expense') {
-                            newItem.category = row['الفئة'] || categories[0] || '';
-                            newItem.description = row['الوصف'] || '';
-                            newItem.vendor = row['المورد'] || '';
-                            newItem.representative = row['المندوب'] || '';
-                        } else if (type === 'advance') {
-                            newItem.category = row['الفئة'] || categories[0] || '';
-                            newItem.notes = row['ملاحظات'] || '';
-                            // البحث عن الموظف بالاسم
-                            const employeeName = row['اسم الموظف'];
-                            const employee = data.employees.find(e => e.name === employeeName);
-                            newItem.employeeId = employee ? employee.id : data.employees[0]?.id || '';
-                        }
-                        
-                        // إضافة العنصر
-                        handleDataAction(collectionName, newItem, true);
-                        successCount++;
-                    } catch (error) {
-                        console.error(`خطأ في معالجة السطر ${index + 1}:`, error);
-                        errorCount++;
-                    }
-                });
-                
-                showToast(`تم استيراد ${successCount} سجل بنجاح${errorCount > 0 ? ` (${errorCount} خطأ)` : ''}`, successCount > 0 ? 'success' : 'error');
-                setIsImportModalOpen(false);
-                setSelectedFile(null);
-            } catch (error) {
-                console.error('خطأ في قراءة ملف Excel:', error);
-                showToast('حدث خطأ في قراءة ملف Excel', 'error');
-            }
-        };
-        
-        reader.readAsArrayBuffer(selectedFile);
-    };
 
     const filteredReps = data.settings.representatives.filter(rep => rep.vendor === selectedVendor);
 
@@ -1181,17 +1048,14 @@ const DataPageComponent = React.memo(({ 
                 </button>
 
                 <div className="flex flex-wrap gap-2 space-x-reverse">
-                    <button onClick={handlePrintAll} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
-                        <Printer className="w-5 h-5 md:w-6 md:h-6" />
+                    <button onClick={handlePrintAll} className="p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
+                        <Printer className="w-6 h-6" />
                     </button>
-                    <button onClick={() => setIsImportModalOpen(true)} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg transition duration-200" data-testid="button-import-excel">
-                        <Upload className="w-5 h-5 md:w-6 md:h-6" />
+                    <button onClick={handleExportAll} className="p-3 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg transition duration-200">
+                        <Download className="w-6 h-6" />
                     </button>
-                    <button onClick={handleExportAll} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg transition duration-200">
-                        <Download className="w-5 h-5 md:w-6 md:h-6" />
-                    </button>
-                    <button onClick={handleRefresh} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
-                        <RotateCcw className="w-5 h-5 md:w-6 md:h-6" />
+                    <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
+                        <RotateCcw className="w-6 h-6" />
                     </button>
                 </div>
             </div>
@@ -1420,69 +1284,6 @@ const DataPageComponent = React.memo(({ 
                     </form>
                 </Modal>
             )}
-            {/* Import Modal */}
-            {isImportModalOpen && (
-                <Modal title="استيراد البيانات من Excel" onClose={() => setIsImportModalOpen(false)}>
-                    <div className="space-y-6">
-                        <div className="p-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-xl">
-                            <h3 className="font-bold text-blue-800 dark:text-blue-200 mb-2 flex items-center gap-2">
-                                <Info className="w-5 h-5" />
-                                كيفية الاستخدام:
-                            </h3>
-                            <ol className="list-decimal list-inside space-y-1 text-sm text-blue-700 dark:text-blue-300">
-                                <li>قم بتحميل نموذج Excel الفارغ</li>
-                                <li>املأ البيانات في النموذج</li>
-                                <li>ارفع الملف المملوء هنا</li>
-                                <li>اضغط على "استيراد البيانات"</li>
-                            </ol>
-                        </div>
-                        
-                        <div className="flex flex-col gap-4">
-                            <button
-                                onClick={downloadExcelTemplate}
-                                className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-xl hover:from-blue-600 hover:to-cyan-600 shadow-lg transition duration-200"
-                                data-testid="button-download-template"
-                            >
-                                <FileDown className="w-5 h-5" />
-                                تحميل نموذج Excel
-                            </button>
-                            
-                            <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-6">
-                                <label className="flex flex-col items-center justify-center cursor-pointer">
-                                    <Upload className="w-12 h-12 text-gray-400 dark:text-gray-500 mb-2" />
-                                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                        {selectedFile ? selectedFile.name : 'اضغط لاختيار ملف Excel'}
-                                    </span>
-                                    <span className="text-xs text-gray-500 dark:text-gray-400">
-                                        (xlsx, xls)
-                                    </span>
-                                    <input
-                                        type="file"
-                                        accept=".xlsx,.xls"
-                                        onChange={handleFileUpload}
-                                        className="hidden"
-                                        data-testid="input-file-upload"
-                                    />
-                                </label>
-                            </div>
-                            
-                            <button
-                                onClick={importDataFromExcel}
-                                disabled={!selectedFile}
-                                className={`flex items-center justify-center gap-2 px-6 py-3 rounded-xl shadow-lg transition duration-200 ${
-                                    selectedFile
-                                        ? 'bg-gradient-to-r from-green-500 to-teal-500 text-white hover:from-green-600 hover:to-teal-600'
-                                        : 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
-                                }`}
-                                data-testid="button-import-data"
-                            >
-                                <Upload className="w-5 h-5" />
-                                استيراد البيانات
-                            </button>
-                        </div>
-                    </div>
-                </Modal>
-            )}
         </div>
     );
 });
@@ -1512,8 +1313,8 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
     });
     const [selectedVendor, setSelectedVendor] = useState('');
     const [globalSearch, setGlobalSearch] = useState('');
-    const [filterTypes, setFilterTypes] = useState([]); // مصفوفة للسماح باختيار متعدد: ['expense', 'advance']
-    const [filterStatuses, setFilterStatuses] = useState([]); // مصفوفة للسماح باختيار متعدد: ['pending', 'cancelled', 'paid']
+    const [filterType, setFilterType] = useState('الكل');
+    const [filterStatus, setFilterStatus] = useState(null); // فلتر الحالة: pending, cancelled, null - الافتراضي: عرض الكل
     const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
     
     const initialRange = useMemo(() => getCurrentMonthRange(), []);
@@ -1547,20 +1348,18 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
     const filteredList = useMemo(() => {
         let list = data.pendingExpenses.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
         
-        // فلتر الحالة - إذا كان هناك فلاتر محددة، نطبقها
-        if (filterStatuses.length > 0) {
-            list = list.filter(item => {
-                const itemStatus = item.status || 'pending';
-                return filterStatuses.includes(itemStatus);
-            });
+        // فلتر الحالة
+        if (filterStatus === 'pending') {
+            list = list.filter(item => item.status === 'pending' || !item.status);
+        } else if (filterStatus === 'cancelled') {
+            list = list.filter(item => item.status === 'cancelled');
         }
+        // إذا كان filterStatus === null نعرض الكل
         
         if (filterDateFrom) list = list.filter(item => item.date.slice(0, 10) >= filterDateFrom);
         if (filterDateTo) list = list.filter(item => item.date.slice(0, 10) <= filterDateTo);
-        
-        // فلتر النوع - إذا كان هناك فلاتر محددة، نطبقها
-        if (filterTypes.length > 0) {
-            list = list.filter(item => filterTypes.includes(item.type));
+        if (filterType && filterType !== 'الكل') {
+            list = list.filter(item => item.type === filterType);
         }
         
         if (globalSearch) {
@@ -1579,22 +1378,13 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
             });
         }
         return list;
-    }, [data.pendingExpenses, data.employees, filterDateFrom, filterDateTo, filterTypes, filterStatuses, globalSearch]);
+    }, [data.pendingExpenses, data.employees, filterDateFrom, filterDateTo, filterType, filterStatus, globalSearch]);
 
     const typeTotals = useMemo(() => {
         const totals = { expense: 0, advance: 0 };
         filteredList.forEach(item => {
             if (item.type === 'expense') totals.expense += parseFloat(item.amount) || 0;
             if (item.type === 'advance') totals.advance += parseFloat(item.amount) || 0;
-        });
-        return totals;
-    }, [filteredList]);
-
-    const statusTotals = useMemo(() => {
-        const totals = { pending: 0, cancelled: 0, paid: 0 };
-        filteredList.forEach(item => {
-            const itemStatus = item.status || 'pending';
-            totals[itemStatus] += parseFloat(item.amount) || 0;
         });
         return totals;
     }, [filteredList]);
@@ -1745,8 +1535,8 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                                 setFilterDateFrom(initialRange.start);
                                 setFilterDateTo(initialRange.end);
                                 setGlobalSearch('');
-                                setFilterTypes([]);
-                                setFilterStatuses([]);
+                                setFilterType('الكل');
+                                setFilterStatus(null);
                             }}
                             className="flex items-center justify-center gap-2 px-4 py-3 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors duration-200 font-semibold"
                             data-testid="button-reset-filters"
@@ -1758,16 +1548,12 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                 </div>
             </div>
 
-            {/* بطاقات فلتر النوع */}
+            {/* بطاقات الفلتر */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div
-                    onClick={() => setFilterTypes(prev => 
-                        prev.includes('expense') 
-                            ? prev.filter(t => t !== 'expense')
-                            : [...prev, 'expense']
-                    )}
+                    onClick={() => setFilterType(filterType === 'expense' ? 'الكل' : 'expense')}
                     className={`p-6 rounded-2xl shadow-lg cursor-pointer transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl border-r-4
-                        ${filterTypes.includes('expense')
+                        ${filterType === 'expense' 
                             ? 'bg-red-200 dark:bg-red-800 border-red-600 ring-4 ring-red-500 ring-opacity-60'
                             : 'bg-red-50 dark:bg-red-900 border-red-600'
                         }
@@ -1776,7 +1562,7 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                 >
                     <div className="flex items-center justify-between gap-3">
                         <div className="flex-1">
-                            <p className="text-sm font-semibold text-red-800 dark:text-red-200 mb-1">الصرفيات</p>
+                            <p className="text-sm font-semibold text-red-800 dark:text-red-200 mb-1">الصرفيات المعلقة</p>
                             <p className="text-2xl font-extrabold text-red-900 dark:text-red-100">{formatCurrencyDisplay(typeTotals.expense)}</p>
                         </div>
                         <div className="p-2 rounded-lg bg-white/20 dark:bg-black/20">
@@ -1786,13 +1572,9 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                 </div>
 
                 <div
-                    onClick={() => setFilterTypes(prev => 
-                        prev.includes('advance') 
-                            ? prev.filter(t => t !== 'advance')
-                            : [...prev, 'advance']
-                    )}
+                    onClick={() => setFilterType(filterType === 'advance' ? 'الكل' : 'advance')}
                     className={`p-6 rounded-2xl shadow-lg cursor-pointer transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl border-r-4
-                        ${filterTypes.includes('advance')
+                        ${filterType === 'advance'
                             ? 'bg-purple-200 dark:bg-purple-800 border-purple-600 ring-4 ring-purple-500 ring-opacity-60'
                             : 'bg-purple-50 dark:bg-purple-900 border-purple-600'
                         }
@@ -1801,7 +1583,7 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                 >
                     <div className="flex items-center justify-between gap-3">
                         <div className="flex-1">
-                            <p className="text-sm font-semibold text-purple-800 dark:text-purple-200 mb-1">السلف</p>
+                            <p className="text-sm font-semibold text-purple-800 dark:text-purple-200 mb-1">السلف المعلقة</p>
                             <p className="text-2xl font-extrabold text-purple-900 dark:text-purple-100">{formatCurrencyDisplay(typeTotals.advance)}</p>
                         </div>
                         <div className="p-2 rounded-lg bg-white/20 dark:bg-black/20">
@@ -1811,16 +1593,12 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                 </div>
             </div>
 
-            {/* بطاقات فلتر الحالة */}
+            {/* فلتر الحالة */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div
-                    onClick={() => setFilterStatuses(prev => 
-                        prev.includes('pending') 
-                            ? prev.filter(s => s !== 'pending')
-                            : [...prev, 'pending']
-                    )}
-                    className={`p-6 rounded-2xl shadow-lg cursor-pointer transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl border-r-4
-                        ${filterStatuses.includes('pending')
+                <button
+                    onClick={() => setFilterStatus(filterStatus === 'pending' ? null : 'pending')}
+                    className={`p-4 rounded-2xl shadow-lg transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl border-r-4
+                        ${filterStatus === 'pending' 
                             ? 'bg-amber-200 dark:bg-amber-800 border-amber-600 ring-4 ring-amber-500 ring-opacity-60'
                             : 'bg-amber-50 dark:bg-amber-900 border-amber-600'
                         }
@@ -1828,24 +1606,19 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                     data-testid="filter-status-pending"
                 >
                     <div className="flex items-center justify-between gap-3">
-                        <div className="flex-1">
-                            <p className="text-sm font-semibold text-amber-800 dark:text-amber-200 mb-1">الطلبات المعلقة</p>
-                            <p className="text-2xl font-extrabold text-amber-900 dark:text-amber-100">{formatCurrencyDisplay(statusTotals.pending)}</p>
+                        <div className="flex-1 text-right">
+                            <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">الطلبات المعلقة</p>
                         </div>
                         <div className="p-2 rounded-lg bg-white/20 dark:bg-black/20">
                             <Clock className="w-5 h-5 text-amber-800 dark:text-amber-200" />
                         </div>
                     </div>
-                </div>
+                </button>
 
-                <div
-                    onClick={() => setFilterStatuses(prev => 
-                        prev.includes('cancelled') 
-                            ? prev.filter(s => s !== 'cancelled')
-                            : [...prev, 'cancelled']
-                    )}
-                    className={`p-6 rounded-2xl shadow-lg cursor-pointer transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl border-r-4
-                        ${filterStatuses.includes('cancelled')
+                <button
+                    onClick={() => setFilterStatus(filterStatus === 'cancelled' ? null : 'cancelled')}
+                    className={`p-4 rounded-2xl shadow-lg transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl border-r-4
+                        ${filterStatus === 'cancelled' 
                             ? 'bg-rose-200 dark:bg-rose-800 border-rose-600 ring-4 ring-rose-500 ring-opacity-60'
                             : 'bg-rose-50 dark:bg-rose-900 border-rose-600'
                         }
@@ -1853,15 +1626,14 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                     data-testid="filter-status-cancelled"
                 >
                     <div className="flex items-center justify-between gap-3">
-                        <div className="flex-1">
-                            <p className="text-sm font-semibold text-rose-800 dark:text-rose-200 mb-1">الطلبات الملغاة</p>
-                            <p className="text-2xl font-extrabold text-rose-900 dark:text-rose-100">{formatCurrencyDisplay(statusTotals.cancelled)}</p>
+                        <div className="flex-1 text-right">
+                            <p className="text-sm font-semibold text-rose-800 dark:text-rose-200">الطلبات الملغاة</p>
                         </div>
                         <div className="p-2 rounded-lg bg-white/20 dark:bg-black/20">
                             <XCircle className="w-5 h-5 text-rose-800 dark:text-rose-200" />
                         </div>
                     </div>
-                </div>
+                </button>
             </div>
 
 
@@ -1879,11 +1651,11 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                 </button>
 
                 <div className="flex flex-wrap gap-2 space-x-reverse">
-                    <button onClick={() => window.print()} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
-                        <Printer className="w-5 h-5 md:w-6 md:h-6" />
+                    <button onClick={() => window.print()} className="p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
+                        <Printer className="w-6 h-6" />
                     </button>
-                    <button onClick={handleRefresh} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
-                        <RotateCcw className="w-5 h-5 md:w-6 md:h-6" />
+                    <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
+                        <RotateCcw className="w-6 h-6" />
                     </button>
                 </div>
             </div>
@@ -2561,17 +2333,14 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
                 </button>
 
                 <div className="flex flex-wrap gap-2 space-x-reverse">
-                    <button onClick={handlePrintAll} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
-                        <Printer className="w-5 h-5 md:w-6 md:h-6" />
+                    <button onClick={handlePrintAll} className="p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
+                        <Printer className="w-6 h-6" />
                     </button>
-                    <button onClick={() => setIsImportModalOpen(true)} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg transition duration-200" data-testid="button-import-excel">
-                        <Upload className="w-5 h-5 md:w-6 md:h-6" />
+                    <button onClick={handleExportAll} className="p-3 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg transition duration-200">
+                        <Download className="w-6 h-6" />
                     </button>
-                    <button onClick={handleExportAll} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg transition duration-200">
-                        <Download className="w-5 h-5 md:w-6 md:h-6" />
-                    </button>
-                    <button onClick={handleRefresh} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
-                        <RotateCcw className="w-5 h-5 md:w-6 md:h-6" />
+                    <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
+                        <RotateCcw className="w-6 h-6" />
                     </button>
                 </div>
             </div>
@@ -3077,11 +2846,11 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
             </div>
 
             <div className="flex flex-wrap gap-2 space-x-reverse justify-end">
-                <button onClick={() => window.print()} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
-                    <Printer className="w-5 h-5 md:w-6 md:h-6" />
+                <button onClick={() => window.print()} className="p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
+                    <Printer className="w-6 h-6" />
                 </button>
-                <button onClick={handleRefresh} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
-                    <RotateCcw className="w-5 h-5 md:w-6 md:h-6" />
+                <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
+                    <RotateCcw className="w-6 h-6" />
                 </button>
             </div>
 
@@ -3316,7 +3085,7 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                         <div className="flex justify-between items-center p-4 border-b border-purple-100 dark:border-purple-700 bg-gradient-to-r from-purple-500 to-blue-600 rounded-t-3xl">
                             <h3 className="text-xl font-bold text-white flex-grow text-center">معاينة قسيمة الراتب 🧾</h3> 
                             <button onClick={() => setPayslipToPrint(null)} className="text-white hover:text-gray-200 transition p-1 bg-white/20 rounded-full">
-                                <X className="w-5 h-5 md:w-6 md:h-6" />
+                                <X className="w-6 h-6" />
                             </button>
                         </div>
 
@@ -3580,8 +3349,8 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
             </div>
             
             <div className="flex flex-wrap gap-2 space-x-reverse justify-end">
-                <button onClick={() => window.print()} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
-                    <Printer className="w-5 h-5 md:w-6 md:h-6" />
+                <button onClick={() => window.print()} className="p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
+                    <Printer className="w-6 h-6" />
                 </button>
                 <button onClick={() => {
                     const csvContent = [
@@ -3599,11 +3368,11 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
                     link.href = URL.createObjectURL(blob);
                     link.download = `المخزون_${new Date().toISOString().split('T')[0]}.csv`;
                     link.click();
-                }} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg transition duration-200">
-                    <Download className="w-5 h-5 md:w-6 md:h-6" />
+                }} className="p-3 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg transition duration-200">
+                    <Download className="w-6 h-6" />
                 </button>
-                <button onClick={handleRefresh} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200" data-testid="button-refresh-inventory">
-                    <RotateCcw className="w-5 h-5 md:w-6 md:h-6" />
+                <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200" data-testid="button-refresh-inventory">
+                    <RotateCcw className="w-6 h-6" />
                 </button>
             </div>
             
@@ -3689,7 +3458,7 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
                         <div className="flex justify-between items-center p-4 border-b border-indigo-100 dark:border-indigo-700 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-t-3xl">
                             <h3 className="text-xl font-bold text-white flex-grow text-center">معاينة ستكر الباركود 🏷️</h3> 
                             <button onClick={() => setIsPrintPreviewOpen(false)} className="text-white hover:text-gray-200 transition p-1 bg-white/20 rounded-full">
-                                <X className="w-5 h-5 md:w-6 md:h-6" />
+                                <X className="w-6 h-6" />
                             </button>
                         </div>
 
@@ -4290,11 +4059,11 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                 </button>
 
                 <div className="flex flex-wrap gap-2 space-x-reverse">
-                    <button onClick={() => window.print()} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
-                        <Printer className="w-5 h-5 md:w-6 md:h-6" />
+                    <button onClick={() => window.print()} className="p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
+                        <Printer className="w-6 h-6" />
                     </button>
-                    <button onClick={handleRefresh} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
-                        <RotateCcw className="w-5 h-5 md:w-6 md:h-6" />
+                    <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
+                        <RotateCcw className="w-6 h-6" />
                     </button>
                 </div>
             </div>
@@ -4964,11 +4733,6 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
         }));
         showToast('تم حذف المستخدم بنجاح.', 'warning');
     };
-    
-    // دالة طباعة المستخدمين والصلاحيات
-    const handlePrintUsers = () => {
-        window.print();
-    };
     
     const currentItems = settings[currentList] || [];
 
@@ -5052,17 +4816,17 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
                 {renderCompanySettings()}
             </form>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* إدارة القوائم (الفئات والموردين) */}
-                <div className="space-y-4 md:space-y-6 p-4 md:p-6 rounded-xl shadow-lg border-l-4 border-teal-500 dark:border-teal-400 bg-gray-50 dark:bg-gray-700">
-                    <h3 className="text-lg md:text-2xl font-bold text-teal-800 dark:text-teal-300 flex items-center"><List className="w-5 h-5 md:w-6 md:h-6 ml-2" /> إدارة الفئات والأقسام والمناصب</h3>
+                <div className="space-y-6 p-6 rounded-xl shadow-lg border-l-4 border-teal-500 dark:border-teal-400 bg-gray-50 dark:bg-gray-700">
+                    <h3 className="text-2xl font-bold text-teal-800 dark:text-teal-300 flex items-center"><List className="w-6 h-6 ml-2" /> إدارة الفئات والأقسام والمناصب</h3>
 
-                    <div className="flex gap-2 overflow-x-auto -mx-2 px-2 pb-2">
+                    <div className="flex space-x-2 space-x-reverse overflow-x-auto pb-2">
                         {['expenseCategories', 'revenueCategories', 'advanceCategories', 'departments', 'jobTitles', 'vendors'].map(key => (
                             <button
                                 key={key}
                                 onClick={() => setCurrentList(key)}
-                                className={`px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm flex-shrink-0 font-semibold transition whitespace-nowrap ${currentList === key ? 'bg-teal-600 text-white shadow-md' : 'bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-teal-50 dark:hover:bg-gray-600'}`}
+                                className={`px-4 py-2 rounded-lg text-sm font-semibold transition whitespace-nowrap ${currentList === key ? 'bg-teal-600 text-white shadow-md' : 'bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-teal-50 dark:hover:bg-gray-600'}`}
                             >
                                 {key === 'expenseCategories' ? 'مصروفات' : key === 'revenueCategories' ? 'إيرادات' : key === 'advanceCategories' ? 'سلف' : key === 'departments' ? 'أقسام' : key === 'jobTitles' ? 'مناصب' : 'الموردين'}
                             </button>
@@ -5070,7 +4834,7 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
                     </div>
 
                     <form onSubmit={handleAddItem} className="space-y-3">
-                        <h4 className="text-sm md:text-base font-semibold text-gray-700 dark:text-gray-300">إضافة عنصر جديد ({currentList === 'vendors' ? 'مورد' : 'فئة'})</h4>
+                        <h4 className="font-semibold text-gray-700 dark:text-gray-300">إضافة عنصر جديد ({currentList === 'vendors' ? 'مورد' : 'فئة'})</h4>
                         <InputField 
                             value={newItem} 
                             onChange={(e) => setNewItem(e.target.value)} 
@@ -5085,11 +4849,11 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
                     </form>
 
                     <div className="space-y-2 max-h-60 overflow-y-auto p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800">
-                        <h4 className="text-sm md:text-base font-semibold text-gray-700 dark:text-gray-300 border-b border-gray-300 dark:border-gray-600 pb-1">القائمة الحالية:</h4>
+                        <h4 className="font-semibold text-gray-700 dark:text-gray-300 border-b border-gray-300 dark:border-gray-600 pb-1">القائمة الحالية:</h4>
                         {currentItems.map(item => (
-                            <div key={item} className="flex justify-between gap-2 items-center p-2 bg-gray-100 dark:bg-gray-600 rounded-lg shadow-sm">
-                                <span className="font-medium text-sm md:text-base break-words flex-1 text-gray-800 dark:text-gray-200">{item}</span>
-                                <button onClick={() => handleDeleteItem(item)} className="text-red-500 hover:text-red-700 p-1 flex-shrink-0">
+                            <div key={item} className="flex justify-between items-center p-2 bg-gray-100 dark:bg-gray-600 rounded-lg shadow-sm">
+                                <span className="font-medium text-gray-800 dark:text-gray-200">{item}</span>
+                                <button onClick={() => handleDeleteItem(item)} className="text-red-500 hover:text-red-700 p-1">
                                     <Trash2 className="w-4 h-4" />
                                 </button>
                             </div>
@@ -5099,11 +4863,11 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
                 </div>
 
                 {/* إدارة المندوبين */}
-                <div className="space-y-4 md:space-y-6 p-4 md:p-6 rounded-xl shadow-lg border-l-4 border-blue-500 bg-gray-50 dark:bg-gray-800">
-                    <h3 className="text-lg md:text-2xl font-bold text-blue-800 dark:text-blue-300 flex items-center"><User className="w-5 h-5 md:w-6 md:h-6 ml-2" /> إدارة المندوبين (للشركات الموردة)</h3>
+                <div className="space-y-6 p-6 rounded-xl shadow-lg border-l-4 border-blue-500 bg-gray-50 dark:bg-gray-800">
+                    <h3 className="text-2xl font-bold text-blue-800 dark:text-blue-300 flex items-center"><User className="w-6 h-6 ml-2" /> إدارة المندوبين (للشركات الموردة)</h3>
 
-                    <form onSubmit={handleAddRep} className="space-y-3 p-3 md:p-4 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800">
-                        <h4 className="text-sm md:text-base font-semibold text-gray-700 dark:text-gray-300 border-b pb-2">إضافة مندوب جديد</h4>
+                    <form onSubmit={handleAddRep} className="space-y-3 p-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800">
+                        <h4 className="font-semibold text-gray-700 dark:text-gray-300 border-b pb-2">إضافة مندوب جديد</h4>
                         <InputField 
                             label="اسم المندوب" 
                             value={newRep.name} 
@@ -5111,12 +4875,12 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
                             required
                         />
                         <div className="flex flex-col space-y-1 text-right">
-                            <label className="text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300">تابع لشركة</label>
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">تابع لشركة</label>
                             <select
                                 value={newRep.vendor}
                                 onChange={(e) => setNewRep({ ...newRep, vendor: e.target.value })}
                                 required
-                                className="w-full p-2 md:p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl transition text-sm md:text-base duration-150 text-right focus:ring-blue-500 focus:border-blue-500"
+                                className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl transition duration-150 text-right focus:ring-blue-500 focus:border-blue-500"
                             >
                                 {settings.vendors.map(vendor => (
                                     <option key={vendor} value={vendor}>{vendor}</option>
@@ -5124,18 +4888,18 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
                             </select>
                             {settings.vendors.length === 0 && <p className="text-xs text-red-500 mt-1">يجب إضافة موردين أولاً.</p>}
                         </div>
-                        <ActionButton type="submit" disabled={settings.vendors.length === 0} className="bg-blue-600 hover:bg-blue-700 w-full text-sm md:text-base">
-                            <UserPlus className="w-4 h-4 md:w-5 md:h-5 ml-2" />
+                        <ActionButton type="submit" disabled={settings.vendors.length === 0} className="bg-blue-600 hover:bg-blue-700 w-full">
+                            <UserPlus className="w-5 h-5 ml-2" />
                             إضافة المندوب
                         </ActionButton>
                     </form>
 
                     <div className="space-y-2 max-h-60 overflow-y-auto p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800">
-                        <h4 className="text-sm md:text-base font-semibold text-gray-700 dark:text-gray-300 border-b border-gray-300 dark:border-gray-600 pb-1">قائمة المندوبين:</h4>
+                        <h4 className="font-semibold text-gray-700 dark:text-gray-300 border-b border-gray-300 dark:border-gray-600 pb-1">قائمة المندوبين:</h4>
                         {settings.representatives.map((rep, index) => (
-                            <div key={index} className="flex justify-between gap-2 items-center p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg shadow-sm">
-                                <span className="font-medium text-sm md:text-base break-words flex-1 text-gray-800 dark:text-gray-200">{rep.name} <span className="text-xs text-gray-500 dark:text-gray-400">({rep.vendor})</span></span>
-                                <button onClick={() => handleDeleteRep(rep)} className="text-red-500 hover:text-red-700 p-1 flex-shrink-0">
+                            <div key={index} className="flex justify-between items-center p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg shadow-sm">
+                                <span className="font-medium text-gray-800 dark:text-gray-200">{rep.name} <span className="text-xs text-gray-500 dark:text-gray-400">({rep.vendor})</span></span>
+                                <button onClick={() => handleDeleteRep(rep)} className="text-red-500 hover:text-red-700 p-1">
                                     <Trash2 className="w-4 h-4" />
                                 </button>
                             </div>
@@ -5148,16 +4912,10 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
                 <div className="lg:col-span-2 space-y-6 p-6 rounded-xl shadow-lg border-l-4 border-purple-500 bg-gray-50 dark:bg-gray-800">
                     <h3 className="text-2xl font-bold text-purple-800 dark:text-purple-300 flex items-center"><Users className="w-6 h-6 ml-2" /> إدارة المستخدمين والصلاحيات</h3>
                     
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                        <ActionButton onClick={() => openUserModal()} className="bg-purple-600 hover:bg-purple-700 px-4 py-2 text-base">
-                            <UserPlus className="w-5 h-5 ml-2" />
-                            إضافة مستخدم جديد
-                        </ActionButton>
-                        
-                        <button onClick={handlePrintUsers} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200" data-testid="button-print-users" title="طباعة جدول المستخدمين">
-                            <Printer className="w-5 h-5 md:w-6 md:h-6" />
-                        </button>
-                    </div>
+                    <ActionButton onClick={() => openUserModal()} className="bg-purple-600 hover:bg-purple-700 px-4 py-2 text-base">
+                        <UserPlus className="w-5 h-5 ml-2" />
+                        إضافة مستخدم جديد
+                    </ActionButton>
                     
                     <div className="overflow-x-auto shadow-md rounded-xl">
                         <table className="min-w-full divide-y divide-gray-200">
@@ -5529,180 +5287,34 @@ const AdminPage = React.memo(({ data }) => {
                     <p className="text-lg font-bold text-gray-700 dark:text-gray-300">{systemInfo.lastBackup}</p>
                 </div>
             </div>
-            
-            {/* قسم سجل النشاطات */}
-            <ActivityLogSection data={data} />
-        </div>
-    );
-});
 
-/**
- * قسم سجل النشاطات
- */
-const ActivityLogSection = React.memo(({ data }) => {
-    const [searchTerm, setSearchTerm] = React.useState('');
-    const [filterAction, setFilterAction] = React.useState('all');
-    const [filterDays, setFilterDays] = React.useState('all');
-    
-    const activityLog = data.activityLog || [];
-    
-    // فلترة السجلات
-    const filteredLogs = React.useMemo(() => {
-        let logs = [...activityLog];
-        
-        // فلترة حسب نوع العملية
-        if (filterAction !== 'all') {
-            logs = logs.filter(log => log.action === filterAction);
-        }
-        
-        // فلترة حسب التاريخ
-        if (filterDays !== 'all') {
-            const daysAgo = parseInt(filterDays);
-            const cutoffDate = new Date();
-            cutoffDate.setDate(cutoffDate.getDate() - daysAgo);
-            logs = logs.filter(log => new Date(log.timestamp) >= cutoffDate);
-        }
-        
-        // بحث في المحتوى
-        if (searchTerm) {
-            logs = logs.filter(log => 
-                log.username.includes(searchTerm) ||
-                log.action.includes(searchTerm) ||
-                log.module.includes(searchTerm) ||
-                (log.details && log.details.includes(searchTerm))
-            );
-        }
-        
-        return logs;
-    }, [activityLog, searchTerm, filterAction, filterDays]);
-    
-    return (
-        <div className="p-6 rounded-xl shadow-lg bg-gradient-to-br from-gray-50 to-white dark:from-gray-700 dark:to-gray-800 border border-gray-200 dark:border-gray-600">
-            <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-6 flex items-center gap-2">
-                <Clock className="w-6 h-6 text-gray-600 dark:text-gray-400" />
-                سجل النشاطات
-            </h3>
-            
-            {/* الفلاتر والبحث */}
-            <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                        بحث
-                    </label>
-                    <input
-                        type="text"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        placeholder="ابحث في السجلات..."
-                        className="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
-                        data-testid="input-activity-search"
-                    />
+            <div className="p-6 rounded-xl shadow-lg bg-gradient-to-br from-gray-50 to-white dark:from-gray-700 dark:to-gray-800 border border-gray-200 dark:border-gray-600">
+                <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-4 flex items-center gap-2">
+                    <Info className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+                    معلومات النظام
+                </h3>
+                <div className="space-y-3 text-gray-700 dark:text-gray-300">
+                    <p className="flex items-center gap-2">
+                        <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
+                        <span className="font-semibold">نظام المحاسبة العراقي</span>
+                    </p>
+                    <p className="flex items-center gap-2">
+                        <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
+                        <span>نظام شامل لإدارة الحسابات والمخزون والموظفين</span>
+                    </p>
+                    <p className="flex items-center gap-2">
+                        <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
+                        <span>يعمل دون اتصال بالإنترنت (Offline)</span>
+                    </p>
+                    <p className="flex items-center gap-2">
+                        <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
+                        <span>يدعم الوضع الداكن (Dark Mode)</span>
+                    </p>
+                    <p className="flex items-center gap-2">
+                        <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
+                        <span>واجهة RTL كاملة للغة العربية</span>
+                    </p>
                 </div>
-                
-                <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                        نوع العملية
-                    </label>
-                    <select
-                        value={filterAction}
-                        onChange={(e) => setFilterAction(e.target.value)}
-                        className="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
-                        data-testid="select-action-filter"
-                    >
-                        <option value="all">الكل</option>
-                        <option value="إضافة">إضافة</option>
-                        <option value="تعديل">تعديل</option>
-                        <option value="حذف">حذف</option>
-                        <option value="موافقة">موافقة</option>
-                        <option value="إلغاء">إلغاء</option>
-                    </select>
-                </div>
-                
-                <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                        الفترة الزمنية
-                    </label>
-                    <select
-                        value={filterDays}
-                        onChange={(e) => setFilterDays(e.target.value)}
-                        className="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
-                        data-testid="select-days-filter"
-                    >
-                        <option value="all">كل الفترة</option>
-                        <option value="1">اليوم</option>
-                        <option value="7">آخر 7 أيام</option>
-                        <option value="30">آخر 30 يوم</option>
-                        <option value="90">آخر 90 يوم</option>
-                    </select>
-                </div>
-            </div>
-            
-            {/* عداد النتائج */}
-            <div className="mb-4 text-gray-600 dark:text-gray-400">
-                <span className="font-semibold">عدد السجلات: </span>
-                <span className="text-lg font-bold text-gray-800 dark:text-gray-200">{filteredLogs.length}</span>
-            </div>
-            
-            {/* جدول السجلات */}
-            <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-600">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-600">
-                    <thead className="bg-gray-50 dark:bg-gray-700">
-                        <tr>
-                            <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                                التاريخ والوقت
-                            </th>
-                            <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                                المستخدم
-                            </th>
-                            <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                                العملية
-                            </th>
-                            <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                                القسم
-                            </th>
-                            <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                                التفاصيل
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
-                        {filteredLogs.length === 0 ? (
-                            <tr>
-                                <td colSpan={5} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
-                                    لا توجد سجلات
-                                </td>
-                            </tr>
-                        ) : (
-                            filteredLogs.map((log) => (
-                                <tr key={log.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" data-testid={`row-activity-${log.id}`}>
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
-                                        {formatDateDDMMYYYY(log.timestamp)} {new Date(log.timestamp).toLocaleTimeString('ar-IQ', { hour: '2-digit', minute: '2-digit' })}
-                                    </td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-800 dark:text-gray-200">
-                                        {log.username}
-                                    </td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm">
-                                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                                            log.action === 'إضافة' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
-                                            log.action === 'تعديل' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' :
-                                            log.action === 'حذف' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' :
-                                            log.action === 'موافقة' ? 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300' :
-                                            'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300'
-                                        }`}>
-                                            {log.action}
-                                        </span>
-                                    </td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
-                                        {log.module}
-                                    </td>
-                                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-                                        {log.details || '-'}
-                                    </td>
-                                </tr>
-                            ))
-                        )}
-                    </tbody>
-                </table>
             </div>
         </div>
     );
@@ -5769,8 +5381,8 @@ const InventoryDispatchComponent = React.memo(({ data, handleDataAction, showToa
                         />
                         <Search className="w-5 h-5 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                     </div>
-                    <button onClick={handleRefresh} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
-                        <RotateCcw className="w-5 h-5 md:w-6 md:h-6" />
+                    <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
+                        <RotateCcw className="w-6 h-6" />
                     </button>
                 </div>
 
@@ -6184,19 +5796,6 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
                 {t('inventoryWithdrawal')}
             </h2>
 
-            {/* البحث */}
-            <div className="relative">
-                <input
-                    type="text"
-                    value={globalSearch}
-                    onChange={(e) => setGlobalSearch(e.target.value)}
-                    placeholder="البحث برقم الاستخراج، اسم الموظف، أو المادة..."
-                    className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl pr-10 focus:ring-green-500 focus:border-green-500"
-                    data-testid="input-search-withdrawals"
-                />
-                <Search className="w-5 h-5 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-            </div>
-
             {/* أزرار الإجراءات */}
             <div className="flex flex-wrap items-center justify-between gap-4">
                 <button
@@ -6212,8 +5811,8 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
                 </button>
 
                 <div className="flex flex-wrap gap-2 space-x-reverse">
-                    <button onClick={() => window.print()} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
-                        <Printer className="w-5 h-5 md:w-6 md:h-6" />
+                    <button onClick={() => window.print()} className="p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
+                        <Printer className="w-6 h-6" />
                     </button>
                     <button onClick={() => {
                         const csvContent = [
@@ -6231,13 +5830,26 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
                         link.href = URL.createObjectURL(blob);
                         link.download = `الاستخراجات_المخزنية_${new Date().toISOString().split('T')[0]}.csv`;
                         link.click();
-                    }} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg transition duration-200">
-                        <Download className="w-5 h-5 md:w-6 md:h-6" />
+                    }} className="p-3 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg transition duration-200">
+                        <Download className="w-6 h-6" />
                     </button>
-                    <button onClick={handleRefresh} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
-                        <RotateCcw className="w-5 h-5 md:w-6 md:h-6" />
+                    <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
+                        <RotateCcw className="w-6 h-6" />
                     </button>
                 </div>
+            </div>
+
+            {/* البحث */}
+            <div className="relative">
+                <input
+                    type="text"
+                    value={globalSearch}
+                    onChange={(e) => setGlobalSearch(e.target.value)}
+                    placeholder="البحث برقم الاستخراج، اسم الموظف، أو المادة..."
+                    className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl pr-10 focus:ring-green-500 focus:border-green-500"
+                    data-testid="input-search-withdrawals"
+                />
+                <Search className="w-5 h-5 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             </div>
 
             {/* جدول الاستخراجات */}
@@ -6538,7 +6150,7 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
 const AboutSystemModal = ({ onClose }) => (
     <Modal title="حول نظام المحاسبة العراقي" onClose={onClose} size="sm">
         <div className="space-y-4 text-center p-4">
-            <h3 className="text-2xl font-extrabold text-blue-900 dark:text-blue-300">نظام المحاسبة العراقي (V3.0)</h3>
+            <h3 className="text-2xl font-extrabold text-blue-900">نظام المحاسبة العراقي (V 1.0)</h3>
             {/* **تم تغيير الجملة إلى جملة احترافية** */}
             <p className="text-gray-700 dark:text-gray-300">منصة احترافية متكاملة لإدارة الموارد والمخزون والعمليات التشغيلية بكفاءة عالية.</p>
             
@@ -6546,15 +6158,15 @@ const AboutSystemModal = ({ onClose }) => (
                 {/* **تم تصحيح الاتجاه لليمين** */}
                 <div className="flex justify-between items-center">
                     <span className="font-semibold text-gray-800 dark:text-gray-200">المصمم:</span>
-                    <span className="font-bold text-indigo-600 dark:text-indigo-400">علاء المالكي</span>
+                    <span className="font-bold text-indigo-600">علاء المالكي</span>
                 </div>
                 <div className="flex justify-between items-center">
                     <span className="font-semibold text-gray-800 dark:text-gray-200">رقم الهاتف:</span>
-                    <span className="font-bold text-indigo-600 dark:text-indigo-400">٠٧٧١٧٧١٦٢٠٥</span>
+                    <span className="font-bold text-indigo-600">٠٧٧١٧٧١٦٢٠٥</span>
                 </div>
                 <div className="flex justify-between items-center">
                     <span className="font-semibold text-gray-800 dark:text-gray-200">إصدار التحديث:</span>
-                    <span className="font-bold text-indigo-600 dark:text-indigo-400">V3.0</span>
+                    <span className="font-bold text-indigo-600">1.0</span>
                 </div>
             </div>
             
@@ -6564,111 +6176,6 @@ const AboutSystemModal = ({ onClose }) => (
         </div>
     </Modal>
 );
-
-
-/**
- * 3.9. LoginPage (صفحة تسجيل الدخول)
- */
-const LoginPage = ({ users, onLogin, showToast, systemExpiryDate }) => {
-    const [username, setUsername] = useState('');
-    const [password, setPassword] = useState('');
-    const [showPassword, setShowPassword] = useState(false);
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        
-        // البحث عن المستخدم
-        const user = users.find(u => u.username === username && u.password === password);
-        
-        if (!user) {
-            showToast('اسم المستخدم أو كلمة المرور غير صحيحة', 'error');
-            return;
-        }
-
-        // التحقق من صلاحية النظام
-        // الأدمن يمكنه الدخول دائماً
-        if (user.role !== USER_ROLES.ADMIN && systemExpiryDate) {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const expiryDate = new Date(systemExpiryDate);
-            expiryDate.setHours(0, 0, 0, 0);
-            
-            if (today > expiryDate) {
-                showToast('انتهت صلاحية النظام. يرجى التواصل مع المدير', 'error');
-                return;
-            }
-        }
-
-        // تسجيل الدخول بنجاح
-        onLogin(user);
-        showToast(`مرحباً ${user.username}!`, 'success');
-    };
-
-    return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 via-purple-800 to-indigo-900 dark:from-gray-900 dark:via-gray-800 dark:to-black p-4" dir="rtl">
-            <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-3xl shadow-2xl p-8 space-y-6">
-                <div className="text-center space-y-2">
-                    <h1 className="text-3xl font-extrabold text-gray-800 dark:text-white">نظام المحاسبة العراقي</h1>
-                    <p className="text-gray-600 dark:text-gray-300">V3.0</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">قم بتسجيل الدخول للمتابعة</p>
-                </div>
-
-                <form onSubmit={handleSubmit} className="space-y-5">
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">اسم المستخدم</label>
-                        <div className="relative">
-                            <User className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                            <input
-                                type="text"
-                                value={username}
-                                onChange={(e) => setUsername(e.target.value)}
-                                required
-                                placeholder="أدخل اسم المستخدم"
-                                className="w-full pr-12 pl-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-                                data-testid="input-username"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">كلمة المرور</label>
-                        <div className="relative">
-                            <input
-                                type={showPassword ? 'text' : 'password'}
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                required
-                                placeholder="أدخل كلمة المرور"
-                                className="w-full pr-4 pl-12 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-                                data-testid="input-password"
-                            />
-                            <button
-                                type="button"
-                                onClick={() => setShowPassword(!showPassword)}
-                                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-                            >
-                                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                            </button>
-                        </div>
-                    </div>
-
-                    <button
-                        type="submit"
-                        className="w-full py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold rounded-xl shadow-lg transition duration-200 transform hover:scale-105"
-                        data-testid="button-login"
-                    >
-                        تسجيل الدخول
-                    </button>
-                </form>
-
-                <div className="text-center text-sm text-gray-500 dark:text-gray-400">
-                    <p>تصميم: علاء المالكي</p>
-                    <p className="mt-1">07717716205</p>
-                </div>
-            </div>
-        </div>
-    );
-};
 
 
 // =================================================================
@@ -6699,30 +6206,19 @@ const AccountingApp = () => {
     const [isDarkMode, setIsDarkMode] = useState(false);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); 
     
-    const [currentUser, setCurrentUser] = useState(null); // المستخدم المسجل حالياً
-    
-    
-    // تحميل تفضيلات Dark Mode من المستخدم المسجل
-    useEffect(() => {
-        if (currentUser) {
-            setIsDarkMode(currentUser.darkMode || false);
-            setIsSidebarCollapsed(currentUser.sidebarCollapsed || false);
-        }
-    }, [currentUser]);
-
-    // دالة تسجيل الدخول
-    const handleLogin = (user) => {
-        setCurrentUser(user);
-    };
-
-    // دالة تسجيل الخروج
-    const handleLogout = () => {
-        setCurrentUser(null);
-        setCurrentPage('dashboard');
-        setIsSidebarOpen(false);
-    };
+    // **تعديل:** إزالة منطق المصادقة والاعتماد على المستخدم الافتراضي
+    const currentUser = data.settings.users[0];
     
     // تحميل تفضيلات Dark Mode و Sidebar Collapse من المستخدم
+    useEffect(() => {
+        const user = data.settings.users[0];
+        if (user) {
+            setIsDarkMode(user.darkMode || false);
+            setIsSidebarCollapsed(user.sidebarCollapsed || false);
+        }
+    }, [data.settings.users]);
+
+    // تطبيق dark mode على documentElement (html)
     useEffect(() => {
         if (isDarkMode) {
             document.documentElement.classList.add('dark');
@@ -6796,11 +6292,6 @@ const AccountingApp = () => {
             
             if (collectionName !== 'inventory') {
                 showToast(`تم إضافة السجل بنجاح!`, 'success');
-            
-            // تسجيل النشاط
-            const moduleName = navItems.find(i => i.key === collectionName)?.label || collectionName;
-            logActivity("إضافة", moduleName, `${item.description || item.amount || item.name || "سجل جديد"}`);
-
             }
             
             if (collectionName === 'inventory' && !newItem.purchaseHistory) {
@@ -6813,11 +6304,6 @@ const AccountingApp = () => {
             if (index !== -1) {
                 collection[index] = item;
                 newData[collectionName] = collection;
-                
-                // تسجيل النشاط
-                const moduleName = navItems.find(i => i.key === collectionName)?.label || collectionName;
-                logActivity("تعديل", moduleName, `${item.description || item.amount || item.name || "سجل"}`);
-
                 showToast(`تم تعديل السجل بنجاح!`, 'success');
             } else if (collectionName === 'pendingInvoices' && item.status) {
                  const existingIndex = collection.findIndex(i => i.id === item.id);
@@ -6873,12 +6359,6 @@ const AccountingApp = () => {
         }
         
         newData[collectionName] = newData[collectionName].filter(item => item.id !== id);
-        
-        // تسجيل النشاط
-        const moduleName = navItems.find(i => i.key === collectionName)?.label || collectionName;
-        const deletedItem = data[collectionName]?.find(item => item.id === id);
-        logActivity("حذف", moduleName, `${deletedItem?.description || deletedItem?.amount || deletedItem?.name || "سجل"}`);
-
 
         if (showMessage) {
            showToast('تم حذف السجل بنجاح.', 'warning');
@@ -6929,32 +6409,6 @@ const AccountingApp = () => {
             showToast('خطأ في حفظ البيانات محلياً. يرجى التحقق من مساحة التخزين.', 'error');
         }
     };
-    
-    // دالة تسجيل النشاطات
-    const logActivity = (action, module, details = "") => {
-        const newData = { ...data };
-        
-        if (!newData.activityLog) {
-            newData.activityLog = [];
-        }
-        
-        const logEntry = {
-            id: crypto.randomUUID(),
-            timestamp: new Date().toISOString(),
-            username: currentUser?.username || "المستخدم",
-            action,
-            module,
-            details
-        };
-        
-        newData.activityLog.unshift(logEntry);
-        
-        if (newData.activityLog.length > 500) {
-            newData.activityLog = newData.activityLog.slice(0, 500);
-        }
-        
-        saveData(newData);
-    };
 
     // 5. Settings Update
     const handleSettingsUpdate = (newSettings) => {
@@ -7024,7 +6478,7 @@ const AccountingApp = () => {
     
     // **تعديل:** إزالة منطق تسجيل الدخول
     // ------------------------------------
-    // const currentUser = data.settings.users[0]; // تم استبداله بـ currentUser من state // المستخدم الافتراضي
+    const currentUserForApp = data.settings.users[0]; // المستخدم الافتراضي
     // ------------------------------------
 
     const handleNavigationClick = (key) => {
@@ -7058,60 +6512,18 @@ const AccountingApp = () => {
     // AI Chatbot Component
     // =================================================================
     const AIChatbot = () => {
-        const CHAT_STORAGE_KEY = 'iraqiAccountingChatHistory';
-        const CHAT_EXPIRY_HOURS = 24;
-        
-        // تحميل المحادثات من localStorage
-        const loadChatHistory = () => {
-            try {
-                const stored = localStorage.getItem(CHAT_STORAGE_KEY);
-                if (stored) {
-                    const parsed = JSON.parse(stored);
-                    const createdAt = new Date(parsed.createdAt);
-                    const now = new Date();
-                    const hoursDiff = (now - createdAt) / (1000 * 60 * 60);
-                    
-                    // إذا مرت أكثر من 24 ساعة، احذف المحادثات القديمة
-                    if (hoursDiff > CHAT_EXPIRY_HOURS) {
-                        localStorage.removeItem(CHAT_STORAGE_KEY);
-                        return getInitialMessages();
-                    }
-                    
-                    return parsed.messages;
-                }
-            } catch (error) {
-                console.error('Error loading chat history:', error);
-            }
-            return getInitialMessages();
-        };
-        
-        const getInitialMessages = () => [{
-            id: 1,
-            text: 'مرحباً! أنا علاء، مساعدك الذكي في نظام الحسابات. كيف يمكنني مساعدتك اليوم؟',
-            sender: 'bot',
-            timestamp: new Date().toISOString()
-        }];
-        
         const [isOpen, setIsOpen] = useState(false);
-        const [messages, setMessages] = useState(loadChatHistory());
+        const [messages, setMessages] = useState([
+            {
+                id: 1,
+                text: 'مرحباً! أنا علاء، مساعدك الذكي في نظام الحسابات. كيف يمكنني مساعدتك اليوم؟',
+                sender: 'bot',
+                timestamp: new Date()
+            }
+        ]);
         const [inputMessage, setInputMessage] = useState('');
         const [isSending, setIsSending] = useState(false);
         const messagesEndRef = React.useRef(null);
-        
-        // حفظ المحادثات في localStorage عند كل تحديث
-        useEffect(() => {
-            if (messages.length > 0) {
-                try {
-                    const chatData = {
-                        messages: messages,
-                        createdAt: new Date().toISOString()
-                    };
-                    localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(chatData));
-                } catch (error) {
-                    console.error('Error saving chat history:', error);
-                }
-            }
-        }, [messages]);
 
         const scrollToBottom = () => {
             messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -7130,7 +6542,7 @@ const AccountingApp = () => {
                 id: Date.now(),
                 text: inputMessage,
                 sender: 'user',
-                timestamp: new Date().toISOString()
+                timestamp: new Date()
             };
 
             setMessages(prev => [...prev, userMessage]);
@@ -7147,7 +6559,7 @@ const AccountingApp = () => {
                         message: inputMessage,
                         context: {
                             currentPage,
-                            user: currentUser.username
+                            user: currentUserForApp.username
                         }
                     }),
                 });
@@ -7162,7 +6574,7 @@ const AccountingApp = () => {
                     id: Date.now() + 1,
                     text: data.reply || 'عذراً، حدث خطأ في معالجة طلبك.',
                     sender: 'bot',
-                    timestamp: new Date().toISOString()
+                    timestamp: new Date()
                 };
 
                 setMessages(prev => [...prev, botMessage]);
@@ -7172,7 +6584,7 @@ const AccountingApp = () => {
                     id: Date.now() + 1,
                     text: 'عذراً، حدث خطأ في الاتصال. يرجى المحاولة مرة أخرى.',
                     sender: 'bot',
-                    timestamp: new Date().toISOString()
+                    timestamp: new Date()
                 };
                 setMessages(prev => [...prev, errorMessage]);
             } finally {
@@ -7283,27 +6695,15 @@ const AccountingApp = () => {
                     data-testid="button-toggle-chatbot"
                 >
                     {isOpen ? (
-                        <X className="w-5 h-5 md:w-6 md:h-6" />
+                        <X className="w-6 h-6" />
                     ) : (
-                        <MessageCircle className="w-5 h-5 md:w-6 md:h-6" />
+                        <MessageCircle className="w-6 h-6" />
                     )}
                 </button>
             </div>
         );
     };
 
-
-    // عرض صفحة تسجيل الدخول إذا لم يكن هناك مستخدم مسجل
-    if (!currentUser) {
-        return (
-            <LoginPage
-                users={data.settings.users}
-                onLogin={handleLogin}
-                showToast={showToast}
-                systemExpiryDate={data.settings.systemExpiryDate}
-            />
-        );
-    }
     return (
         <div className="min-h-screen flex bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950 antialiased text-right overflow-x-hidden" dir="rtl">
             <style>
@@ -7334,9 +6734,9 @@ const AccountingApp = () => {
                         {isSidebarCollapsed ? <ChevronLeft className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
                     </button>
                     {!isSidebarCollapsed && <h1 className="text-3xl font-extrabold">{data.settings.companyName}</h1>}
-                    {!isSidebarCollapsed && <p className="text-sm opacity-75">مرحباً, {currentUser.username}</p>}
+                    {!isSidebarCollapsed && <p className="text-sm opacity-75">مرحباً, {currentUserForApp.username}</p>}
                     <button onClick={() => setIsSidebarOpen(false)} className="absolute left-3 top-4 text-white p-2 rounded-full lg:hidden hover:bg-blue-800">
-                        <X className="w-5 h-5 md:w-6 md:h-6" />
+                        <X className="w-6 h-6" />
                     </button>
                 </div>
                 <nav className={`flex-grow ${isSidebarCollapsed ? 'p-2' : 'p-4'} space-y-2 overflow-y-auto transition-all duration-300 sidebar-scroll`}>
@@ -7380,17 +6780,6 @@ const AccountingApp = () => {
                     
                     {/* زر تبديل اللغة - مخفي */}
                     {/* <button
-                    
-                    {/* زر تسجيل الخروج */}
-                    <button
-                        onClick={handleLogout}
-                        data-testid="button-logout"
-                        title={isSidebarCollapsed ? 'تسجيل الخروج' : ''}
-                        className={`w-full flex items-center ${isSidebarCollapsed ? "justify-center p-2" : "text-right p-3"} rounded-xl transition-all duration-200 hover:bg-red-600/50 dark:hover:bg-red-700/50 hover:scale-102 text-red-100 hover:text-white`}
-                    >
-                        <LogOut className={`w-5 h-5 ${!isSidebarCollapsed && "ml-3"}`} />
-                        {!isSidebarCollapsed && <span className="text-lg">تسجيل الخروج</span>}
-                    </button>
                         onClick={toggleLanguage}
                         data-testid="button-toggle-language"
                         title={isSidebarCollapsed ? (language === 'ar' ? 'English' : 'العربية') : ''}
@@ -7407,7 +6796,7 @@ const AccountingApp = () => {
                 {/* Header for Mobile/Tablet */}
                 <header className="app-header flex justify-between items-center bg-gradient-to-r from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 p-4 mb-4 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 lg:hidden">
                     <button onClick={() => setIsSidebarOpen(true)} className="text-blue-600 dark:text-blue-400 p-2 rounded-lg hover:bg-gray-100 dark:bg-gray-600 dark:hover:bg-gray-700 transition">
-                        <Menu className="w-5 h-5 md:w-6 md:h-6" />
+                        <Menu className="w-6 h-6" />
                     </button>
                     <h1 className="text-xl font-bold text-gray-800 dark:text-gray-200 dark:text-gray-100">{navItems.find(item => item.key === currentPage)?.label}</h1>
                 <div className="flex items-center space-x-2 space-x-reverse">
@@ -7438,7 +6827,7 @@ const AccountingApp = () => {
                             initialExpenseState={initialExpenseState} // تمرير حالة المصروف التلقائي
                             setInitialExpenseState={setInitialExpenseState} // تمرير دالة المسح
                             handleRefresh={handleRefresh}
-                            currentUser={currentUser} // تمرير صلاحيات المستخدم الافتراضي
+                            currentUser={currentUserForApp} // تمرير صلاحيات المستخدم الافتراضي
                             onNavigateAttempt={handleSettingsNavigation} // تمرير دالة التنقل الخاصة بـ SettingsPage
                             {...pageProps}
                         />
