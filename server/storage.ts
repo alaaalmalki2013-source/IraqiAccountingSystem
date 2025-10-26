@@ -1,7 +1,7 @@
 import { 
   users, revenues, expenses, employees, advances, suspended, 
   pendingExpenses, inventoryItems, inventoryEntries, inventoryWithdrawals,
-  payrolls, activityLogs, settings,
+  payrolls, activityLogs, settings, employeeDocuments,
   type User, type InsertUser,
   type Revenue, type InsertRevenue,
   type Expense, type InsertExpense,
@@ -14,7 +14,8 @@ import {
   type InventoryWithdrawal, type InsertInventoryWithdrawal,
   type Payroll, type InsertPayroll,
   type ActivityLog, type InsertActivityLog,
-  type Settings, type InsertSettings
+  type Settings, type InsertSettings,
+  type EmployeeDocument, type InsertEmployeeDocument
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, or, like, sql } from "drizzle-orm";
@@ -103,6 +104,14 @@ export interface IStorage {
   // ===== سجل النشاطات =====
   getAllActivityLogs(): Promise<ActivityLog[]>;
   createActivityLog(log: InsertActivityLog): Promise<ActivityLog>;
+
+  // ===== المستندات =====
+  getAllEmployeeDocuments(): Promise<EmployeeDocument[]>;
+  getEmployeeDocument(id: string): Promise<EmployeeDocument | undefined>;
+  getEmployeeDocumentsByEmployee(employeeId: string): Promise<EmployeeDocument[]>;
+  createEmployeeDocument(doc: InsertEmployeeDocument): Promise<EmployeeDocument>;
+  updateEmployeeDocument(id: string, doc: Partial<InsertEmployeeDocument>): Promise<EmployeeDocument | undefined>;
+  deleteEmployeeDocument(id: string): Promise<boolean>;
 
   // ===== الإعدادات =====
   getSettings(): Promise<Settings | undefined>;
