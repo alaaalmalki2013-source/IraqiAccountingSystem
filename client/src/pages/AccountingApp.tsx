@@ -5405,22 +5405,12 @@ const AccountingApp = () => {
                 // دمج البيانات المحفوظة مع الإعدادات الافتراضية الجديدة في حال عدم وجودها
                 const parsedData = JSON.parse(savedData);
                 
-                // تحديث صلاحيات المستخدمين الموجودين بدمجها مع BASE_PERMISSIONS
-                const updatedUsers = (parsedData.settings?.users || []).map(user => ({
-                    ...user,
-                    permissions: {
-                        ...BASE_PERMISSIONS,
-                        ...user.permissions
-                    }
-                }));
-                
                 setData(prev => ({
                     ...defaultDataStructure,
                     ...parsedData,
                     settings: {
                         ...defaultSettings,
                         ...(parsedData.settings || {}),
-                        users: updatedUsers.length > 0 ? updatedUsers : defaultSettings.users
                     }
                 }));
             }
@@ -5436,33 +5426,7 @@ const AccountingApp = () => {
         } catch (error) {
             console.error("Failed to save data to localStorage", error);
             showToast('خطأ في حفظ البيانات محلياً. يرجى التحقق من مساحة التخزين.', 'error');
-        }
-    };
-    
-    // دالة تسجيل النشاطات
-    const logActivity = (action, module, details = "") => {
-        const newData = { ...data };
-        
-        if (!newData.activityLog) {
-            newData.activityLog = [];
         }
-        
-        const logEntry = {
-            id: crypto.randomUUID(),
-            timestamp: new Date().toISOString(),
-            username: currentUser?.username || "المستخدم",
-            action,
-            module,
-            details
-        };
-        
-        newData.activityLog.unshift(logEntry);
-        
-        if (newData.activityLog.length > 500) {
-            newData.activityLog = newData.activityLog.slice(0, 500);
-        }
-        
-        saveData(newData);
     };
 
     // 5. Settings Update

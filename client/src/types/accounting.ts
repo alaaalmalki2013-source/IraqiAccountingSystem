@@ -159,20 +159,7 @@ export const defaultSettings = {
     representatives: [{ name: 'عبد الله', vendor: 'السامر' }],
     companyName: 'نظام الحسابات',
     companyLogoUrl: 'https://placehold.co/100x40/0d9488/ffffff?text=LOGO',
-    systemExpiryDate: null, // تاريخ انتهاء صلاحية النظام (null = بدون صلاحية)
-    users: [
-        { 
-            id: 'admin_1', 
-            username: 'admin', 
-            email: 'admin@system.com',
-            password: 'admin123', 
-            role: USER_ROLES.ADMIN,
-            permissions: ROLE_PERMISSIONS[USER_ROLES.ADMIN],
-            customPermissions: {},
-            darkMode: false,
-            sidebarCollapsed: false
-        }
-    ]
+    systemExpiryDate: null // تاريخ انتهاء صلاحية النظام (null = بدون صلاحية)
 };
 
 export const defaultDataStructure = {
@@ -187,6 +174,5 @@ export const defaultDataStructure = {
     pendingInvoices: [], 
     inventoryWithdrawals: [],
     inventoryDispatches: [],
-    activityLog: [],
     settings: defaultSettings
 };
