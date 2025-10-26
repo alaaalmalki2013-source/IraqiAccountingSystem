@@ -7606,6 +7606,7 @@ const AccountingApp = () => {
         { key: 'inventory', label: 'المخزن والمواد', icon: Package, component: InventoryPageComponent, props: { handleRefresh, handleDataAction } },
         { key: 'settings', label: 'الإعدادات', icon: Settings, component: SettingsPage, props: { handleSettingsUpdate } },
         { key: 'admin', label: 'الإدارة', icon: Shield, component: AdminPage, props: { handleDataAction, showToast } },
+        { key: 'about', label: 'حول النظام', icon: Info, component: AboutPage, props: {} },
     ];
     
     // فلترة عناصر القائمة حسب صلاحيات المستخدم
