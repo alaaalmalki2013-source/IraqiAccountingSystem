@@ -5120,21 +5120,7 @@ const InventoryWithdrawalComponent = React.memo(({ data, handleDataAction, handl
     }, []);
 
     const handleItemNameChange = useCallback((value) => {
-        setItemForm(prev => {
-            const newState = { ...prev, name: value };
-            
-            // البحث عن المادة بالاسم لملء الباركود تلقائياً
-            if (value) {
-                const foundItem = data.inventory.find(i => i.name === value && i.quantity > 0);
-                if (foundItem) {
-                    newState.barcode = foundItem.barcode || '';
-                    newState.category = foundItem.category;
-                    newState.availableQty = foundItem.quantity;
-                }
-            }
-            
-            return newState;
-        });
+        setItemForm(prev => ({ ...prev, name: value }));
         
         if (value.length >= 2) {
             const searchNormalized = normalizeTextForSearch(value);
@@ -5156,12 +5142,24 @@ const InventoryWithdrawalComponent = React.memo(({ data, handleDataAction, handl
             const newState = { ...prev, barcode: value };
             
             // البحث عن المادة بالباركود لملء الاسم تلقائياً
-            if (value) {
-                const foundItem = data.inventory.find(i => i.barcode === value && i.quantity > 0);
+            if (value && value.trim()) {
+                const foundItem = data.inventory.find(i => 
+                    i.barcode && i.barcode.trim() === value.trim() && i.quantity > 0
+                );
                 if (foundItem) {
                     newState.name = foundItem.name;
                     newState.category = foundItem.category;
                     newState.availableQty = foundItem.quantity;
+                } else {
+                    // إذا لم نجد تطابق تام، نحاول البحث الجزئي
+                    const partialMatch = data.inventory.find(i => 
+                        i.barcode && i.barcode.includes(value.trim()) && i.quantity > 0
+                    );
+                    if (partialMatch && value.length >= 3) {
+                        newState.name = partialMatch.name;
+                        newState.category = partialMatch.category;
+                        newState.availableQty = partialMatch.quantity;
+                    }
                 }
             }
             
