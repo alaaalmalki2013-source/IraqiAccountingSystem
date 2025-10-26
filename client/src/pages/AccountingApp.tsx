@@ -5056,6 +5056,582 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
  * 3.6.1. AdminPage (صفحة الإدارة)
  * صفحة إدارة النظام والمعلومات الإدارية
  */
+/**
+ * InventoryWithdrawalComponent - صفحة الاستخراج المخزني الكاملة
+ * Features: اختيار من المخزون، إضافة عدة مواد، حساب التكاليف، تحديث المخزون
+ */
+const InventoryWithdrawalComponent = React.memo(({ data, handleDataAction, handleDelete, showToast, handleRefresh }) => {
+    const [isNewWithdrawalModalOpen, setIsNewWithdrawalModalOpen] = useState(false);
+    const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+    const [currentWithdrawal, setCurrentWithdrawal] = useState(null);
+    const [globalSearch, setGlobalSearch] = useState('');
+    
+    const getDefaultWithdrawalForm = useCallback(() => ({
+        withdrawnBy: '',
+        purpose: '',
+        department: data.settings.departments[0] || '',
+        items: [],
+        totalCost: 0,
+        date: getDefaultDateTime(),
+        id: null,
+        notes: ''
+    }), [data.settings.departments]);
+    
+    const getDefaultItemForm = useCallback(() => ({ 
+        name: '', 
+        barcode: '', 
+        quantity: 1,
+        unitCost: 0,
+        totalCost: 0,
+        category: '',
+        availableQty: 0
+    }), []);
+
+    const [withdrawalForm, setWithdrawalForm] = useState(getDefaultWithdrawalForm);
+    const [itemForm, setItemForm] = useState(getDefaultItemForm);
+    const [suggestions, setSuggestions] = useState([]);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const [editingItemId, setEditingItemId] = useState(null);
+    
+    const calculateTotal = useCallback(() => {
+        return withdrawalForm.items.reduce((sum, item) => sum + (parseFloat(item.totalCost || 0)), 0);
+    }, [withdrawalForm.items]);
+
+    useEffect(() => {
+        setWithdrawalForm(prev => ({ ...prev, totalCost: calculateTotal() }));
+    }, [calculateTotal]);
+
+    const handleItemNameChange = useCallback((value) => {
+        setItemForm(prev => ({ ...prev, name: value }));
+        
+        if (value.length >= 2) {
+            const searchNormalized = normalizeTextForSearch(value);
+            const filtered = data.inventory.filter(item => {
+                const itemNameNorm = normalizeTextForSearch(item.name);
+                const itemBarcodeNorm = item.barcode ? normalizeTextForSearch(item.barcode) : '';
+                return (itemNameNorm.includes(searchNormalized) || itemBarcodeNorm.includes(searchNormalized)) && item.quantity > 0;
+            }).slice(0, 5);
+            
+            setSuggestions(filtered);
+            setShowSuggestions(true);
+        } else {
+            setShowSuggestions(false);
+            setSuggestions([]);
+        }
+    }, [data.inventory]);
+
+    const selectSuggestion = useCallback((item) => {
+        setItemForm({
+            name: item.name,
+            barcode: item.barcode || '',
+            unitCost: item.price || 0,
+            category: item.category,
+            quantity: 1,
+            totalCost: item.price || 0,
+            availableQty: item.quantity
+        });
+        setShowSuggestions(false);
+        setSuggestions([]);
+    }, []);
+
+    const handleItemFormChange = useCallback((key, value) => {
+        setItemForm(prev => {
+            let newState = { ...prev, [key]: value };
+            
+            if (key === 'barcode') {
+                const foundItem = data.inventory.find(i => i.barcode === value);
+                if (foundItem && foundItem.quantity > 0) {
+                    newState.name = foundItem.name;
+                    newState.unitCost = foundItem.price;
+                    newState.category = foundItem.category;
+                    newState.availableQty = foundItem.quantity;
+                }
+            }
+            
+            if (key === 'quantity' || key === 'unitCost') {
+                let cleanValue = convertArabicToEnglish(value);
+                cleanValue = cleanValue.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+                newState[key] = cleanValue;
+                newState.totalCost = (parseFloat(newState.quantity) || 0) * (parseFloat(newState.unitCost) || 0);
+            }
+            
+            return newState;
+        });
+    }, [data.inventory]);
+
+    const handleAddItemToWithdrawal = (e) => {
+        e.preventDefault();
+        
+        if (!itemForm.name || !itemForm.quantity || itemForm.quantity <= 0) {
+            showToast('الرجاء ملء جميع حقول المادة بشكل صحيح.', 'error');
+            return;
+        }
+
+        const inventoryItem = data.inventory.find(i => i.name === itemForm.name);
+        if (!inventoryItem) {
+            showToast('المادة غير موجودة في المخزون.', 'error');
+            return;
+        }
+
+        const requestedQty = parseInt(itemForm.quantity);
+        const alreadyInList = withdrawalForm.items
+            .filter(item => item.name === itemForm.name && item.id !== editingItemId)
+            .reduce((sum, item) => sum + item.quantity, 0);
+        
+        if (inventoryItem.quantity < (requestedQty + alreadyInList)) {
+            showToast(`الكمية المتاحة في المخزون: ${inventoryItem.quantity - alreadyInList}`, 'error');
+            return;
+        }
+
+        if (editingItemId) {
+            const updatedItem = {
+                ...itemForm,
+                id: editingItemId,
+                quantity: requestedQty,
+                unitCost: parseFloat(itemForm.unitCost),
+                totalCost: parseFloat(itemForm.totalCost)
+            };
+            
+            setWithdrawalForm(prev => ({
+                ...prev,
+                items: prev.items.map(item => item.id === editingItemId ? updatedItem : item)
+            }));
+            
+            showToast(`تم تعديل المادة "${updatedItem.name}" بنجاح.`, 'success');
+        } else {
+            const newItem = {
+                ...itemForm,
+                id: crypto.randomUUID(),
+                quantity: requestedQty,
+                unitCost: parseFloat(itemForm.unitCost),
+                totalCost: parseFloat(itemForm.totalCost)
+            };
+            
+            setWithdrawalForm(prev => ({
+                ...prev,
+                items: [...prev.items, newItem]
+            }));
+            
+            showToast(`تمت إضافة المادة "${newItem.name}" للسحب.`, 'success');
+        }
+
+        setItemForm(getDefaultItemForm());
+        setEditingItemId(null);
+    };
+
+    const handleRemoveItem = (itemId) => {
+        setWithdrawalForm(prev => ({
+            ...prev,
+            items: prev.items.filter(item => item.id !== itemId)
+        }));
+        showToast('تم حذف المادة من قائمة السحب.', 'info');
+    };
+
+    const handleEditItem = (item) => {
+        setItemForm(item);
+        setEditingItemId(item.id);
+    };
+
+    const handleSaveWithdrawal = () => {
+        if (!withdrawalForm.withdrawnBy || !withdrawalForm.purpose || withdrawalForm.items.length === 0) {
+            showToast('الرجاء ملء جميع الحقول وإضافة مادة واحدة على الأقل.', 'error');
+            return;
+        }
+
+        const newWithdrawal = {
+            ...withdrawalForm,
+            id: crypto.randomUUID(),
+            invoiceNumber: generateInvoiceNumber(),
+            date: getDefaultDateTime()
+        };
+
+        handleDataAction('inventoryWithdrawals', newWithdrawal, true);
+        
+        newWithdrawal.items.forEach(item => {
+            const inventoryItem = data.inventory.find(i => i.name === item.name);
+            if (inventoryItem) {
+                const updatedItem = {
+                    ...inventoryItem,
+                    quantity: inventoryItem.quantity - item.quantity
+                };
+                handleDataAction('inventory', updatedItem, false);
+            }
+        });
+
+        showToast('تم حفظ سند السحب بنجاح وتحديث المخزون.', 'success');
+        setIsNewWithdrawalModalOpen(false);
+        setWithdrawalForm(getDefaultWithdrawalForm());
+        handleRefresh();
+    };
+
+    const handleViewDetails = (withdrawal) => {
+        setCurrentWithdrawal(withdrawal);
+        setIsDetailsModalOpen(true);
+    };
+
+    const filteredWithdrawals = useMemo(() => {
+        if (!globalSearch.trim()) return data.inventoryWithdrawals || [];
+        
+        const searchNorm = normalizeTextForSearch(globalSearch);
+        return (data.inventoryWithdrawals || []).filter(w => {
+            const withdrawnByNorm = normalizeTextForSearch(w.withdrawnBy || '');
+            const purposeNorm = normalizeTextForSearch(w.purpose || '');
+            const invoiceNorm = normalizeTextForSearch(w.invoiceNumber || '');
+            
+            return withdrawnByNorm.includes(searchNorm) || 
+                   purposeNorm.includes(searchNorm) || 
+                   invoiceNorm.includes(searchNorm);
+        });
+    }, [data.inventoryWithdrawals, globalSearch]);
+
+    return (
+        <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <h2 className="text-3xl font-bold text-gray-800 dark:text-gray-200 flex items-center gap-3">
+                    <PackageOpen className="w-8 h-8 text-orange-600 dark:text-orange-400" />
+                    الاستخراج المخزني
+                </h2>
+                
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => setIsNewWithdrawalModalOpen(true)}
+                        className="px-4 py-2 bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white rounded-lg flex items-center gap-2 transition-all duration-200 shadow-lg hover:shadow-xl"
+                        data-testid="button-add-withdrawal"
+                    >
+                        <Plus className="w-5 h-5" />
+                        سند سحب جديد
+                    </button>
+                    
+                    <button
+                        onClick={handleRefresh}
+                        className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
+                        data-testid="button-refresh"
+                    >
+                        <RotateCcw className="w-5 h-5" />
+                    </button>
+                </div>
+            </div>
+
+            <div className="relative">
+                <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                    type="text"
+                    placeholder="بحث في السحوبات..."
+                    value={globalSearch}
+                    onChange={(e) => setGlobalSearch(e.target.value)}
+                    className="w-full pr-10 pl-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                    data-testid="input-search"
+                />
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full">
+                        <thead className="bg-gradient-to-r from-orange-600 to-orange-700 text-white">
+                            <tr>
+                                <th className="px-4 py-3 text-right">رقم السند</th>
+                                <th className="px-4 py-3 text-right">التاريخ</th>
+                                <th className="px-4 py-3 text-right">المستلم</th>
+                                <th className="px-4 py-3 text-right">الغرض</th>
+                                <th className="px-4 py-3 text-right">عدد المواد</th>
+                                <th className="px-4 py-3 text-right">التكلفة الإجمالية</th>
+                                <th className="px-4 py-3 text-center">الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filteredWithdrawals.length === 0 ? (
+                                <tr>
+                                    <td colSpan="7" className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                                        لا توجد سحوبات مسجلة
+                                    </td>
+                                </tr>
+                            ) : (
+                                filteredWithdrawals.map((withdrawal) => (
+                                    <tr key={withdrawal.id} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                        <td className="px-4 py-3">{withdrawal.invoiceNumber}</td>
+                                        <td className="px-4 py-3">{formatDateDDMMYYYY(withdrawal.date)}</td>
+                                        <td className="px-4 py-3">{withdrawal.withdrawnBy}</td>
+                                        <td className="px-4 py-3">{withdrawal.purpose}</td>
+                                        <td className="px-4 py-3">{withdrawal.items?.length || 0}</td>
+                                        <td className="px-4 py-3 font-bold text-orange-600 dark:text-orange-400">
+                                            {formatCurrency(withdrawal.totalCost)}
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <div className="flex justify-center gap-2">
+                                                <button
+                                                    onClick={() => handleViewDetails(withdrawal)}
+                                                    className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50"
+                                                    data-testid={`button-view-${withdrawal.id}`}
+                                                >
+                                                    <Eye className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {isNewWithdrawalModalOpen && (
+                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setIsNewWithdrawalModalOpen(false)}>
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+                        <div className="sticky top-0 bg-gradient-to-r from-orange-600 to-orange-700 text-white p-6 rounded-t-2xl flex justify-between items-center z-10">
+                            <h3 className="text-2xl font-bold flex items-center gap-3">
+                                <PackageOpen className="w-7 h-7" />
+                                سند سحب جديد
+                            </h3>
+                            <button onClick={() => setIsNewWithdrawalModalOpen(false)} className="p-2 hover:bg-white/20 rounded-lg">
+                                <X className="w-6 h-6" />
+                            </button>
+                        </div>
+
+                        <div className="p-6 space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                                        المستلم *
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={withdrawalForm.withdrawnBy}
+                                        onChange={(e) => setWithdrawalForm(prev => ({ ...prev, withdrawnBy: e.target.value }))}
+                                        className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                                        placeholder="اسم المستلم"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                                        القسم
+                                    </label>
+                                    <select
+                                        value={withdrawalForm.department}
+                                        onChange={(e) => setWithdrawalForm(prev => ({ ...prev, department: e.target.value }))}
+                                        className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                                    >
+                                        {data.settings.departments.map(dept => (
+                                            <option key={dept} value={dept}>{dept}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div className="md:col-span-2">
+                                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                                        الغرض *
+                                    </label>
+                                    <textarea
+                                        value={withdrawalForm.purpose}
+                                        onChange={(e) => setWithdrawalForm(prev => ({ ...prev, purpose: e.target.value }))}
+                                        className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                                        rows="2"
+                                        placeholder="الغرض من السحب..."
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="border-2 border-dashed border-orange-300 dark:border-orange-700 rounded-xl p-4">
+                                <h4 className="text-lg font-bold text-gray-800 dark:text-gray-200 mb-4">إضافة مادة</h4>
+                                <form onSubmit={handleAddItemToWithdrawal} className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                    <div className="relative">
+                                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">اسم المادة *</label>
+                                        <input
+                                            type="text"
+                                            value={itemForm.name}
+                                            onChange={(e) => handleItemNameChange(e.target.value)}
+                                            className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                                            placeholder="ابحث عن مادة..."
+                                        />
+                                        {showSuggestions && suggestions.length > 0 && (
+                                            <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 rounded-lg shadow-xl z-50 max-h-60 overflow-y-auto">
+                                                {suggestions.map(item => (
+                                                    <div
+                                                        key={item.id}
+                                                        onClick={() => selectSuggestion(item)}
+                                                        className="px-4 py-2 hover:bg-orange-100 dark:hover:bg-orange-900/30 cursor-pointer border-b border-gray-200 dark:border-gray-600 last:border-b-0"
+                                                    >
+                                                        <div className="font-semibold text-gray-900 dark:text-gray-100">{item.name}</div>
+                                                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                                                            متوفر: {item.quantity} | السعر: {formatCurrency(item.price)}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                                            الكمية *
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={itemForm.quantity}
+                                            onChange={(e) => handleItemFormChange('quantity', e.target.value)}
+                                            className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                                        />
+                                        {itemForm.availableQty > 0 && (
+                                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                                المتوفر: {itemForm.availableQty}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">سعر الوحدة</label>
+                                        <input
+                                            type="text"
+                                            value={itemForm.unitCost}
+                                            readOnly
+                                            className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-600 text-gray-900 dark:text-gray-100"
+                                        />
+                                    </div>
+
+                                    <div className="flex items-end">
+                                        <button
+                                            type="submit"
+                                            className="w-full px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg flex items-center justify-center gap-2 transition-all duration-200"
+                                        >
+                                            <Plus className="w-5 h-5" />
+                                            {editingItemId ? 'تحديث' : 'إضافة'}
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+
+                            {withdrawalForm.items.length > 0 && (
+                                <div>
+                                    <h4 className="text-lg font-bold text-gray-800 dark:text-gray-200 mb-4">المواد المضافة ({withdrawalForm.items.length})</h4>
+                                    <div className="space-y-2">
+                                        {withdrawalForm.items.map(item => (
+                                            <div key={item.id} className="flex justify-between items-center bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
+                                                <div className="flex-1">
+                                                    <div className="font-semibold text-gray-900 dark:text-gray-100">{item.name}</div>
+                                                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                                                        الكمية: {item.quantity} × {formatCurrency(item.unitCost)} = {formatCurrency(item.totalCost)}
+                                                    </div>
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <button
+                                                        onClick={() => handleEditItem(item)}
+                                                        className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50"
+                                                    >
+                                                        <Edit2 className="w-4 h-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleRemoveItem(item.id)}
+                                                        className="p-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    
+                                    <div className="mt-4 p-4 bg-gradient-to-r from-orange-100 to-orange-200 dark:from-orange-900/30 dark:to-orange-800/30 rounded-lg border-r-4 border-orange-600">
+                                        <div className="text-xl font-bold text-orange-800 dark:text-orange-300">
+                                            التكلفة الإجمالية: {formatCurrency(withdrawalForm.totalCost)}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="flex gap-3 justify-end pt-4 border-t border-gray-200 dark:border-gray-700">
+                                <button
+                                    onClick={() => {
+                                        setIsNewWithdrawalModalOpen(false);
+                                        setWithdrawalForm(getDefaultWithdrawalForm());
+                                        setItemForm(getDefaultItemForm());
+                                    }}
+                                    className="px-6 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-all duration-200"
+                                >
+                                    إلغاء
+                                </button>
+                                <button
+                                    onClick={handleSaveWithdrawal}
+                                    className="px-6 py-2 bg-gradient-to-r from-orange-600 to-orange-700 text-white rounded-lg flex items-center gap-2 hover:from-orange-700 hover:to-orange-800 transition-all duration-200 shadow-lg hover:shadow-xl"
+                                >
+                                    <Save className="w-5 h-5" />
+                                    حفظ السند وتحديث المخزون
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {isDetailsModalOpen && currentWithdrawal && (
+                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setIsDetailsModalOpen(false)}>
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+                        <div className="sticky top-0 bg-gradient-to-r from-orange-600 to-orange-700 text-white p-6 rounded-t-2xl flex justify-between items-center z-10">
+                            <h3 className="text-2xl font-bold">تفاصيل سند السحب</h3>
+                            <button onClick={() => setIsDetailsModalOpen(false)} className="p-2 hover:bg-white/20 rounded-lg transition-all duration-200">
+                                <X className="w-6 h-6" />
+                            </button>
+                        </div>
+
+                        <div className="p-6 space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
+                                    <span className="text-sm text-gray-500 dark:text-gray-400">رقم السند:</span>
+                                    <div className="font-bold text-gray-900 dark:text-gray-100">{currentWithdrawal.invoiceNumber}</div>
+                                </div>
+                                <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
+                                    <span className="text-sm text-gray-500 dark:text-gray-400">التاريخ:</span>
+                                    <div className="font-bold text-gray-900 dark:text-gray-100">{formatDateDDMMYYYY(currentWithdrawal.date)}</div>
+                                </div>
+                                <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
+                                    <span className="text-sm text-gray-500 dark:text-gray-400">المستلم:</span>
+                                    <div className="font-bold text-gray-900 dark:text-gray-100">{currentWithdrawal.withdrawnBy}</div>
+                                </div>
+                                <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
+                                    <span className="text-sm text-gray-500 dark:text-gray-400">القسم:</span>
+                                    <div className="font-bold text-gray-900 dark:text-gray-100">{currentWithdrawal.department}</div>
+                                </div>
+                                <div className="col-span-2 bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
+                                    <span className="text-sm text-gray-500 dark:text-gray-400">الغرض:</span>
+                                    <div className="font-bold text-gray-900 dark:text-gray-100">{currentWithdrawal.purpose}</div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <h4 className="font-bold text-lg mb-3 text-gray-900 dark:text-gray-100">المواد المسحوبة:</h4>
+                                <div className="space-y-2">
+                                    {currentWithdrawal.items?.map((item, index) => (
+                                        <div key={index} className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg border-r-4 border-orange-600">
+                                            <div className="font-semibold text-gray-900 dark:text-gray-100">{item.name}</div>
+                                            <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                                                الكمية: <span className="font-semibold">{item.quantity}</span> | 
+                                                سعر الوحدة: <span className="font-semibold">{formatCurrency(item.unitCost)}</span> | 
+                                                الإجمالي: <span className="font-semibold text-orange-600 dark:text-orange-400">{formatCurrency(item.totalCost)}</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="p-4 bg-gradient-to-r from-orange-100 to-orange-200 dark:from-orange-900/30 dark:to-orange-800/30 rounded-lg border-r-4 border-orange-600">
+                                <div className="text-2xl font-bold text-orange-800 dark:text-orange-300">
+                                    التكلفة الإجمالية: {formatCurrency(currentWithdrawal.totalCost)}
+                                </div>
+                            </div>
+
+                            {currentWithdrawal.notes && (
+                                <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
+                                    <span className="text-sm text-gray-500 dark:text-gray-400">ملاحظات:</span>
+                                    <div className="text-gray-900 dark:text-gray-100 mt-1">{currentWithdrawal.notes}</div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+});
 const AdminPage = React.memo(({ data, handleDataAction, showToast }) => {
     
     const handleExpiryDateUpdate = () => {
