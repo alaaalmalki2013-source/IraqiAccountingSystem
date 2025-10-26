@@ -6670,7 +6670,6 @@ const WelcomeMessage = ({ user, companyName, onContinue }) => {
  * 3.10. LoginPage (صفحة تسجيل الدخول)
  */
 const LoginPage = ({ users, onLogin, showToast, systemExpiryDate, companyName }) => {
-    const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [welcomeUser, setWelcomeUser] = useState(null);
@@ -6678,17 +6677,11 @@ const LoginPage = ({ users, onLogin, showToast, systemExpiryDate, companyName })
     const handleSubmit = (e) => {
         e.preventDefault();
         
-        // البحث عن المستخدم بالإيميل أولاً
-        const user = users.find(u => u.email === email);
+        // البحث عن المستخدم بكلمة المرور
+        const user = users.find(u => u.password === password);
         
-        // التحقق من وجود الإيميل
+        // التحقق من وجود كلمة المرور
         if (!user) {
-            showToast('البريد الإلكتروني غير مسجل في النظام', 'error');
-            return;
-        }
-        
-        // التحقق من كلمة المرور
-        if (user.password !== password) {
             showToast('كلمة المرور غير صحيحة', 'error');
             return;
         }
@@ -6736,22 +6729,6 @@ const LoginPage = ({ users, onLogin, showToast, systemExpiryDate, companyName })
 
                 <form onSubmit={handleSubmit} className="space-y-4 md:space-y-5">
                     <div className="space-y-2">
-                        <label className="text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300">البريد الإلكتروني</label>
-                        <div className="relative">
-                            <Mail className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 md:w-5 md:h-5" />
-                            <input
-                                type="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                required
-                                placeholder="example@email.com"
-                                className="w-full pr-10 md:pr-12 pl-4 py-2.5 md:py-3 text-sm md:text-base border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-                                data-testid="input-email"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="space-y-2">
                         <label className="text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300">كلمة المرور</label>
                         <div className="relative">
                             <input
@@ -6762,6 +6739,7 @@ const LoginPage = ({ users, onLogin, showToast, systemExpiryDate, companyName })
                                 placeholder="أدخل كلمة المرور"
                                 className="w-full pr-4 pl-10 md:pl-12 py-2.5 md:py-3 text-sm md:text-base border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
                                 data-testid="input-password"
+                                autoFocus
                             />
                             <button
                                 type="button"
@@ -6818,15 +6796,6 @@ const AccountingApp = () => {
     const [currentUser, setCurrentUser] = useState(null); // المستخدم المسجل حالياً
     
     
-    // تسجيل دخول تلقائي بحساب الأدمن عند بدء التطبيق
-    useEffect(() => {
-        if (!currentUser && data.settings.users.length > 0) {
-            const adminUser = data.settings.users.find(u => u.role === USER_ROLES.ADMIN);
-            if (adminUser) {
-                setCurrentUser(adminUser);
-            }
-        }
-    }, [data.settings.users]);
     
     // تحميل تفضيلات Dark Mode من المستخدم المسجل
     useEffect(() => {
