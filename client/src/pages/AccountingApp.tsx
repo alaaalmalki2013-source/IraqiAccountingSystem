@@ -5126,7 +5126,7 @@ const InventoryWithdrawalComponent = React.memo(({ data, handleDataAction, handl
             const searchNormalized = normalizeTextForSearch(value);
             const filtered = data.inventory.filter(item => {
                 const itemNameNorm = normalizeTextForSearch(item.name);
-                return itemNameNorm.includes(searchNormalized) && item.quantity > 0;
+                return itemNameNorm.includes(searchNormalized) && item.count > 0;
             }).slice(0, 5);
             
             setItemSuggestions(filtered);
@@ -5144,21 +5144,21 @@ const InventoryWithdrawalComponent = React.memo(({ data, handleDataAction, handl
             // البحث عن المادة بالباركود لملء الاسم تلقائياً
             if (value && value.trim()) {
                 const foundItem = data.inventory.find(i => 
-                    i.barcode && i.barcode.trim() === value.trim() && i.quantity > 0
+                    i.barcode && i.barcode.trim() === value.trim() && i.count > 0
                 );
                 if (foundItem) {
                     newState.name = foundItem.name;
                     newState.category = foundItem.category;
-                    newState.availableQty = foundItem.quantity;
+                    newState.availableQty = foundItem.count;
                 } else {
                     // إذا لم نجد تطابق تام، نحاول البحث الجزئي
                     const partialMatch = data.inventory.find(i => 
-                        i.barcode && i.barcode.includes(value.trim()) && i.quantity > 0
+                        i.barcode && i.barcode.includes(value.trim()) && i.count > 0
                     );
                     if (partialMatch && value.length >= 3) {
                         newState.name = partialMatch.name;
                         newState.category = partialMatch.category;
-                        newState.availableQty = partialMatch.quantity;
+                        newState.availableQty = partialMatch.count;
                     }
                 }
             }
@@ -5173,7 +5173,7 @@ const InventoryWithdrawalComponent = React.memo(({ data, handleDataAction, handl
             barcode: item.barcode || '',
             category: item.category,
             quantity: 1,
-            availableQty: item.quantity
+            availableQty: item.count
         });
         setShowItemSuggestions(false);
         setItemSuggestions([]);
@@ -5212,8 +5212,8 @@ const InventoryWithdrawalComponent = React.memo(({ data, handleDataAction, handl
             .filter(item => item.name === itemForm.name && item.id !== editingItemId)
             .reduce((sum, item) => sum + item.quantity, 0);
         
-        if (inventoryItem.quantity < (requestedQty + alreadyInList)) {
-            showToast(`الكمية المتاحة في المخزون: ${inventoryItem.quantity - alreadyInList}`, 'error');
+        if (inventoryItem.count < (requestedQty + alreadyInList)) {
+            showToast(`الكمية المتاحة في المخزون: ${inventoryItem.count - alreadyInList}`, 'error');
             return;
         }
 
@@ -5282,7 +5282,7 @@ const InventoryWithdrawalComponent = React.memo(({ data, handleDataAction, handl
             if (inventoryItem) {
                 const updatedItem = {
                     ...inventoryItem,
-                    quantity: inventoryItem.quantity - item.quantity
+                    count: inventoryItem.count - item.quantity
                 };
                 handleDataAction('inventory', updatedItem, false);
             }
@@ -5488,7 +5488,7 @@ const InventoryWithdrawalComponent = React.memo(({ data, handleDataAction, handl
                                                     >
                                                         <div className="font-semibold text-gray-900 dark:text-gray-100">{item.name}</div>
                                                         <div className="text-sm text-gray-500 dark:text-gray-400">
-                                                            باركود: {item.barcode || 'غير محدد'} | متوفر: {item.quantity}
+                                                            باركود: {item.barcode || 'غير محدد'} | متوفر: {item.count}
                                                         </div>
                                                     </div>
                                                 ))}
@@ -6303,7 +6303,7 @@ const AccountingApp = () => {
                     if (index !== -1) {
                         updatedInventory[index] = {
                             ...updatedInventory[index],
-                            quantity: updatedInventory[index].quantity + wItem.quantity,
+                            count: updatedInventory[index].count + wItem.quantity,
                         };
                     }
                 });
