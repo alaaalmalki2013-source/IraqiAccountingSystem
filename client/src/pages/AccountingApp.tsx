@@ -5120,7 +5120,6 @@ const InventoryWithdrawalComponent = React.memo(({ data, handleDataAction, handl
     }, []);
 
     const handleItemNameChange = useCallback((value) => {
-        console.log('🔍 البحث عن:', value, 'عدد المواد في المخزن:', data.inventory.length);
         setItemForm(prev => ({ ...prev, name: value }));
         
         if (value.length >= 2) {
@@ -5130,7 +5129,6 @@ const InventoryWithdrawalComponent = React.memo(({ data, handleDataAction, handl
                 return itemNameNorm.includes(searchNormalized) && item.quantity > 0;
             }).slice(0, 5);
             
-            console.log('✅ الاقتراحات الموجودة:', filtered.length, filtered);
             setItemSuggestions(filtered);
             setShowItemSuggestions(true);
         } else {
@@ -6214,11 +6212,6 @@ const AccountingApp = () => {
             
             if (collectionName !== 'inventory') {
                 showToast(`تم إضافة السجل بنجاح!`, 'success');
-            
-            // تسجيل النشاط
-            const moduleName = navItems.find(i => i.key === collectionName)?.label || collectionName;
-            logActivity("إضافة", moduleName, `${item.description || item.amount || item.name || "سجل جديد"}`);
-
             }
             
             if (collectionName === 'inventory' && !newItem.purchaseHistory) {
@@ -6231,11 +6224,6 @@ const AccountingApp = () => {
             if (index !== -1) {
                 collection[index] = item;
                 newData[collectionName] = collection;
-                
-                // تسجيل النشاط
-                const moduleName = navItems.find(i => i.key === collectionName)?.label || collectionName;
-                logActivity("تعديل", moduleName, `${item.description || item.amount || item.name || "سجل"}`);
-
                 showToast(`تم تعديل السجل بنجاح!`, 'success');
             } else if (collectionName === 'pendingInvoices' && item.status) {
                  const existingIndex = collection.findIndex(i => i.id === item.id);
@@ -6290,12 +6278,26 @@ const AccountingApp = () => {
             }
         }
         
+        
+        // **مهم:** إذا تم حذف سند استخراج، يجب إعادة المواد للمخزون
+        if (collectionName === 'inventoryWithdrawals') {
+            const withdrawalToDelete = data.inventoryWithdrawals.find(w => w.id === id);
+            if (withdrawalToDelete && withdrawalToDelete.items) {
+                let updatedInventory = [...newData.inventory];
+                withdrawalToDelete.items.forEach(wItem => {
+                    const index = updatedInventory.findIndex(i => i.name === wItem.name);
+                    if (index !== -1) {
+                        updatedInventory[index] = {
+                            ...updatedInventory[index],
+                            quantity: updatedInventory[index].quantity + wItem.quantity,
+                        };
+                    }
+                });
+                newData.inventory = updatedInventory;
+            }
+        }
         newData[collectionName] = newData[collectionName].filter(item => item.id !== id);
         
-        // تسجيل النشاط
-        const moduleName = navItems.find(i => i.key === collectionName)?.label || collectionName;
-        const deletedItem = data[collectionName]?.find(item => item.id === id);
-        logActivity("حذف", moduleName, `${deletedItem?.description || deletedItem?.amount || deletedItem?.name || "سجل"}`);
 
 
         if (showMessage) {
