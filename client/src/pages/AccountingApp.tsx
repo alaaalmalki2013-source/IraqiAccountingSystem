@@ -5779,6 +5779,128 @@ const UserManagementSection = React.memo(({ data, handleDataAction, showToast })
  * 3.6.1. AdminPage (صفحة الإدارة)
  * صفحة إدارة النظام والمعلومات الإدارية
  */
+/**
+ * قسم تغيير الماستر كي
+ */
+const MasterKeySection = React.memo(({ data, handleDataAction, showToast }) => {
+    const [newMasterKey, setNewMasterKey] = useState('');
+    const [confirmMasterKey, setConfirmMasterKey] = useState('');
+    const [showMasterKey, setShowMasterKey] = useState(false);
+    const [showConfirmKey, setShowConfirmKey] = useState(false);
+
+    const handleUpdateMasterKey = () => {
+        if (!newMasterKey || !confirmMasterKey) {
+            showToast('يرجى إدخال المفتاح الرئيسي وتأكيده', 'error');
+            return;
+        }
+
+        if (newMasterKey !== confirmMasterKey) {
+            showToast('المفتاح الرئيسي وتأكيده غير متطابقين', 'error');
+            return;
+        }
+
+        if (newMasterKey.length < 8) {
+            showToast('يجب أن يكون المفتاح الرئيسي 8 أحرف على الأقل', 'error');
+            return;
+        }
+
+        const updatedSettings = {
+            ...data.settings,
+            masterKey: newMasterKey
+        };
+
+        handleDataAction('___FULL_DATA_UPDATE___', {
+            ...data,
+            settings: updatedSettings
+        }, false);
+
+        showToast('تم تحديث المفتاح الرئيسي بنجاح! 🔑', 'success');
+        setNewMasterKey('');
+        setConfirmMasterKey('');
+    };
+
+    return (
+        <div className="p-6 rounded-xl shadow-lg bg-gradient-to-br from-red-50 to-pink-100 dark:from-red-900/30 dark:to-pink-800/30 border-r-4 border-red-600">
+            <h3 className="text-2xl font-bold text-red-800 dark:text-red-300 mb-6 flex items-center gap-2">
+                <Key className="w-6 h-6" />
+                إدارة المفتاح الرئيسي (Master Key)
+            </h3>
+
+            <div className="space-y-4">
+                <div className="bg-red-100 dark:bg-red-900/30 p-4 rounded-lg border border-red-300 dark:border-red-700">
+                    <p className="text-sm text-red-900 dark:text-red-200 font-semibold mb-2">
+                        🔐 المفتاح الرئيسي الحالي:
+                    </p>
+                    <p className="text-lg font-mono text-red-800 dark:text-red-300 bg-white dark:bg-gray-800 p-2 rounded">
+                        {data.settings.masterKey}
+                    </p>
+                </div>
+
+                <div>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                        المفتاح الرئيسي الجديد
+                    </label>
+                    <div className="relative">
+                        <input
+                            type={showMasterKey ? 'text' : 'password'}
+                            value={newMasterKey}
+                            onChange={(e) => setNewMasterKey(e.target.value)}
+                            className="w-full p-3 pr-4 pl-12 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
+                            placeholder="أدخل المفتاح الرئيسي الجديد"
+                            data-testid="input-new-master-key"
+                        />
+                        <button
+                            type="button"
+                            onClick={() => setShowMasterKey(!showMasterKey)}
+                            className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                        >
+                            {showMasterKey ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                        </button>
+                    </div>
+                </div>
+
+                <div>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                        تأكيد المفتاح الرئيسي الجديد
+                    </label>
+                    <div className="relative">
+                        <input
+                            type={showConfirmKey ? 'text' : 'password'}
+                            value={confirmMasterKey}
+                            onChange={(e) => setConfirmMasterKey(e.target.value)}
+                            className="w-full p-3 pr-4 pl-12 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
+                            placeholder="أعد إدخال المفتاح الرئيسي"
+                            data-testid="input-confirm-master-key"
+                        />
+                        <button
+                            type="button"
+                            onClick={() => setShowConfirmKey(!showConfirmKey)}
+                            className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                        >
+                            {showConfirmKey ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                        </button>
+                    </div>
+                </div>
+
+                <ActionButton
+                    onClick={handleUpdateMasterKey}
+                    className="w-full bg-red-600 hover:bg-red-700"
+                    data-testid="button-update-master-key"
+                >
+                    <Save className="w-5 h-5 ml-2" />
+                    تحديث المفتاح الرئيسي
+                </ActionButton>
+
+                <div className="bg-amber-100 dark:bg-amber-900/30 p-4 rounded-lg border border-amber-300 dark:border-amber-700">
+                    <p className="text-xs text-amber-900 dark:text-amber-200 font-semibold">
+                        ⚠️ تحذير: المفتاح الرئيسي يمنح صلاحيات كاملة للنظام. احتفظ به في مكان آمن ولا تشاركه مع أحد.
+                    </p>
+                </div>
+            </div>
+        </div>
+    );
+});
+
 const AdminPage = React.memo(({ data, handleDataAction, showToast }) => {
     const [systemExpiryDate, setSystemExpiryDate] = useState(data.settings.systemExpiryDate || '');
     
@@ -5914,6 +6036,10 @@ const AdminPage = React.memo(({ data, handleDataAction, showToast }) => {
                     )}
                 </div>
             </div>
+            
+            {/* قسم تغيير الماستر كي */}
+            <MasterKeySection data={data} handleDataAction={handleDataAction} showToast={showToast} />
+            
                 <div className="p-6 rounded-xl shadow-lg bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-900/30 dark:to-indigo-800/30 border-r-4 border-indigo-600" data-testid="card-storage-size">
                     <div className="flex items-center gap-3 mb-3">
                         <Save className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
