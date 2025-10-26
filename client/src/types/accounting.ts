@@ -17,8 +17,10 @@ export const USER_ROLES = {
     SUPERVISOR: 'supervisor',
     GENERAL_MANAGER: 'general_manager',
     WAREHOUSE_KEEPER: 'warehouse_keeper',
+    WAREHOUSE_KEEPER_2: 'warehouse_keeper_2',
     ACCOUNTANT: 'accountant',
-    CASHIER: 'cashier'
+    CASHIER: 'cashier',
+    EDITOR: 'editor'
 };
 
 // أسماء الأدوار بالعربية
@@ -27,8 +29,10 @@ export const ROLE_LABELS = {
     [USER_ROLES.SUPERVISOR]: 'السوبر فايزر',
     [USER_ROLES.GENERAL_MANAGER]: 'المدير العام',
     [USER_ROLES.WAREHOUSE_KEEPER]: 'أمين المخزن',
+    [USER_ROLES.WAREHOUSE_KEEPER_2]: 'أمين المخزن 2',
     [USER_ROLES.ACCOUNTANT]: 'المحاسب',
-    [USER_ROLES.CASHIER]: 'الكاشير'
+    [USER_ROLES.CASHIER]: 'الكاشير',
+    [USER_ROLES.EDITOR]: 'المحرر'
 };
 
 // أوصاف الأدوار
@@ -37,8 +41,10 @@ export const ROLE_DESCRIPTIONS = {
     [USER_ROLES.SUPERVISOR]: 'صلاحيات كاملة على جميع أجزاء النظام ما عدا صفحة الإدارة',
     [USER_ROLES.GENERAL_MANAGER]: 'مشاهدة فقط لجميع أجزاء النظام ما عدا صفحة الإعدادات',
     [USER_ROLES.WAREHOUSE_KEEPER]: 'إدارة المخزون والإدخال والاستخراج المخزني فقط',
+    [USER_ROLES.WAREHOUSE_KEEPER_2]: 'إدارة المخزون والإدخال والاستخراج المخزني فقط',
     [USER_ROLES.ACCOUNTANT]: 'مشاهدة النظام + المصادقة على الإدخال المخزني والصرفيات المعلقة',
-    [USER_ROLES.CASHIER]: 'المصادقة على الاستخراج المخزني وإدارة الصرفيات المعلقة'
+    [USER_ROLES.CASHIER]: 'المصادقة على الاستخراج المخزني وإدارة الصرفيات المعلقة',
+    [USER_ROLES.EDITOR]: 'تعديل وحذف جميع البيانات ما عدا الإعدادات وصفحة الإدارة'
 };
 
 // صلاحيات افتراضية لكل دور
@@ -143,6 +149,40 @@ export const ROLE_PERMISSIONS = {
         inventory: { view: false, add: false, edit: false, delete: false },
         settings: { view: false },
         admin: { view: false }
+    },
+    
+    // أمين المخزن 2 - نفس صلاحيات أمين المخزن
+    [USER_ROLES.WAREHOUSE_KEEPER_2]: {
+        dashboard: { view: false },
+        revenues: { view: false, add: false, edit: false, delete: false },
+        expenses: { view: false, add: false, edit: false, delete: false },
+        advances: { view: false, add: false, edit: false, delete: false },
+        suspended: { view: false, add: false, edit: false, delete: false },
+        pendingExpenses: { view: false, add: false, edit: false, delete: false, approve: false, cancel: false },
+        employees: { view: false, add: false, edit: false, delete: false },
+        payroll: { view: false, add: false, edit: false, delete: false, pay: false },
+        inventoryEntry: { view: true, add: true, edit: true, delete: true, approve: true, credit: true, cancel: true },
+        inventoryWithdrawal: { view: true, add: true, edit: true, delete: true },
+        inventory: { view: true, add: true, edit: true, delete: true },
+        settings: { view: false },
+        admin: { view: false }
+    },
+    
+    // المحرر - تعديل وحذف كل شيء ما عدا الإعدادات والأدمن
+    [USER_ROLES.EDITOR]: {
+        dashboard: { view: true },
+        revenues: { view: true, add: true, edit: true, delete: true },
+        expenses: { view: true, add: true, edit: true, delete: true },
+        advances: { view: true, add: true, edit: true, delete: true },
+        suspended: { view: true, add: true, edit: true, delete: true },
+        pendingExpenses: { view: true, add: true, edit: true, delete: true, approve: true, cancel: true },
+        employees: { view: true, add: true, edit: true, delete: true },
+        payroll: { view: true, add: true, edit: true, delete: true, pay: true },
+        inventoryEntry: { view: true, add: true, edit: true, delete: true, approve: true, credit: true, cancel: true },
+        inventoryWithdrawal: { view: true, add: true, edit: true, delete: true },
+        inventory: { view: true, add: true, edit: true, delete: true },
+        settings: { view: false },
+        admin: { view: false }
     }
 };
 
@@ -162,8 +202,12 @@ export const defaultSettings = {
     systemExpiryDate: null, // تاريخ انتهاء صلاحية النظام (null = بدون صلاحية)
     // كلمات المرور للنظام البسيط
     adminPassword: '1234569',
+    supervisorPassword: '7777',
+    generalManagerPassword: '9999',
     warehousePassword: '1234',
-    cashierPassword: '0000'
+    warehouse2Password: '2580',
+    cashierPassword: '0000',
+    editorPassword: '3636'
 };
 
 export const defaultDataStructure = {
