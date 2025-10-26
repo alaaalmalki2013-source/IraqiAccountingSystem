@@ -5510,6 +5510,7 @@ const MasterKeySection = React.memo(({ data, handleDataAction, showToast }) => {
     const [confirmMasterKey, setConfirmMasterKey] = useState('');
     const [showMasterKey, setShowMasterKey] = useState(false);
     const [showConfirmKey, setShowConfirmKey] = useState(false);
+    const [showCurrentMasterKey, setShowCurrentMasterKey] = useState(false);
 
     const handleUpdateMasterKey = () => {
         if (!newMasterKey || !confirmMasterKey) {
@@ -5554,9 +5555,19 @@ const MasterKeySection = React.memo(({ data, handleDataAction, showToast }) => {
                     <p className="text-sm text-red-900 dark:text-red-200 font-semibold mb-2">
                         🔐 المفتاح الرئيسي الحالي:
                     </p>
-                    <p className="text-lg font-mono text-red-800 dark:text-red-300 bg-white dark:bg-gray-800 p-2 rounded">
-                        {data.settings.masterKey}
-                    </p>
+                    <div className="relative">
+                        <p className="text-lg font-mono text-red-800 dark:text-red-300 bg-white dark:bg-gray-800 p-3 pr-4 pl-12 rounded">
+                            {showCurrentMasterKey ? data.settings.masterKey : '••••••••••••'}
+                        </p>
+                        <button
+                            type="button"
+                            onClick={() => setShowCurrentMasterKey(!showCurrentMasterKey)}
+                            className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                            data-testid="button-toggle-current-master-key"
+                        >
+                            {showCurrentMasterKey ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                        </button>
+                    </div>
                 </div>
 
                 <div>
