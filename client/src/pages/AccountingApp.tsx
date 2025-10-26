@@ -7606,7 +7606,6 @@ const AccountingApp = () => {
         { key: 'inventory', label: 'المخزن والمواد', icon: Package, component: InventoryPageComponent, props: { handleRefresh, handleDataAction } },
         { key: 'settings', label: 'الإعدادات', icon: Settings, component: SettingsPage, props: { handleSettingsUpdate } },
         { key: 'admin', label: 'الإدارة', icon: Shield, component: AdminPage, props: { handleDataAction, showToast } },
-        { key: 'about', label: 'حول النظام', icon: Info, component: AboutPage, props: {} },
     ];
     
     // فلترة عناصر القائمة حسب صلاحيات المستخدم
@@ -7614,8 +7613,6 @@ const AccountingApp = () => {
         if (!currentUser) return [];
         return navItems.filter(item => {
             const perm = currentUser.permissions[item.key];
-            // حول النظام مرئية للجميع
-            if (item.key === 'about') return true; 
             // تحقق من صلاحية الرؤية
             return perm && perm.view;
         });
