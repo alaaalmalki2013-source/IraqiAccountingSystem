@@ -5633,6 +5633,7 @@ const InventoryWithdrawalComponent = React.memo(({ data, handleDataAction, handl
     );
 });
 const AdminPage = React.memo(({ data, handleDataAction, showToast }) => {
+    const [systemExpiryDate, setSystemExpiryDate] = useState(data.settings.systemExpiryDate || '');
     
     const handleExpiryDateUpdate = () => {
         const updatedSettings = {
