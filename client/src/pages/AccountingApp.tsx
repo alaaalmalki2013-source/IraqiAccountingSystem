@@ -6974,7 +6974,7 @@ const AccountingApp = () => {
     
     
     
-    // تحميل تفضيلات Dark Mode من المستخدم المسجل
+    // تحميل تفضيلات Dark Mode من المستخدم المسجل وتوجيه للصفحة الصحيحة
     useEffect(() => {
         if (currentUser) {
             setIsDarkMode(currentUser.darkMode || false);
@@ -7308,6 +7308,20 @@ const AccountingApp = () => {
             return perm && perm.view;
         });
     }, [currentUser, data.settings.users]); 
+
+    // التحقق من صلاحية المستخدم للصفحة الحالية وتوجيهه للصفحة الصحيحة
+    useEffect(() => {
+        if (currentUser && currentPage) {
+            // التحقق من أن المستخدم لديه صلاحية للصفحة الحالية
+            const currentPagePerm = currentUser.permissions[currentPage];
+            const hasAccess = currentPage === 'about' || (currentPagePerm && currentPagePerm.view);
+            
+            if (!hasAccess && visibleNavItems.length > 0) {
+                // توجيه المستخدم لأول صفحة متاحة له
+                setCurrentPage(visibleNavItems[0].key);
+            }
+        }
+    }, [currentUser, currentPage, visibleNavItems]);
 
     const CurrentComponent = navItems.find(item => item.key === currentPage);
     const PageComponent = CurrentComponent?.component;
