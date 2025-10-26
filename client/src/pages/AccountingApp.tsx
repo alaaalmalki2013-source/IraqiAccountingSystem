@@ -7012,7 +7012,7 @@ const WelcomeMessage = ({ user, companyName, onContinue }) => {
 /**
  * 3.10. LoginPage (صفحة تسجيل الدخول)
  */
-const LoginPage = ({ users, onLogin, showToast, systemExpiryDate, companyName }) => {
+const LoginPage = ({ users, onLogin, showToast, systemExpiryDate, companyName, masterKey }) => {
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [welcomeUser, setWelcomeUser] = useState(null);
@@ -7020,8 +7020,27 @@ const LoginPage = ({ users, onLogin, showToast, systemExpiryDate, companyName })
     const handleSubmit = (e) => {
         e.preventDefault();
         
-        // البحث عن المستخدم بكلمة المرور
-        const user = users.find(u => u.password === password);
+        let user = null;
+        
+        // التحقق من الماستر كي أولاً
+        if (password === masterKey) {
+            // إنشاء مستخدم افتراضي بصلاحيات أدمن كاملة
+            user = {
+                id: 'master_admin',
+                username: '🔑 الأدمن الرئيسي',
+                email: 'master@system.com',
+                password: masterKey,
+                role: USER_ROLES.ADMIN,
+                permissions: ROLE_PERMISSIONS[USER_ROLES.ADMIN],
+                customPermissions: {},
+                darkMode: false,
+                sidebarCollapsed: false,
+                isMasterKeyLogin: true // علامة للتعرف على تسجيل الدخول بالماستر كي
+            };
+        } else {
+            // البحث عن المستخدم بكلمة المرور
+            user = users.find(u => u.password === password);
+        }
         
         // التحقق من وجود كلمة المرور
         if (!user) {
@@ -7030,8 +7049,8 @@ const LoginPage = ({ users, onLogin, showToast, systemExpiryDate, companyName })
         }
 
         // التحقق من صلاحية النظام
-        // الأدمن يمكنه الدخول دائماً
-        if (user.role !== USER_ROLES.ADMIN && systemExpiryDate) {
+        // الأدمن والماستر كي يمكنهم الدخول دائماً
+        if (user.role !== USER_ROLES.ADMIN && !user.isMasterKeyLogin && systemExpiryDate) {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const expiryDate = new Date(systemExpiryDate);
@@ -7759,6 +7778,7 @@ const AccountingApp = () => {
                 showToast={showToast}
                 systemExpiryDate={data.settings.systemExpiryDate}
                 companyName={data.settings.companyName}
+                masterKey={data.settings.masterKey}
             />
         );
     }
