@@ -6192,11 +6192,11 @@ const AccountingApp = () => {
     }, [showToast]);
 
     
-    // دالة تسجيل النشاطات
+    // دالة تسجيل النشاطات - ترجع السجل الجديد فقط دون حفظه
     const logActivity = useCallback((action, module, details) => {
-        if (!currentUser) return;
+        if (!currentUser) return null;
         
-        const newLog = {
+        return {
             id: crypto.randomUUID(),
             timestamp: getDefaultDateTime(),
             username: currentUser.username,
@@ -6204,21 +6204,7 @@ const AccountingApp = () => {
             module, // اسم القسم
             details // تفاصيل العملية
         };
-        
-        const newData = { ...data };
-        const logs = [...(newData.activityLog || [])];
-        
-        // إضافة السجل الجديد في البداية
-        logs.unshift(newLog);
-        
-        // الاحتفاظ بآخر 500 سجل فقط
-        if (logs.length > 500) {
-            logs.splice(500);
-        }
-        
-        newData.activityLog = logs;
-        saveData(newData);
-    }, [data, currentUser]);
+    }, [currentUser]);
     // 3. CRUD Logic
     const handleDataAction = (collectionName, item, isNew, overwrite = false) => {
         // **دعم التحديث الشامل للبيانات**
@@ -6255,7 +6241,13 @@ const AccountingApp = () => {
             // تسجيل النشاط
             const moduleName = navItems.find(i => i.key === collectionName)?.label || collectionName;
             const details = `${newItem.name || newItem.invoiceNumber || newItem.id}`;
-            logActivity('إضافة', moduleName, details);
+            const activityLog = logActivity('إضافة', moduleName, details);
+            if (activityLog) {
+                const logs = [...(newData.activityLog || [])];
+                logs.unshift(activityLog);
+                if (logs.length > 500) logs.splice(500);
+                newData.activityLog = logs;
+            }
             
             if (collectionName !== 'inventory') {
                 showToast(`تم إضافة السجل بنجاح!`, 'success');
@@ -6275,7 +6267,13 @@ const AccountingApp = () => {
                 // تسجيل النشاط
                 const moduleName = navItems.find(i => i.key === collectionName)?.label || collectionName;
                 const details = `${item.name || item.invoiceNumber || item.id}`;
-                logActivity('تعديل', moduleName, details);
+                const activityLog = logActivity('تعديل', moduleName, details);
+                if (activityLog) {
+                    const logs = [...(newData.activityLog || [])];
+                    logs.unshift(activityLog);
+                    if (logs.length > 500) logs.splice(500);
+                    newData.activityLog = logs;
+                }
                 
                 showToast(`تم تعديل السجل بنجاح!`, 'success');
             } else if (collectionName === 'pendingInvoices' && item.status) {
@@ -6354,7 +6352,13 @@ const AccountingApp = () => {
         if (itemToDelete) {
             const moduleName = navItems.find(i => i.key === collectionName)?.label || collectionName;
             const details = `${itemToDelete.name || itemToDelete.invoiceNumber || itemToDelete.id}`;
-            logActivity('حذف', moduleName, details);
+            const activityLog = logActivity('حذف', moduleName, details);
+            if (activityLog) {
+                const logs = [...(newData.activityLog || [])];
+                logs.unshift(activityLog);
+                if (logs.length > 500) logs.splice(500);
+                newData.activityLog = logs;
+            }
         }
 
         newData[collectionName] = newData[collectionName].filter(item => item.id !== id);
