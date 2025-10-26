@@ -5437,23 +5437,7 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
  * 3.6.1. AdminPage (صفحة الإدارة)
  * صفحة إدارة النظام والمعلومات الإدارية
  */
-const AdminPage = React.memo(({ data, handleDataAction, showToast }) => {
-    const [systemExpiryDate, setSystemExpiryDate] = useState(data.settings.systemExpiryDate || '');
-    
-    const handleExpiryDateUpdate = () => {
-        const updatedSettings = {
-            ...data.settings,
-            systemExpiryDate: systemExpiryDate || null
-        };
-        
-        handleDataAction('___FULL_DATA_UPDATE___', {
-            ...data,
-            settings: updatedSettings
-        }, false);
-        
-        showToast('تم تحديث صلاحية النظام بنجاح!', 'success');
-    };
-    
+const AdminPage = React.memo(({ data }) => {
     const systemInfo = {
         version: 'V3.0',
         lastBackup: 'لم يتم إنشاء نسخة احتياطية',
@@ -5529,49 +5513,6 @@ const AdminPage = React.memo(({ data, handleDataAction, showToast }) => {
                     <p className="text-3xl font-extrabold text-amber-900 dark:text-amber-200">{systemInfo.totalInventoryItems}</p>
                 </div>
 
-            
-            {/* قسم تحديد صلاحية النظام */}
-            <div className="p-6 rounded-xl shadow-lg bg-gradient-to-br from-orange-50 to-amber-100 dark:from-orange-900/30 dark:to-amber-800/30 border-r-4 border-orange-600">
-                <h3 className="text-2xl font-bold text-orange-800 dark:text-orange-300 mb-6 flex items-center gap-2">
-                    <CalendarCheck className="w-6 h-6" />
-                    إدارة صلاحية النظام
-                </h3>
-                
-                <div className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                            تاريخ انتهاء الصلاحية
-                        </label>
-                        <input
-                            type="date"
-                            value={systemExpiryDate}
-                            onChange={(e) => setSystemExpiryDate(e.target.value)}
-                            className="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
-                            data-testid="input-expiry-date"
-                        />
-                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                            {systemExpiryDate ? `الصلاحية تنتهي في: ${formatDateDDMMYYYY(systemExpiryDate)}` : "لا توجد صلاحية محددة (النظام مفتوح)"}
-                        </p>
-                    </div>
-                    
-                    <ActionButton
-                        onClick={handleExpiryDateUpdate}
-                        className="w-full bg-orange-600 hover:bg-orange-700"
-                        data-testid="button-update-expiry"
-                    >
-                        <Save className="w-5 h-5 ml-2" />
-                        حفظ التغييرات
-                    </ActionButton>
-                    
-                    {systemExpiryDate && (
-                        <div className="bg-amber-100 dark:bg-amber-900/30 p-4 rounded-lg border border-amber-300 dark:border-amber-700">
-                            <p className="text-sm text-amber-900 dark:text-amber-200 font-semibold">
-                                ⚠️ ملاحظة: الأدمن فقط يمكنه الدخول للنظام حتى لو انتهت الصلاحية
-                            </p>
-                        </div>
-                    )}
-                </div>
-            </div>
                 <div className="p-6 rounded-xl shadow-lg bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-900/30 dark:to-indigo-800/30 border-r-4 border-indigo-600" data-testid="card-storage-size">
                     <div className="flex items-center gap-3 mb-3">
                         <Save className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
@@ -7062,7 +7003,7 @@ const AccountingApp = () => {
         { key: 'inventoryWithdrawal', label: 'الاستخراج المخزني', icon: LogOut, component: InventoryWithdrawalComponent, props: { handleRefresh, handleDelete, handleDataAction } },
         { key: 'inventory', label: 'المخزن والمواد', icon: Package, component: InventoryPageComponent, props: { handleRefresh, handleDataAction } },
         { key: 'settings', label: 'الإعدادات', icon: Settings, component: SettingsPage, props: { handleSettingsUpdate } },
-        { key: 'admin', label: 'الإدارة', icon: Shield, component: AdminPage, props: { handleDataAction, showToast } },
+        { key: 'admin', label: 'الإدارة', icon: Shield, component: AdminPage, props: {} },
     ];
     
     // فلترة عناصر القائمة حسب صلاحيات المستخدم
@@ -7450,8 +7391,16 @@ const AccountingApp = () => {
                         <LogOut className={`w-5 h-5 ${!isSidebarCollapsed && "ml-3"}`} />
                         {!isSidebarCollapsed && <span className="text-lg">تسجيل الخروج</span>}
                     </button>
-                </nav>
-            </div>
+                        onClick={toggleLanguage}
+                        data-testid="button-toggle-language"
+                        title={isSidebarCollapsed ? (language === 'ar' ? 'English' : 'العربية') : ''}
+                        className={`w-full flex items-center ${isSidebarCollapsed ? "justify-center p-2" : "text-right p-3"} rounded-xl transition-all duration-200 hover:bg-blue-800/50 dark:hover:bg-gray-700/50 hover:scale-102`}
+                    >
+                        <Languages className={`w-5 h-5 ${!isSidebarCollapsed && "ml-3"}`} />
+                        {!isSidebarCollapsed && <span className="text-lg">{t("languageSwitch")}</span>}
+                    </button> */}
+                </nav>
+            </div>
 
             {/* Main Content Area */}
             <main className={`flex-grow p-2 sm:p-4 md:p-8 overflow-x-hidden ${isSidebarCollapsed ? 'lg:mr-16' : 'lg:mr-64'}`}>
