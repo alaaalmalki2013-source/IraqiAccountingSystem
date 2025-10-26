@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { AboutPage } from "./about-content";
+import LoginPage from "./LoginPage";
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import * as XLSX from 'xlsx';
@@ -5234,17 +5235,66 @@ const AccountingApp = () => {
     const [isDarkMode, setIsDarkMode] = useState(false);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); 
     
-    // مستخدم افتراضي (لا يوجد تسجيل دخول)
-    const currentUser = {
-        username: "المستخدم",
-        email: "user@system.local",
-        role: USER_ROLES.ADMIN,
-        permissions: Object.keys(BASE_PERMISSIONS).reduce((acc, key) => {
-            acc[key] = { view: true, add: true, edit: true, delete: true };
-            return acc;
-        }, {})
-    }; 
-    
+    // حالة تسجيل الدخول ونوع المستخدم
+    const [userType, setUserType] = useState(null); // null | 'admin' | 'warehouse' | 'cashier'
+    
+    // مستخدم ديناميكي حسب كلمة المرور
+    const currentUser = useMemo(() => {
+        if (!userType) return null;
+        
+        const userProfiles = {
+            admin: {
+                username: "الأدمن",
+                email: "admin@system.local",
+                role: USER_ROLES.ADMIN,
+                permissions: ROLE_PERMISSIONS[USER_ROLES.ADMIN]
+            },
+            warehouse: {
+                username: "أمين المخزن",
+                email: "warehouse@system.local",
+                role: USER_ROLES.WAREHOUSE_KEEPER,
+                permissions: ROLE_PERMISSIONS[USER_ROLES.WAREHOUSE_KEEPER]
+            },
+            cashier: {
+                username: "الكاشير",
+                email: "cashier@system.local",
+                role: USER_ROLES.CASHIER,
+                permissions: ROLE_PERMISSIONS[USER_ROLES.CASHIER]
+            }
+        };
+        
+        return userProfiles[userType] || null;
+    }, [userType]); 
+    
+    // تحميل واسترجاع حالة تسجيل الدخول من localStorage
+    useEffect(() => {
+        const savedUserType = localStorage.getItem("LOGGED_IN_USER_TYPE");
+        if (savedUserType && ["admin", "warehouse", "cashier"].includes(savedUserType)) {
+            setUserType(savedUserType);
+        }
+    }, []);
+    
+    useEffect(() => {
+        if (userType) {
+            localStorage.setItem("LOGGED_IN_USER_TYPE", userType);
+        } else {
+            localStorage.removeItem("LOGGED_IN_USER_TYPE");
+        }
+    }, [userType]);
+    
+    // دالة تسجيل الدخول
+    const handleLogin = (type) => {
+        setUserType(type);
+        showToast("تم تسجيل الدخول بنجاح", "success");
+    };
+    
+    // دالة تسجيل الخروج
+    const handleLogout = () => {
+        setUserType(null);
+        localStorage.removeItem("LOGGED_IN_USER_TYPE");
+        showToast("تم تسجيل الخروج بنجاح", "success");
+    };
+    
     // تحميل تفضيلات Dark Mode و Sidebar Collapse من المستخدم
     useEffect(() => {
         if (isDarkMode) {
@@ -5527,6 +5577,13 @@ const AccountingApp = () => {
 
 
 
+    // إذا لم يكن المستخدم مسجلاً، عرض صفحة تسجيل الدخول
+    if (!userType || !currentUser) {
+        return (
+            <LoginPage onLogin={handleLogin} settings={data.settings} />
+        );
+    }
+
     return (
         <div className="min-h-screen flex bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950 antialiased text-right overflow-x-hidden" dir="rtl">
             <style>
@@ -5599,6 +5656,17 @@ const AccountingApp = () => {
                     >
                         {isDarkMode ? <Sun className={`w-5 h-5 ${!isSidebarCollapsed && "ml-3"}`} /> : <Moon className={`w-5 h-5 ${!isSidebarCollapsed && "ml-3"}`} />}
                         {!isSidebarCollapsed && <span className="text-lg">{isDarkMode ? t("lightMode") : t("darkMode")}</span>}
+                    </button>
+                    
+                    {/* زر تسجيل الخروج */}
+                    <button
+                        onClick={handleLogout}
+                        data-testid="button-logout"
+                        title={isSidebarCollapsed ? "تسجيل الخروج" : ""}
+                        className={`w-full flex items-center ${isSidebarCollapsed ? "justify-center p-2" : "text-right p-3"} rounded-xl transition-all duration-200 bg-red-600/20 hover:bg-red-600/40 dark:bg-red-900/30 dark:hover:bg-red-900/50 border border-red-500/30 hover:scale-102`}
+                    >
+                        <LogOut className={`w-5 h-5 ${!isSidebarCollapsed && "ml-3"}`} />
+                        {!isSidebarCollapsed && <span className="text-lg">تسجيل الخروج</span>}
                     </button>
                     
                     {/* زر تبديل اللغة - مخفي */}
