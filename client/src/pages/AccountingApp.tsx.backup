@@ -1,5 +1,4 @@
 // @ts-nocheck
-import { AboutPage } from "./about-content";
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import * as XLSX from 'xlsx';
@@ -57,8 +56,7 @@ import {
     FileImage,
     Shield,
     Upload,
-    FileDown,
-    Mail
+    FileDown
 } from 'lucide-react';
 
 // استيراد الثوابت والأنواع
@@ -112,9 +110,9 @@ const NotificationToast = React.memo(({ message, type, onClose }) => {
 
     return (
         <div className={`fixed top-4 right-4 z-[100] p-4 rounded-xl shadow-2xl ${textColor}  flex items-center space-x-3 space-x-reverse transition-transform duration-300 transform translate-x-0 ${bgColor}`}>
-            <Icon className="w-5 h-5 md:w-6 md:h-6" />
+            <Icon className="w-6 h-6" />
             <span className="font-semibold">{message}</span>
-            <button onClick={onClose} className="flex items-center justify-center p-1 rounded-full hover:bg-black hover:bg-opacity-10 transition">
+            <button onClick={onClose} className="p-1 rounded-full hover:bg-black hover:bg-opacity-10 transition">
                 <X className="w-4 h-4" />
             </button>
         </div>
@@ -195,8 +193,8 @@ const Modal = ({ title, children, onClose, size = 'lg', isPrintModal = false }) 
         `} onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center p-4 border-b border-teal-100 dark:border-teal-700 bg-teal-50 dark:bg-teal-900/30 rounded-t-3xl">
                 <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200 flex-grow text-center">{title}</h3> 
-                <button onClick={onClose} className="flex items-center justify-center text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition p-1 bg-white dark:bg-gray-700 rounded-full">
-                    <X className="w-5 h-5 md:w-6 md:h-6" />
+                <button onClick={onClose} className="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition p-1 bg-white dark:bg-gray-700 rounded-full">
+                    <X className="w-6 h-6" />
                 </button>
             </div>
             <div className="p-6">
@@ -1183,17 +1181,17 @@ const DataPageComponent = React.memo(({ 
                 </button>
 
                 <div className="flex flex-wrap gap-2 space-x-reverse">
-                    <button onClick={handlePrintAll} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
-                        <Printer className="w-5 h-5 md:w-6 md:h-6" />
+                    <button onClick={handlePrintAll} className="p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
+                        <Printer className="w-6 h-6" />
                     </button>
-                    <button onClick={() => setIsImportModalOpen(true)} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg transition duration-200" data-testid="button-import-excel">
-                        <Upload className="w-5 h-5 md:w-6 md:h-6" />
+                    <button onClick={() => setIsImportModalOpen(true)} className="p-3 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg transition duration-200" data-testid="button-import-excel">
+                        <Upload className="w-6 h-6" />
                     </button>
-                    <button onClick={handleExportAll} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg transition duration-200">
-                        <Download className="w-5 h-5 md:w-6 md:h-6" />
+                    <button onClick={handleExportAll} className="p-3 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg transition duration-200">
+                        <Download className="w-6 h-6" />
                     </button>
-                    <button onClick={handleRefresh} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
-                        <RotateCcw className="w-5 h-5 md:w-6 md:h-6" />
+                    <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
+                        <RotateCcw className="w-6 h-6" />
                     </button>
                 </div>
             </div>
@@ -1881,11 +1879,11 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                 </button>
 
                 <div className="flex flex-wrap gap-2 space-x-reverse">
-                    <button onClick={() => window.print()} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
-                        <Printer className="w-5 h-5 md:w-6 md:h-6" />
+                    <button onClick={() => window.print()} className="p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
+                        <Printer className="w-6 h-6" />
                     </button>
-                    <button onClick={handleRefresh} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
-                        <RotateCcw className="w-5 h-5 md:w-6 md:h-6" />
+                    <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
+                        <RotateCcw className="w-6 h-6" />
                     </button>
                 </div>
             </div>
@@ -2563,17 +2561,17 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
                 </button>
 
                 <div className="flex flex-wrap gap-2 space-x-reverse">
-                    <button onClick={handlePrintAll} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
-                        <Printer className="w-5 h-5 md:w-6 md:h-6" />
+                    <button onClick={handlePrintAll} className="p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
+                        <Printer className="w-6 h-6" />
                     </button>
-                    <button onClick={() => setIsImportModalOpen(true)} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg transition duration-200" data-testid="button-import-excel">
-                        <Upload className="w-5 h-5 md:w-6 md:h-6" />
+                    <button onClick={() => setIsImportModalOpen(true)} className="p-3 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg transition duration-200" data-testid="button-import-excel">
+                        <Upload className="w-6 h-6" />
                     </button>
-                    <button onClick={handleExportAll} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg transition duration-200">
-                        <Download className="w-5 h-5 md:w-6 md:h-6" />
+                    <button onClick={handleExportAll} className="p-3 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg transition duration-200">
+                        <Download className="w-6 h-6" />
                     </button>
-                    <button onClick={handleRefresh} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
-                        <RotateCcw className="w-5 h-5 md:w-6 md:h-6" />
+                    <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
+                        <RotateCcw className="w-6 h-6" />
                     </button>
                 </div>
             </div>
@@ -3079,11 +3077,11 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
             </div>
 
             <div className="flex flex-wrap gap-2 space-x-reverse justify-end">
-                <button onClick={() => window.print()} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
-                    <Printer className="w-5 h-5 md:w-6 md:h-6" />
+                <button onClick={() => window.print()} className="p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
+                    <Printer className="w-6 h-6" />
                 </button>
-                <button onClick={handleRefresh} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
-                    <RotateCcw className="w-5 h-5 md:w-6 md:h-6" />
+                <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
+                    <RotateCcw className="w-6 h-6" />
                 </button>
             </div>
 
@@ -3317,8 +3315,8 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                         {/* رأس المودال */}
                         <div className="flex justify-between items-center p-4 border-b border-purple-100 dark:border-purple-700 bg-gradient-to-r from-purple-500 to-blue-600 rounded-t-3xl">
                             <h3 className="text-xl font-bold text-white flex-grow text-center">معاينة قسيمة الراتب 🧾</h3> 
-                            <button onClick={() => setPayslipToPrint(null)} className="flex items-center justify-center text-white hover:text-gray-200 transition p-1 bg-white/20 rounded-full">
-                                <X className="w-5 h-5 md:w-6 md:h-6" />
+                            <button onClick={() => setPayslipToPrint(null)} className="text-white hover:text-gray-200 transition p-1 bg-white/20 rounded-full">
+                                <X className="w-6 h-6" />
                             </button>
                         </div>
 
@@ -3582,8 +3580,8 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
             </div>
             
             <div className="flex flex-wrap gap-2 space-x-reverse justify-end">
-                <button onClick={() => window.print()} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
-                    <Printer className="w-5 h-5 md:w-6 md:h-6" />
+                <button onClick={() => window.print()} className="p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
+                    <Printer className="w-6 h-6" />
                 </button>
                 <button onClick={() => {
                     const csvContent = [
@@ -3601,11 +3599,11 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
                     link.href = URL.createObjectURL(blob);
                     link.download = `المخزون_${new Date().toISOString().split('T')[0]}.csv`;
                     link.click();
-                }} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg transition duration-200">
-                    <Download className="w-5 h-5 md:w-6 md:h-6" />
+                }} className="p-3 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg transition duration-200">
+                    <Download className="w-6 h-6" />
                 </button>
-                <button onClick={handleRefresh} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200" data-testid="button-refresh-inventory">
-                    <RotateCcw className="w-5 h-5 md:w-6 md:h-6" />
+                <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200" data-testid="button-refresh-inventory">
+                    <RotateCcw className="w-6 h-6" />
                 </button>
             </div>
             
@@ -3690,8 +3688,8 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
                         {/* رأس المودال */}
                         <div className="flex justify-between items-center p-4 border-b border-indigo-100 dark:border-indigo-700 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-t-3xl">
                             <h3 className="text-xl font-bold text-white flex-grow text-center">معاينة ستكر الباركود 🏷️</h3> 
-                            <button onClick={() => setIsPrintPreviewOpen(false)} className="flex items-center justify-center text-white hover:text-gray-200 transition p-1 bg-white/20 rounded-full">
-                                <X className="w-5 h-5 md:w-6 md:h-6" />
+                            <button onClick={() => setIsPrintPreviewOpen(false)} className="text-white hover:text-gray-200 transition p-1 bg-white/20 rounded-full">
+                                <X className="w-6 h-6" />
                             </button>
                         </div>
 
@@ -4292,11 +4290,11 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                 </button>
 
                 <div className="flex flex-wrap gap-2 space-x-reverse">
-                    <button onClick={() => window.print()} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
-                        <Printer className="w-5 h-5 md:w-6 md:h-6" />
+                    <button onClick={() => window.print()} className="p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
+                        <Printer className="w-6 h-6" />
                     </button>
-                    <button onClick={handleRefresh} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
-                        <RotateCcw className="w-5 h-5 md:w-6 md:h-6" />
+                    <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
+                        <RotateCcw className="w-6 h-6" />
                     </button>
                 </div>
             </div>
@@ -5054,17 +5052,17 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
                 {renderCompanySettings()}
             </form>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* إدارة القوائم (الفئات والموردين) */}
-                <div className="space-y-4 md:space-y-6 p-4 md:p-6 rounded-xl shadow-lg border-l-4 border-teal-500 dark:border-teal-400 bg-gray-50 dark:bg-gray-700">
-                    <h3 className="text-lg md:text-2xl font-bold text-teal-800 dark:text-teal-300 flex items-center"><List className="w-5 h-5 md:w-6 md:h-6 ml-2" /> إدارة الفئات والأقسام والمناصب</h3>
+                <div className="space-y-6 p-6 rounded-xl shadow-lg border-l-4 border-teal-500 dark:border-teal-400 bg-gray-50 dark:bg-gray-700">
+                    <h3 className="text-2xl font-bold text-teal-800 dark:text-teal-300 flex items-center"><List className="w-6 h-6 ml-2" /> إدارة الفئات والأقسام والمناصب</h3>
 
-                    <div className="flex gap-2 overflow-x-auto -mx-2 px-2 pb-2">
+                    <div className="flex space-x-2 space-x-reverse overflow-x-auto pb-2">
                         {['expenseCategories', 'revenueCategories', 'advanceCategories', 'departments', 'jobTitles', 'vendors'].map(key => (
                             <button
                                 key={key}
                                 onClick={() => setCurrentList(key)}
-                                className={`px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm flex-shrink-0 font-semibold transition whitespace-nowrap ${currentList === key ? 'bg-teal-600 text-white shadow-md' : 'bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-teal-50 dark:hover:bg-gray-600'}`}
+                                className={`px-4 py-2 rounded-lg text-sm font-semibold transition whitespace-nowrap ${currentList === key ? 'bg-teal-600 text-white shadow-md' : 'bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-teal-50 dark:hover:bg-gray-600'}`}
                             >
                                 {key === 'expenseCategories' ? 'مصروفات' : key === 'revenueCategories' ? 'إيرادات' : key === 'advanceCategories' ? 'سلف' : key === 'departments' ? 'أقسام' : key === 'jobTitles' ? 'مناصب' : 'الموردين'}
                             </button>
@@ -5072,7 +5070,7 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
                     </div>
 
                     <form onSubmit={handleAddItem} className="space-y-3">
-                        <h4 className="text-sm md:text-base font-semibold text-gray-700 dark:text-gray-300">إضافة عنصر جديد ({currentList === 'vendors' ? 'مورد' : 'فئة'})</h4>
+                        <h4 className="font-semibold text-gray-700 dark:text-gray-300">إضافة عنصر جديد ({currentList === 'vendors' ? 'مورد' : 'فئة'})</h4>
                         <InputField 
                             value={newItem} 
                             onChange={(e) => setNewItem(e.target.value)} 
@@ -5087,11 +5085,11 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
                     </form>
 
                     <div className="space-y-2 max-h-60 overflow-y-auto p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800">
-                        <h4 className="text-sm md:text-base font-semibold text-gray-700 dark:text-gray-300 border-b border-gray-300 dark:border-gray-600 pb-1">القائمة الحالية:</h4>
+                        <h4 className="font-semibold text-gray-700 dark:text-gray-300 border-b border-gray-300 dark:border-gray-600 pb-1">القائمة الحالية:</h4>
                         {currentItems.map(item => (
-                            <div key={item} className="flex justify-between gap-2 items-center p-2 bg-gray-100 dark:bg-gray-600 rounded-lg shadow-sm">
-                                <span className="font-medium text-sm md:text-base break-words flex-1 text-gray-800 dark:text-gray-200">{item}</span>
-                                <button onClick={() => handleDeleteItem(item)} className="text-red-500 hover:text-red-700 p-1 flex-shrink-0">
+                            <div key={item} className="flex justify-between items-center p-2 bg-gray-100 dark:bg-gray-600 rounded-lg shadow-sm">
+                                <span className="font-medium text-gray-800 dark:text-gray-200">{item}</span>
+                                <button onClick={() => handleDeleteItem(item)} className="text-red-500 hover:text-red-700 p-1">
                                     <Trash2 className="w-4 h-4" />
                                 </button>
                             </div>
@@ -5101,11 +5099,11 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
                 </div>
 
                 {/* إدارة المندوبين */}
-                <div className="space-y-4 md:space-y-6 p-4 md:p-6 rounded-xl shadow-lg border-l-4 border-blue-500 bg-gray-50 dark:bg-gray-800">
-                    <h3 className="text-lg md:text-2xl font-bold text-blue-800 dark:text-blue-300 flex items-center"><User className="w-5 h-5 md:w-6 md:h-6 ml-2" /> إدارة المندوبين (للشركات الموردة)</h3>
+                <div className="space-y-6 p-6 rounded-xl shadow-lg border-l-4 border-blue-500 bg-gray-50 dark:bg-gray-800">
+                    <h3 className="text-2xl font-bold text-blue-800 dark:text-blue-300 flex items-center"><User className="w-6 h-6 ml-2" /> إدارة المندوبين (للشركات الموردة)</h3>
 
-                    <form onSubmit={handleAddRep} className="space-y-3 p-3 md:p-4 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800">
-                        <h4 className="text-sm md:text-base font-semibold text-gray-700 dark:text-gray-300 border-b pb-2">إضافة مندوب جديد</h4>
+                    <form onSubmit={handleAddRep} className="space-y-3 p-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800">
+                        <h4 className="font-semibold text-gray-700 dark:text-gray-300 border-b pb-2">إضافة مندوب جديد</h4>
                         <InputField 
                             label="اسم المندوب" 
                             value={newRep.name} 
@@ -5113,12 +5111,12 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
                             required
                         />
                         <div className="flex flex-col space-y-1 text-right">
-                            <label className="text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300">تابع لشركة</label>
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">تابع لشركة</label>
                             <select
                                 value={newRep.vendor}
                                 onChange={(e) => setNewRep({ ...newRep, vendor: e.target.value })}
                                 required
-                                className="w-full p-2 md:p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl transition text-sm md:text-base duration-150 text-right focus:ring-blue-500 focus:border-blue-500"
+                                className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl transition duration-150 text-right focus:ring-blue-500 focus:border-blue-500"
                             >
                                 {settings.vendors.map(vendor => (
                                     <option key={vendor} value={vendor}>{vendor}</option>
@@ -5126,18 +5124,18 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
                             </select>
                             {settings.vendors.length === 0 && <p className="text-xs text-red-500 mt-1">يجب إضافة موردين أولاً.</p>}
                         </div>
-                        <ActionButton type="submit" disabled={settings.vendors.length === 0} className="bg-blue-600 hover:bg-blue-700 w-full text-sm md:text-base">
-                            <UserPlus className="w-4 h-4 md:w-5 md:h-5 ml-2" />
+                        <ActionButton type="submit" disabled={settings.vendors.length === 0} className="bg-blue-600 hover:bg-blue-700 w-full">
+                            <UserPlus className="w-5 h-5 ml-2" />
                             إضافة المندوب
                         </ActionButton>
                     </form>
 
                     <div className="space-y-2 max-h-60 overflow-y-auto p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800">
-                        <h4 className="text-sm md:text-base font-semibold text-gray-700 dark:text-gray-300 border-b border-gray-300 dark:border-gray-600 pb-1">قائمة المندوبين:</h4>
+                        <h4 className="font-semibold text-gray-700 dark:text-gray-300 border-b border-gray-300 dark:border-gray-600 pb-1">قائمة المندوبين:</h4>
                         {settings.representatives.map((rep, index) => (
-                            <div key={index} className="flex justify-between gap-2 items-center p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg shadow-sm">
-                                <span className="font-medium text-sm md:text-base break-words flex-1 text-gray-800 dark:text-gray-200">{rep.name} <span className="text-xs text-gray-500 dark:text-gray-400">({rep.vendor})</span></span>
-                                <button onClick={() => handleDeleteRep(rep)} className="text-red-500 hover:text-red-700 p-1 flex-shrink-0">
+                            <div key={index} className="flex justify-between items-center p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg shadow-sm">
+                                <span className="font-medium text-gray-800 dark:text-gray-200">{rep.name} <span className="text-xs text-gray-500 dark:text-gray-400">({rep.vendor})</span></span>
+                                <button onClick={() => handleDeleteRep(rep)} className="text-red-500 hover:text-red-700 p-1">
                                     <Trash2 className="w-4 h-4" />
                                 </button>
                             </div>
@@ -5156,8 +5154,8 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
                             إضافة مستخدم جديد
                         </ActionButton>
                         
-                        <button onClick={handlePrintUsers} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200" data-testid="button-print-users" title="طباعة جدول المستخدمين">
-                            <Printer className="w-5 h-5 md:w-6 md:h-6" />
+                        <button onClick={handlePrintUsers} className="p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200" data-testid="button-print-users" title="طباعة جدول المستخدمين">
+                            <Printer className="w-6 h-6" />
                         </button>
                     </div>
                     
@@ -5439,23 +5437,7 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
  * 3.6.1. AdminPage (صفحة الإدارة)
  * صفحة إدارة النظام والمعلومات الإدارية
  */
-const AdminPage = React.memo(({ data, handleDataAction, showToast }) => {
-    const [systemExpiryDate, setSystemExpiryDate] = useState(data.settings.systemExpiryDate || '');
-    
-    const handleExpiryDateUpdate = () => {
-        const updatedSettings = {
-            ...data.settings,
-            systemExpiryDate: systemExpiryDate || null
-        };
-        
-        handleDataAction('___FULL_DATA_UPDATE___', {
-            ...data,
-            settings: updatedSettings
-        }, false);
-        
-        showToast('تم تحديث صلاحية النظام بنجاح!', 'success');
-    };
-    
+const AdminPage = React.memo(({ data }) => {
     const systemInfo = {
         version: 'V3.0',
         lastBackup: 'لم يتم إنشاء نسخة احتياطية',
@@ -5531,49 +5513,6 @@ const AdminPage = React.memo(({ data, handleDataAction, showToast }) => {
                     <p className="text-3xl font-extrabold text-amber-900 dark:text-amber-200">{systemInfo.totalInventoryItems}</p>
                 </div>
 
-            
-            {/* قسم تحديد صلاحية النظام */}
-            <div className="p-6 rounded-xl shadow-lg bg-gradient-to-br from-orange-50 to-amber-100 dark:from-orange-900/30 dark:to-amber-800/30 border-r-4 border-orange-600">
-                <h3 className="text-2xl font-bold text-orange-800 dark:text-orange-300 mb-6 flex items-center gap-2">
-                    <CalendarCheck className="w-6 h-6" />
-                    إدارة صلاحية النظام
-                </h3>
-                
-                <div className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                            تاريخ انتهاء الصلاحية
-                        </label>
-                        <input
-                            type="date"
-                            value={systemExpiryDate}
-                            onChange={(e) => setSystemExpiryDate(e.target.value)}
-                            className="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
-                            data-testid="input-expiry-date"
-                        />
-                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                            {systemExpiryDate ? `الصلاحية تنتهي في: ${formatDateDDMMYYYY(systemExpiryDate)}` : "لا توجد صلاحية محددة (النظام مفتوح)"}
-                        </p>
-                    </div>
-                    
-                    <ActionButton
-                        onClick={handleExpiryDateUpdate}
-                        className="w-full bg-orange-600 hover:bg-orange-700"
-                        data-testid="button-update-expiry"
-                    >
-                        <Save className="w-5 h-5 ml-2" />
-                        حفظ التغييرات
-                    </ActionButton>
-                    
-                    {systemExpiryDate && (
-                        <div className="bg-amber-100 dark:bg-amber-900/30 p-4 rounded-lg border border-amber-300 dark:border-amber-700">
-                            <p className="text-sm text-amber-900 dark:text-amber-200 font-semibold">
-                                ⚠️ ملاحظة: الأدمن فقط يمكنه الدخول للنظام حتى لو انتهت الصلاحية
-                            </p>
-                        </div>
-                    )}
-                </div>
-            </div>
                 <div className="p-6 rounded-xl shadow-lg bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-900/30 dark:to-indigo-800/30 border-r-4 border-indigo-600" data-testid="card-storage-size">
                     <div className="flex items-center gap-3 mb-3">
                         <Save className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
@@ -5830,8 +5769,8 @@ const InventoryDispatchComponent = React.memo(({ data, handleDataAction, showToa
                         />
                         <Search className="w-5 h-5 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                     </div>
-                    <button onClick={handleRefresh} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
-                        <RotateCcw className="w-5 h-5 md:w-6 md:h-6" />
+                    <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
+                        <RotateCcw className="w-6 h-6" />
                     </button>
                 </div>
 
@@ -6273,8 +6212,8 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
                 </button>
 
                 <div className="flex flex-wrap gap-2 space-x-reverse">
-                    <button onClick={() => window.print()} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
-                        <Printer className="w-5 h-5 md:w-6 md:h-6" />
+                    <button onClick={() => window.print()} className="p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
+                        <Printer className="w-6 h-6" />
                     </button>
                     <button onClick={() => {
                         const csvContent = [
@@ -6292,11 +6231,11 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
                         link.href = URL.createObjectURL(blob);
                         link.download = `الاستخراجات_المخزنية_${new Date().toISOString().split('T')[0]}.csv`;
                         link.click();
-                    }} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg transition duration-200">
-                        <Download className="w-5 h-5 md:w-6 md:h-6" />
+                    }} className="p-3 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg transition duration-200">
+                        <Download className="w-6 h-6" />
                     </button>
-                    <button onClick={handleRefresh} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
-                        <RotateCcw className="w-5 h-5 md:w-6 md:h-6" />
+                    <button onClick={handleRefresh} className="p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
+                        <RotateCcw className="w-6 h-6" />
                     </button>
                 </div>
             </div>
@@ -6627,166 +6566,6 @@ const AboutSystemModal = ({ onClose }) => (
 );
 
 
-/**
- * 3.9. WelcomeMessage (رسالة الترحيب)
- */
-const WelcomeMessage = ({ user, companyName, onContinue }) => {
-    return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 via-purple-800 to-indigo-900 dark:from-gray-900 dark:via-gray-800 dark:to-black p-4" dir="rtl">
-            <div className="w-full max-w-sm md:max-w-md bg-white dark:bg-gray-800 rounded-3xl shadow-2xl p-6 md:p-10 space-y-6 text-center animate-fade-in">
-                <div className="flex justify-center">
-                    <div className="w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br from-green-400 to-teal-500 rounded-full flex items-center justify-center shadow-lg">
-                        <CheckCircle className="w-8 h-8 md:w-10 md:h-10 text-white" />
-                    </div>
-                </div>
-                
-                <div className="space-y-3">
-                    <h2 className="text-2xl md:text-3xl font-extrabold text-gray-800 dark:text-white">
-                        مرحباً بك! 👋
-                    </h2>
-                    <p className="text-base md:text-lg text-gray-600 dark:text-gray-300 font-semibold">
-                        {user.username || user.email}
-                    </p>
-                    <p className="text-sm md:text-base text-gray-500 dark:text-gray-400">
-                        تم تسجيل الدخول بنجاح إلى
-                    </p>
-                    <p className="text-lg md:text-xl font-bold text-blue-600 dark:text-blue-400">
-                        {companyName}
-                    </p>
-                </div>
-
-                <button
-                    onClick={onContinue}
-                    className="w-full py-3 md:py-3.5 text-sm md:text-base bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold rounded-xl shadow-lg transition duration-200 transform hover:scale-105"
-                >
-                    المتابعة إلى النظام
-                </button>
-            </div>
-        </div>
-    );
-};
-
-/**
- * 3.10. LoginPage (صفحة تسجيل الدخول)
- */
-const LoginPage = ({ users, onLogin, showToast, systemExpiryDate, companyName }) => {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [showPassword, setShowPassword] = useState(false);
-    const [welcomeUser, setWelcomeUser] = useState(null);
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        
-        // البحث عن المستخدم بالإيميل أولاً
-        const user = users.find(u => u.email === email);
-        
-        // التحقق من وجود الإيميل
-        if (!user) {
-            showToast('البريد الإلكتروني غير مسجل في النظام', 'error');
-            return;
-        }
-        
-        // التحقق من كلمة المرور
-        if (user.password !== password) {
-            showToast('كلمة المرور غير صحيحة', 'error');
-            return;
-        }
-
-        // التحقق من صلاحية النظام
-        // الأدمن يمكنه الدخول دائماً
-        if (user.role !== USER_ROLES.ADMIN && systemExpiryDate) {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const expiryDate = new Date(systemExpiryDate);
-            expiryDate.setHours(0, 0, 0, 0);
-            
-            if (today > expiryDate) {
-                showToast('⚠️ انتهى الاشتراك! يرجى التواصل مع إدارة النظام لتجديد الاشتراك', 'error');
-                return;
-            }
-        }
-
-        // عرض رسالة الترحيب
-        setWelcomeUser(user);
-    };
-    
-    // إذا كانت رسالة الترحيب تظهر
-    if (welcomeUser) {
-        return (
-            <WelcomeMessage
-                user={welcomeUser}
-                companyName={companyName}
-                onContinue={() => {
-                    onLogin(welcomeUser);
-                    setWelcomeUser(null);
-                }}
-            />
-        );
-    }
-
-    return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 via-purple-800 to-indigo-900 dark:from-gray-900 dark:via-gray-800 dark:to-black p-4" dir="rtl">
-            <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-3xl shadow-2xl p-6 md:p-8 space-y-6">
-                <div className="text-center space-y-2">
-                    <h1 className="text-2xl md:text-3xl font-extrabold text-gray-800 dark:text-white">{companyName || 'نظام المحاسبة العراقي'}</h1>
-                    <p className="text-gray-600 dark:text-gray-300 text-sm md:text-base">V3.0</p>
-                    <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400">قم بتسجيل الدخول للمتابعة</p>
-                </div>
-
-                <form onSubmit={handleSubmit} className="space-y-4 md:space-y-5">
-                    <div className="space-y-2">
-                        <label className="text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300">البريد الإلكتروني</label>
-                        <div className="relative">
-                            <Mail className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 md:w-5 md:h-5" />
-                            <input
-                                type="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                required
-                                placeholder="example@email.com"
-                                className="w-full pr-10 md:pr-12 pl-4 py-2.5 md:py-3 text-sm md:text-base border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-                                data-testid="input-email"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="space-y-2">
-                        <label className="text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300">كلمة المرور</label>
-                        <div className="relative">
-                            <input
-                                type={showPassword ? 'text' : 'password'}
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                required
-                                placeholder="أدخل كلمة المرور"
-                                className="w-full pr-4 pl-10 md:pl-12 py-2.5 md:py-3 text-sm md:text-base border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-                                data-testid="input-password"
-                            />
-                            <button
-                                type="button"
-                                onClick={() => setShowPassword(!showPassword)}
-                                className="flex items-center justify-center absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-                            >
-                                {showPassword ? <EyeOff className="w-4 h-4 md:w-5 md:h-5" /> : <Eye className="w-4 h-4 md:w-5 md:h-5" />}
-                            </button>
-                        </div>
-                    </div>
-
-                    <button
-                        type="submit"
-                        className="w-full py-2.5 md:py-3 text-sm md:text-base bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold rounded-xl shadow-lg transition duration-200 transform hover:scale-105"
-                        data-testid="button-login"
-                    >
-                        تسجيل الدخول
-                    </button>
-                </form>
-            </div>
-        </div>
-    );
-};
-
-
 // =================================================================
 // 4. المكون الرئيسي للتطبيق (APP COMPONENT)
 // =================================================================
@@ -6815,30 +6594,19 @@ const AccountingApp = () => {
     const [isDarkMode, setIsDarkMode] = useState(false);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); 
     
-    const [currentUser, setCurrentUser] = useState(null); // المستخدم المسجل حالياً
-    
-    
-    // تحميل تفضيلات Dark Mode من المستخدم المسجل
-    useEffect(() => {
-        if (currentUser) {
-            setIsDarkMode(currentUser.darkMode || false);
-            setIsSidebarCollapsed(currentUser.sidebarCollapsed || false);
-        }
-    }, [currentUser]);
-
-    // دالة تسجيل الدخول
-    const handleLogin = (user) => {
-        setCurrentUser(user);
-    };
-
-    // دالة تسجيل الخروج
-    const handleLogout = () => {
-        setCurrentUser(null);
-        setCurrentPage('dashboard');
-        setIsSidebarOpen(false);
-    };
+    // **تعديل:** إزالة منطق المصادقة والاعتماد على المستخدم الافتراضي
+    const currentUser = data.settings.users[0];
     
     // تحميل تفضيلات Dark Mode و Sidebar Collapse من المستخدم
+    useEffect(() => {
+        const user = data.settings.users[0];
+        if (user) {
+            setIsDarkMode(user.darkMode || false);
+            setIsSidebarCollapsed(user.sidebarCollapsed || false);
+        }
+    }, [data.settings.users]);
+
+    // تطبيق dark mode على documentElement (html)
     useEffect(() => {
         if (isDarkMode) {
             document.documentElement.classList.add('dark');
@@ -7057,7 +6825,7 @@ const AccountingApp = () => {
         const logEntry = {
             id: crypto.randomUUID(),
             timestamp: new Date().toISOString(),
-            username: currentUser?.username || "المستخدم",
+            username: currentUserForApp?.username || "المستخدم",
             action,
             module,
             details
@@ -7119,8 +6887,7 @@ const AccountingApp = () => {
         { key: 'inventoryWithdrawal', label: 'الاستخراج المخزني', icon: LogOut, component: InventoryWithdrawalComponent, props: { handleRefresh, handleDelete, handleDataAction } },
         { key: 'inventory', label: 'المخزن والمواد', icon: Package, component: InventoryPageComponent, props: { handleRefresh, handleDataAction } },
         { key: 'settings', label: 'الإعدادات', icon: Settings, component: SettingsPage, props: { handleSettingsUpdate } },
-        { key: 'admin', label: 'الإدارة', icon: Shield, component: AdminPage, props: { handleDataAction, showToast } },
-        { key: 'about', label: 'حول النظام', icon: Info, component: AboutPage, props: {} },
+        { key: 'admin', label: 'الإدارة', icon: Shield, component: AdminPage, props: {} },
     ];
     
     // فلترة عناصر القائمة حسب صلاحيات المستخدم
@@ -7141,7 +6908,7 @@ const AccountingApp = () => {
     
     // **تعديل:** إزالة منطق تسجيل الدخول
     // ------------------------------------
-    // const currentUser = data.settings.users[0]; // تم استبداله بـ currentUser من state // المستخدم الافتراضي
+    const currentUserForApp = data.settings.users[0]; // المستخدم الافتراضي
     // ------------------------------------
 
     const handleNavigationClick = (key) => {
@@ -7264,7 +7031,7 @@ const AccountingApp = () => {
                         message: inputMessage,
                         context: {
                             currentPage,
-                            user: currentUser.username
+                            user: currentUserForApp.username
                         }
                     }),
                 });
@@ -7383,7 +7150,7 @@ const AccountingApp = () => {
                                 <button
                                     type="submit"
                                     disabled={!inputMessage.trim() || isSending}
-                                    className="flex items-center justify-center bg-teal-600 hover:bg-teal-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white p-3 rounded-xl transition duration-200 shadow-lg"
+                                    className="bg-teal-600 hover:bg-teal-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white p-3 rounded-xl transition duration-200 shadow-lg"
                                     data-testid="button-send-message"
                                 >
                                     <Send className="w-5 h-5" />
@@ -7400,28 +7167,15 @@ const AccountingApp = () => {
                     data-testid="button-toggle-chatbot"
                 >
                     {isOpen ? (
-                        <X className="w-5 h-5 md:w-6 md:h-6" />
+                        <X className="w-6 h-6" />
                     ) : (
-                        <MessageCircle className="w-5 h-5 md:w-6 md:h-6" />
+                        <MessageCircle className="w-6 h-6" />
                     )}
                 </button>
             </div>
         );
     };
 
-
-    // عرض صفحة تسجيل الدخول إذا لم يكن هناك مستخدم مسجل
-    if (!currentUser) {
-        return (
-            <LoginPage
-                users={data.settings.users}
-                onLogin={handleLogin}
-                showToast={showToast}
-                systemExpiryDate={data.settings.systemExpiryDate}
-                companyName={data.settings.companyName}
-            />
-        );
-    }
     return (
         <div className="min-h-screen flex bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950 antialiased text-right overflow-x-hidden" dir="rtl">
             <style>
@@ -7448,13 +7202,13 @@ const AccountingApp = () => {
             <div className={`app-sidebar ${isSidebarCollapsed ? 'w-16' : 'w-64'} bg-gradient-to-b from-blue-900 via-blue-800 to-blue-900 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 text-white flex flex-col shadow-2xl border-l border-blue-700 dark:border-gray-700 fixed top-0 right-0 h-full z-50 transition-all duration-300 ${isSidebarOpen ? 'translate-x-0' : 'rtl:translate-x-full ltr:-translate-x-full'} lg:!translate-x-0`}>
                 <div className={`${isSidebarCollapsed ? 'p-2' : 'p-6'} text-center border-b-2 border-blue-600 dark:border-gray-700 transition-all duration-300 bg-blue-950/30 dark:bg-gray-950/30`}>
                     {/* زر الطي في أعلى Sidebar */}
-                    <button onClick={toggleSidebarCollapse} className={`${isSidebarCollapsed ? 'mx-auto' : 'absolute left-3 top-4'} flex items-center justify-center text-white p-2 rounded-full lg:inline-block hidden hover:bg-blue-800 transition`}>
+                    <button onClick={toggleSidebarCollapse} className={`${isSidebarCollapsed ? 'mx-auto' : 'absolute left-3 top-4'} text-white p-2 rounded-full lg:inline-block hidden hover:bg-blue-800 transition`}>
                         {isSidebarCollapsed ? <ChevronLeft className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
                     </button>
                     {!isSidebarCollapsed && <h1 className="text-3xl font-extrabold">{data.settings.companyName}</h1>}
-                    {!isSidebarCollapsed && <p className="text-sm opacity-75">مرحباً, {currentUser.username}</p>}
-                    <button onClick={() => setIsSidebarOpen(false)} className="absolute left-3 top-4 flex items-center justify-center text-white p-2 rounded-full lg:hidden hover:bg-blue-800">
-                        <X className="w-5 h-5 md:w-6 md:h-6" />
+                    {!isSidebarCollapsed && <p className="text-sm opacity-75">مرحباً, {currentUserForApp.username}</p>}
+                    <button onClick={() => setIsSidebarOpen(false)} className="absolute left-3 top-4 text-white p-2 rounded-full lg:hidden hover:bg-blue-800">
+                        <X className="w-6 h-6" />
                     </button>
                 </div>
                 <nav className={`flex-grow ${isSidebarCollapsed ? 'p-2' : 'p-4'} space-y-2 overflow-y-auto transition-all duration-300 sidebar-scroll`}>
@@ -7498,30 +7252,27 @@ const AccountingApp = () => {
                     
                     {/* زر تبديل اللغة - مخفي */}
                     {/* <button
-                    
-                    {/* زر تسجيل الخروج */}
-                    <button
-                        onClick={handleLogout}
-                        data-testid="button-logout"
-                        title={isSidebarCollapsed ? 'تسجيل الخروج' : ''}
-                        className={`w-full flex items-center ${isSidebarCollapsed ? "justify-center p-2" : "text-right p-3"} rounded-xl transition-all duration-200 hover:bg-red-600/50 dark:hover:bg-red-700/50 hover:scale-102 text-red-100 hover:text-white`}
+                        onClick={toggleLanguage}
+                        data-testid="button-toggle-language"
+                        title={isSidebarCollapsed ? (language === 'ar' ? 'English' : 'العربية') : ''}
+                        className={`w-full flex items-center ${isSidebarCollapsed ? "justify-center p-2" : "text-right p-3"} rounded-xl transition-all duration-200 hover:bg-blue-800/50 dark:hover:bg-gray-700/50 hover:scale-102`}
                     >
-                        <LogOut className={`w-5 h-5 ${!isSidebarCollapsed && "ml-3"}`} />
-                        {!isSidebarCollapsed && <span className="text-lg">تسجيل الخروج</span>}
-                    </button>
-                </nav>
-            </div>
+                        <Languages className={`w-5 h-5 ${!isSidebarCollapsed && "ml-3"}`} />
+                        {!isSidebarCollapsed && <span className="text-lg">{t("languageSwitch")}</span>}
+                    </button> */}
+                </nav>
+            </div>
 
             {/* Main Content Area */}
             <main className={`flex-grow p-2 sm:p-4 md:p-8 overflow-x-hidden ${isSidebarCollapsed ? 'lg:mr-16' : 'lg:mr-64'}`}>
                 {/* Header for Mobile/Tablet */}
                 <header className="app-header flex justify-between items-center bg-gradient-to-r from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 p-4 mb-4 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 lg:hidden">
-                    <button onClick={() => setIsSidebarOpen(true)} className="flex items-center justify-center text-blue-600 dark:text-blue-400 p-2 rounded-lg hover:bg-gray-100 dark:bg-gray-600 dark:hover:bg-gray-700 transition">
-                        <Menu className="w-5 h-5 md:w-6 md:h-6" />
+                    <button onClick={() => setIsSidebarOpen(true)} className="text-blue-600 dark:text-blue-400 p-2 rounded-lg hover:bg-gray-100 dark:bg-gray-600 dark:hover:bg-gray-700 transition">
+                        <Menu className="w-6 h-6" />
                     </button>
                     <h1 className="text-xl font-bold text-gray-800 dark:text-gray-200 dark:text-gray-100">{navItems.find(item => item.key === currentPage)?.label}</h1>
                 <div className="flex items-center space-x-2 space-x-reverse">
-                        <button onClick={toggleDarkMode} className="flex items-center justify-center p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 hover:scale-110 text-gray-700 dark:text-gray-200">
+                        <button onClick={toggleDarkMode} className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 hover:scale-110 text-gray-700 dark:text-gray-200">
                             {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                         </button>
                         {/* زر تبديل اللغة - مخفي */}
@@ -7548,7 +7299,7 @@ const AccountingApp = () => {
                             initialExpenseState={initialExpenseState} // تمرير حالة المصروف التلقائي
                             setInitialExpenseState={setInitialExpenseState} // تمرير دالة المسح
                             handleRefresh={handleRefresh}
-                            currentUser={currentUser} // تمرير صلاحيات المستخدم الافتراضي
+                            currentUser={currentUserForApp} // تمرير صلاحيات المستخدم الافتراضي
                             onNavigateAttempt={handleSettingsNavigation} // تمرير دالة التنقل الخاصة بـ SettingsPage
                             {...pageProps}
                         />

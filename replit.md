@@ -22,7 +22,16 @@ The system is built as a single-page application with a modern and professional 
 
 ### Technical Implementations & Feature Specifications
 -   **Dashboard:** Displays comprehensive financial statistics, interactive charts, and birthday alerts.
--   **Financial Management:** Includes modules for Revenues, Expenses, Suspended Payments, and **Pending Expenses** (الصرفيات المعلقة) with features like categorization, filtering, search, print, and export.
+-   **Financial Management:** Includes modules for Revenues, Expenses, Suspended Payments, and **Pending Expenses** (الصرفيات المعلقة) with features like categorization, filtering, search, print, Excel export, and **Excel import**.
+    -   **Excel Import/Export Feature:** Complete import/export functionality for bulk data management:
+        -   **Export:** One-click export of all filtered records to Excel file with Arabic column headers
+        -   **Template Download:** Generate Excel template with example data and proper field structure
+        -   **Import:** Upload Excel files to bulk-add records with validation and error reporting
+        -   **Import Modal:** User-friendly interface with step-by-step instructions, file upload area, and status feedback
+        -   **Action Buttons:** Standardized button layout (Print, Import, Export, Refresh) with consistent colors and icons across all data pages
+        -   **Data Validation:** Automatic validation of required fields, type checking, and employee lookup by name
+        -   **Error Handling:** Detailed success/error counts with toast notifications
+        -   **Library:** Uses xlsx library for robust Excel file processing
     -   **Pending Expenses:** Manager approval workflow for expenses and advances with **permanent record retention**. Features include:
         -   **No-Delete Policy:** All records remain permanently for audit trail - only status changes
         -   **Approval Workflow:** Creates copy in expenses/advances collection AND changes original record status to 'paid' (green badge)
@@ -37,7 +46,7 @@ The system is built as a single-page application with a modern and professional 
 -   **Employee Management:** Covers Employees (database, birthday tracking, basic salary), Advances (manage various categories of advances, track payments, print vouchers), and Payroll (comprehensive table with salary breakdown, bonuses, deductions, absences, overtime, net salary calculation, payslip printing).
 -   **Inventory Management:** Features Inventory Entry (purchase invoice entry, item modification, cash/credit approval, status tracking) and Inventory (material database, barcode generation, stock tracking, expenditure tracking, purchase history).
 -   **Settings:** Manages categories (revenues, expenses, advances), departments, job titles, vendors, representatives, user permissions, and company details.
--   **Admin Page (New):** Comprehensive administrative dashboard displaying system information including:
+-   **Admin Page:** Comprehensive administrative dashboard displaying system information including:
     -   System version and statistics
     -   User and employee counts
     -   Revenue and expense counts
@@ -46,6 +55,15 @@ The system is built as a single-page application with a modern and professional 
     -   Last backup information
     -   System features overview
     -   Modern gradient cards with RTL support and full dark mode compatibility
+    -   **Activity Log (سجل النشاطات):** Comprehensive audit trail system that tracks all system operations:
+        -   **Automatic Logging:** Records all add, edit, and delete operations across all modules
+        -   **Detailed Information:** Each log entry includes timestamp, username, action type, module name, and operation details
+        -   **Advanced Filtering:** Filter by action type (إضافة/تعديل/حذف/موافقة/إلغاء), date range (today, last 7/30/90 days, all time)
+        -   **Search Capability:** Full-text search across all log fields (username, action, module, details)
+        -   **Record Counter:** Real-time display of filtered record count
+        -   **Storage Management:** Automatically maintains last 500 log entries to optimize storage
+        -   **Professional UI:** Color-coded badges for different action types, responsive table design, full RTL support
+        -   **Data Structure:** Stored in `data.activityLog` array with fields: id, timestamp, username, action, module, details
 -   **AI Assistant "Alaa":** A GPT-5-mini powered intelligent assistant integrated into the system, specialized in guiding users on system functionalities, providing accurate and context-aware responses in Arabic.
 
 ### System Design Choices
@@ -65,6 +83,7 @@ The system is built as a single-page application with a modern and professional 
     -   React: UI library.
     -   Tailwind CSS: For styling.
     -   Lucide React: For icons.
+    -   xlsx: Excel file processing library for import/export functionality.
     -   LocalStorage: For local data storage.
 -   **Backend:**
     -   Express.js: Web server.
