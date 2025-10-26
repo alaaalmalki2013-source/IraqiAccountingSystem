@@ -5323,6 +5323,131 @@ const AdminPage = React.memo(({ data, handleDataAction, showToast }) => {
                     </p>
                 </div>
             </div>
+{/* قسم إدارة الصلاحيات */}
+<div className="p-6 rounded-xl shadow-lg bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-900/30 dark:to-indigo-800/30 border-r-4 border-indigo-600 mt-8">
+    <div className="flex items-center gap-3 mb-6">
+        <Shield className="w-7 h-7 text-indigo-600 dark:text-indigo-400" />
+        <h3 className="text-2xl font-bold text-indigo-800 dark:text-indigo-300">إدارة الصلاحيات المخصصة</h3>
+    </div>
+    
+    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+        حدد صلاحيات كل مستخدم بدقة عبر مربعات الاختيار أدناه
+    </p>
+    
+    <div className="space-y-6">
+        {[
+            { key: 'supervisor', label: '👔 السوبر فايزر', password: data.settings.supervisorPassword },
+            { key: 'general_manager', label: '📊 المدير العام', password: data.settings.generalManagerPassword },
+            { key: 'editor', label: '✏️ المحرر', password: data.settings.editorPassword },
+            { key: 'warehouse', label: '📦 أمين المخزن', password: data.settings.warehousePassword },
+            { key: 'warehouse_2', label: '📦 أمين المخزن 2', password: data.settings.warehouse2Password },
+            { key: 'cashier', label: '💰 الكاشير', password: data.settings.cashierPassword }
+        ].map(user => {
+            const userPerms = data.settings.customPermissions?.[user.key] || {};
+            const updatePerm = (module, perm, value) => {
+                const newPerms = { ...userPerms };
+                if (!newPerms[module]) newPerms[module] = {};
+                newPerms[module] = { ...newPerms[module], [perm]: value };
+                
+                const newSettings = {
+                    ...data.settings,
+                    customPermissions: {
+                        ...data.settings.customPermissions,
+                        [user.key]: newPerms
+                    }
+                };
+                handleDataAction('___FULL_DATA_UPDATE___', { ...data, settings: newSettings }, false);
+            };
+            
+            return (
+                <div key={user.key} className="bg-white dark:bg-gray-700 rounded-lg p-4 border border-indigo-200 dark:border-indigo-700">
+                    <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-lg font-bold text-gray-800 dark:text-gray-200">{user.label}</h4>
+                        <span className="text-xs text-gray-500 dark:text-gray-400 px-2 py-1 bg-gray-100 dark:bg-gray-600 rounded">كلمة المرور: {user.password}</span>
+                    </div>
+                    
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-xs">
+                            <thead>
+                                <tr className="border-b border-gray-200 dark:border-gray-600">
+                                    <th className="text-right py-2 px-2 font-semibold text-gray-700 dark:text-gray-300">الصفحة</th>
+                                    <th className="text-center py-2 px-1 font-semibold text-gray-700 dark:text-gray-300">عرض</th>
+                                    <th className="text-center py-2 px-1 font-semibold text-gray-700 dark:text-gray-300">إضافة</th>
+                                    <th className="text-center py-2 px-1 font-semibold text-gray-700 dark:text-gray-300">تعديل</th>
+                                    <th className="text-center py-2 px-1 font-semibold text-gray-700 dark:text-gray-300">حذف</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {[
+                                    { key: 'dashboard', label: 'لوحة التحكم', perms: ['view'] },
+                                    { key: 'revenues', label: 'الإيرادات', perms: ['view', 'add', 'edit', 'delete'] },
+                                    { key: 'expenses', label: 'الصرفيات', perms: ['view', 'add', 'edit', 'delete'] },
+                                    { key: 'advances', label: 'السلف', perms: ['view', 'add', 'edit', 'delete'] },
+                                    { key: 'suspended', label: 'المعلق', perms: ['view', 'add', 'edit', 'delete'] },
+                                    { key: 'pendingExpenses', label: 'الصرفيات المعلقة', perms: ['view', 'add', 'edit', 'delete'] },
+                                    { key: 'employees', label: 'الموظفين', perms: ['view', 'add', 'edit', 'delete'] },
+                                    { key: 'payroll', label: 'كشوفات الرواتب', perms: ['view', 'add', 'edit', 'delete'] },
+                                    { key: 'inventoryEntry', label: 'الإدخال المخزني', perms: ['view', 'add', 'edit', 'delete'] },
+                                    { key: 'inventoryWithdrawal', label: 'الإخراج المخزني', perms: ['view', 'add', 'edit', 'delete'] },
+                                    { key: 'inventory', label: 'المخزون', perms: ['view', 'add', 'edit', 'delete'] },
+                                    { key: 'settings', label: 'الإعدادات', perms: ['view'] }
+                                ].map(module => (
+                                    <tr key={module.key} className="border-b border-gray-100 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600/30">
+                                        <td className="py-2 px-2 text-gray-800 dark:text-gray-200">{module.label}</td>
+                                        <td className="text-center py-2 px-1">
+                                            <input
+                                                type="checkbox"
+                                                checked={userPerms[module.key]?.view || false}
+                                                onChange={(e) => updatePerm(module.key, 'view', e.target.checked)}
+                                                className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
+                                            />
+                                        </td>
+                                        <td className="text-center py-2 px-1">
+                                            {module.perms.includes('add') ? (
+                                                <input
+                                                    type="checkbox"
+                                                    checked={userPerms[module.key]?.add || false}
+                                                    onChange={(e) => updatePerm(module.key, 'add', e.target.checked)}
+                                                    className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
+                                                />
+                                            ) : <span className="text-gray-300">-</span>}
+                                        </td>
+                                        <td className="text-center py-2 px-1">
+                                            {module.perms.includes('edit') ? (
+                                                <input
+                                                    type="checkbox"
+                                                    checked={userPerms[module.key]?.edit || false}
+                                                    onChange={(e) => updatePerm(module.key, 'edit', e.target.checked)}
+                                                    className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
+                                                />
+                                            ) : <span className="text-gray-300">-</span>}
+                                        </td>
+                                        <td className="text-center py-2 px-1">
+                                            {module.perms.includes('delete') ? (
+                                                <input
+                                                    type="checkbox"
+                                                    checked={userPerms[module.key]?.delete || false}
+                                                    onChange={(e) => updatePerm(module.key, 'delete', e.target.checked)}
+                                                    className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
+                                                />
+                                            ) : <span className="text-gray-300">-</span>}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        })}
+    </div>
+    
+    <div className="bg-indigo-100 dark:bg-indigo-900/30 p-4 rounded-lg border border-indigo-300 dark:border-indigo-700 mt-6">
+        <p className="text-sm text-indigo-900 dark:text-indigo-200 font-semibold">
+            💡 ملاحظة: يتم حفظ التغييرات تلقائياً عند تعديل الصلاحيات
+        </p>
+    </div>
+</div>
             
 
         </div>
