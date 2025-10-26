@@ -6598,8 +6598,6 @@ const AccountingApp = () => {
                 />
             )}
 
-            {/* About System Modal */}
-            {isAboutModalOpen && <AboutSystemModal onClose={() => setIsAboutModalOpen(false)} />}
 
 
             {/* Notification Toast */}
