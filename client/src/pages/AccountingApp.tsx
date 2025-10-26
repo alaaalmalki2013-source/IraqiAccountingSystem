@@ -1,6 +1,4 @@
 // @ts-nocheck
-import { AboutPage } from "./about-content";
-import LoginPage from "./LoginPage";
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import * as XLSX from 'xlsx';
@@ -36,14 +34,12 @@ import {
     AlertTriangle,
     Download,
     Package,
-    PackageOpen,
     ClipboardCheck,
     Truck,
     Menu, 
     LogOut,
     Info,
     Eye,
-    Lock,
     EyeOff,
     Moon,
     Sun,
@@ -60,8 +56,7 @@ import {
     FileImage,
     Shield,
     Upload,
-    FileDown,
-    Mail
+    FileDown
 } from 'lucide-react';
 
 // استيراد الثوابت والأنواع
@@ -117,7 +112,7 @@ const NotificationToast = React.memo(({ message, type, onClose }) => {
         <div className={`fixed top-4 right-4 z-[100] p-4 rounded-xl shadow-2xl ${textColor}  flex items-center space-x-3 space-x-reverse transition-transform duration-300 transform translate-x-0 ${bgColor}`}>
             <Icon className="w-5 h-5 md:w-6 md:h-6" />
             <span className="font-semibold">{message}</span>
-            <button onClick={onClose} className="flex items-center justify-center p-1 rounded-full hover:bg-black hover:bg-opacity-10 transition">
+            <button onClick={onClose} className="p-1 rounded-full hover:bg-black hover:bg-opacity-10 transition">
                 <X className="w-4 h-4" />
             </button>
         </div>
@@ -198,7 +193,7 @@ const Modal = ({ title, children, onClose, size = 'lg', isPrintModal = false }) 
         `} onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center p-4 border-b border-teal-100 dark:border-teal-700 bg-teal-50 dark:bg-teal-900/30 rounded-t-3xl">
                 <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200 flex-grow text-center">{title}</h3> 
-                <button onClick={onClose} className="flex items-center justify-center text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition p-1 bg-white dark:bg-gray-700 rounded-full">
+                <button onClick={onClose} className="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition p-1 bg-white dark:bg-gray-700 rounded-full">
                     <X className="w-5 h-5 md:w-6 md:h-6" />
                 </button>
             </div>
@@ -3320,7 +3315,7 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                         {/* رأس المودال */}
                         <div className="flex justify-between items-center p-4 border-b border-purple-100 dark:border-purple-700 bg-gradient-to-r from-purple-500 to-blue-600 rounded-t-3xl">
                             <h3 className="text-xl font-bold text-white flex-grow text-center">معاينة قسيمة الراتب 🧾</h3> 
-                            <button onClick={() => setPayslipToPrint(null)} className="flex items-center justify-center text-white hover:text-gray-200 transition p-1 bg-white/20 rounded-full">
+                            <button onClick={() => setPayslipToPrint(null)} className="text-white hover:text-gray-200 transition p-1 bg-white/20 rounded-full">
                                 <X className="w-5 h-5 md:w-6 md:h-6" />
                             </button>
                         </div>
@@ -3693,7 +3688,7 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
                         {/* رأس المودال */}
                         <div className="flex justify-between items-center p-4 border-b border-indigo-100 dark:border-indigo-700 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-t-3xl">
                             <h3 className="text-xl font-bold text-white flex-grow text-center">معاينة ستكر الباركود 🏷️</h3> 
-                            <button onClick={() => setIsPrintPreviewOpen(false)} className="flex items-center justify-center text-white hover:text-gray-200 transition p-1 bg-white/20 rounded-full">
+                            <button onClick={() => setIsPrintPreviewOpen(false)} className="text-white hover:text-gray-200 transition p-1 bg-white/20 rounded-full">
                                 <X className="w-5 h-5 md:w-6 md:h-6" />
                             </button>
                         </div>
@@ -4769,6 +4764,19 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
     const [currentList, setCurrentList] = useState('expenseCategories');
     const [newRep, setNewRep] = useState({ name: '', vendor: settings.vendors[0] || '' });
     
+    // حالة نموذج المستخدم الجديد/المعدل
+    const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+    const [currentUser, setCurrentUser] = useState(null);
+    const [userForm, setUserForm] = useState({
+        username: "",
+        id: "",
+        email: "",
+        password: "",
+        role: USER_ROLES.CASHIER,
+        permissions: {},
+        customPermissions: {}
+    });
+    
     // قائمة الصلاحيات المتاحة
     const availablePermissions = useMemo(() => ([
         { key: 'dashboard', label: 'الرئيسية' },
@@ -4872,6 +4880,95 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
         showToast('تم حذف المندوب بنجاح.', 'warning');
     };
     
+    // إدارة المستخدمين
+    
+    const openUserModal = (user = null) => {
+        if (user) {
+            setCurrentUser(user);
+            setUserForm({
+                username: user.username,
+                id: user.id,
+                email: user.email,
+                password: '', // لا نعرض الباسورد المحفوظة
+                role: user.role || USER_ROLES.CASHIER,
+                customPermissions: user.customPermissions || {},
+                permissions: user.permissions || ROLE_PERMISSIONS[user.role || USER_ROLES.CASHIER]
+            });
+        } else {
+             setCurrentUser(null);
+             setUserForm({
+                username: '',
+                id: crypto.randomUUID(),
+                email: '',
+                password: '',
+                role: USER_ROLES.CASHIER,
+                permissions: ROLE_PERMISSIONS[USER_ROLES.CASHIER],
+                customPermissions: {}
+             });
+        }
+        setIsUserModalOpen(true);
+    };
+
+    const handleUserFormSubmit = (e) => {
+        e.preventDefault();
+        if (!userForm.username.trim() || !userForm.email.trim()) {
+            showToast('يجب إدخال الاسم والبريد الإلكتروني.', 'error');
+            return;
+        }
+
+        // التحقق من كلمة المرور عند إضافة مستخدم جديد فقط
+        if (!currentUser && !userForm.password.trim()) {
+            showToast('يجب إدخال كلمة المرور للمستخدم الجديد.', 'error');
+            return;
+        }
+
+        // منع إنشاء حساب أدمن جديد
+        if (!currentUser && userForm.role === USER_ROLES.ADMIN) {
+            showToast('لا يمكن إنشاء حساب أدمن جديد. يمكن فقط تعديل الحسابات الموجودة.', 'error');
+            return;
+        }
+
+        const userToSave = {
+            ...userForm,
+            // ضمان وجود صلاحية الرؤية دائما للوحة المعلومات
+            // دمج الصلاحيات الأساسية مع الصلاحيات المخصصة
+            role: userForm.role || USER_ROLES.CASHIER,
+            customPermissions: userForm.customPermissions || {},
+            permissions: {
+                ...ROLE_PERMISSIONS[userForm.role || USER_ROLES.CASHIER],
+                ...userForm.customPermissions,
+                dashboard: { view: true }
+            }
+        };
+
+        handleSettingChange(prev => {
+            const newUsers = currentUser 
+                ? prev.users.map(u => u.id === userToSave.id ? userToSave : u)
+                : [...prev.users, userToSave];
+            
+            // تصحيح: يجب تحديث المستخدم الذي تم تعديله بـ userToSave
+            const finalUsers = prev.users.map(u => u.id === userToSave.id ? userToSave : u);
+            if (!currentUser) finalUsers.push(userToSave);
+
+            return { ...prev, users: finalUsers };
+        });
+        
+        setIsUserModalOpen(false);
+        showToast(currentUser ? 'تم تعديل صلاحيات المستخدم بنجاح.' : 'تم إضافة مستخدم جديد بنجاح.', 'success');
+    };
+    
+    const handleDeleteUser = (userId) => {
+        handleSettingChange(prev => ({
+            ...prev,
+            users: prev.users.filter(u => u.id !== userId)
+        }));
+        showToast('تم حذف المستخدم بنجاح.', 'warning');
+    };
+    
+    // دالة طباعة المستخدمين والصلاحيات
+    const handlePrintUsers = () => {
+        window.print();
+    };
     
     const currentItems = settings[currentList] || [];
 
@@ -5046,8 +5143,292 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
                         {settings.representatives.length === 0 && <p className="text-sm text-gray-500 dark:text-gray-400 italic">لا يوجد مندوبون مضافون حالياً.</p>}
                     </div>
                 </div>
-            </div>
                 
+                {/* إدارة المستخدمين والصلاحيات */}
+                <div className="lg:col-span-2 space-y-6 p-6 rounded-xl shadow-lg border-l-4 border-purple-500 bg-gray-50 dark:bg-gray-800">
+                    <h3 className="text-2xl font-bold text-purple-800 dark:text-purple-300 flex items-center"><Users className="w-6 h-6 ml-2" /> إدارة المستخدمين والصلاحيات</h3>
+                    
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <ActionButton onClick={() => openUserModal()} className="bg-purple-600 hover:bg-purple-700 px-4 py-2 text-base">
+                            <UserPlus className="w-5 h-5 ml-2" />
+                            إضافة مستخدم جديد
+                        </ActionButton>
+                        
+                        <button onClick={handlePrintUsers} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200" data-testid="button-print-users" title="طباعة جدول المستخدمين">
+                            <Printer className="w-5 h-5 md:w-6 md:h-6" />
+                        </button>
+                    </div>
+                    
+                    <div className="overflow-x-auto shadow-md rounded-xl">
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-purple-100 dark:bg-purple-900">
+                                <tr>
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase">اسم المستخدم</th>
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase">البريد الإلكتروني</th>
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase">الدور الوظيفي</th>
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase">الإجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
+                                {settings.users.map(user => (
+                                    <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold">{user.username}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{user.email}</td>
+                                        <td className="px-6 py-4 text-sm">
+                                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${
+                                                user.role === USER_ROLES.ADMIN ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' :
+                                                user.role === USER_ROLES.SUPERVISOR ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300' :
+                                                user.role === USER_ROLES.GENERAL_MANAGER ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' :
+                                                user.role === USER_ROLES.WAREHOUSE_KEEPER ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
+                                                user.role === USER_ROLES.ACCOUNTANT ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300' :
+                                                user.role === USER_ROLES.CASHIER ? 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300' :
+                                                'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300'
+                                            }`}>
+                                                {ROLE_LABELS[user.role] || 'غير محدد'}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                            <div className="flex space-x-3 space-x-reverse">
+                                                <button 
+                                                    onClick={() => openUserModal(user)} 
+                                                    className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300" 
+                                                    title="تعديل الصلاحيات"
+                                                    data-testid={`button-edit-user-${user.id}`}
+                                                >
+                                                    <Edit className="w-5 h-5" />
+                                                </button>
+                                                <button 
+                                                    onClick={() => handleDeleteUser(user.id)} 
+                                                    className={`${user.role === USER_ROLES.ADMIN ? 'text-gray-400 cursor-not-allowed' : 'text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300'}`}
+                                                    title={user.role === USER_ROLES.ADMIN ? 'لا يمكن حذف الأدمن' : 'حذف المستخدم'}
+                                                    disabled={user.role === USER_ROLES.ADMIN}
+                                                    data-testid={`button-delete-user-${user.id}`}
+                                                >
+                                                    <Trash2 className="w-5 h-5" />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+             <ActionButton onClick={(e) => saveAllSettings(e)} className="w-full bg-green-600 hover:bg-green-700 mt-8">
+                <Save className="w-5 h-5 ml-2" />
+                حفظ جميع التغييرات في الإعدادات
+            </ActionButton>
+
+            
+            {/* مودال إدارة صلاحيات المستخدمين */}
+            {isUserModalOpen && (
+                <Modal title={currentUser ? `تعديل صلاحيات: ${currentUser.username}` : 'إضافة مستخدم جديد'} onClose={() => setIsUserModalOpen(false)} size="xl">
+                    <form onSubmit={handleUserFormSubmit} className="space-y-6">
+                        <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                             <InputField
+                                label="اسم المستخدم"
+                                value={userForm.username}
+                                onChange={(e) => setUserForm(prev => ({ ...prev, username: e.target.value }))}
+                                required
+                            />
+                             <InputField
+                                label="البريد الإلكتروني"
+                                type="email"
+                                value={userForm.email}
+                                onChange={(e) => setUserForm(prev => ({ ...prev, email: e.target.value }))}
+                                required
+                                readOnly={!!currentUser} // لا يمكن تغيير البريد بعد الإضافة
+                            />
+                             <InputField
+                                label={currentUser ? "كلمة المرور الجديدة (أتركها فارغة للحفاظ على الحالية)" : "كلمة المرور"}
+                                type="password"
+                                value={userForm.password}
+                                onChange={(e) => setUserForm(prev => ({ ...prev, password: e.target.value }))}
+                                required={!currentUser} // مطلوبة فقط عند إنشاء مستخدم جديد
+                            />
+                        </div>
+                        
+                        {/* قسم اختيار الدور الوظيفي */}
+                        <div className="p-6 rounded-xl bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-900/30 dark:to-indigo-900/30 border-2 border-purple-300 dark:border-purple-700">
+                            <div className="flex items-center gap-3 mb-4">
+                                <Shield className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                                <h4 className="text-xl font-bold text-purple-800 dark:text-purple-200">اختيار الدور الوظيفي</h4>
+                            </div>
+                            
+                            <div className="space-y-4">
+                                <div className="flex flex-col space-y-2">
+                                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">الدور الوظيفي</label>
+                                    <select
+                                        value={userForm.role}
+                                        onChange={(e) => {
+                                            const newRole = e.target.value;
+                                            
+                                            // منع تغيير دور الأدمن الموجود
+                                            if (currentUser && currentUser.role === USER_ROLES.ADMIN) {
+                                                showToast('لا يمكن تغيير دور حساب الأدمن الموجود.', 'error');
+                                                return;
+                                            }
+                                            
+                                            // منع اختيار Admin للمستخدمين الجدد
+                                            if (!currentUser && newRole === USER_ROLES.ADMIN) {
+                                                showToast('لا يمكن إنشاء حساب أدمن جديد.', 'error');
+                                                return;
+                                            }
+                                            
+                                            // تحديث الدور والصلاحيات تلقائياً
+                                            setUserForm(prev => ({
+                                                ...prev,
+                                                role: newRole,
+                                                permissions: ROLE_PERMISSIONS[newRole],
+                                                customPermissions: {}
+                                            }));
+                                        }}
+                                        disabled={currentUser && currentUser.role === USER_ROLES.ADMIN}
+                                        className="w-full p-3 border border-purple-300 dark:border-purple-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 focus:ring-purple-500 focus:border-purple-500 transition"
+                                        data-testid="select-user-role"
+                                    >
+                                        {Object.entries(ROLE_LABELS).map(([roleKey, roleLabel]) => (
+                                            <option 
+                                                key={roleKey} 
+                                                value={roleKey}
+                                                disabled={!currentUser && roleKey === USER_ROLES.ADMIN}
+                                            >
+                                                {roleLabel} {!currentUser && roleKey === USER_ROLES.ADMIN ? '(غير متاح للمستخدمين الجدد)' : ''}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                
+                                {/* رسالة تحذيرية للأدمن الموجود */}
+                                {currentUser && currentUser.role === USER_ROLES.ADMIN && (
+                                    <div className="flex items-start gap-2 p-3 bg-amber-100 dark:bg-amber-900/30 border border-amber-400 dark:border-amber-700 rounded-lg">
+                                        <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                                        <p className="text-sm text-amber-800 dark:text-amber-200">
+                                            <strong>تنبيه:</strong> لا يمكن تغيير دور حساب الأدمن لأسباب أمنية.
+                                        </p>
+                                    </div>
+                                )}
+                                
+                                {/* عرض وصف الدور المختار */}
+                                {userForm.role && ROLE_DESCRIPTIONS[userForm.role] && (
+                                    <div className="p-4 bg-white/50 dark:bg-gray-800/50 rounded-lg border border-purple-200 dark:border-purple-700">
+                                        <div className="flex items-start gap-2">
+                                            <Info className="w-5 h-5 text-purple-600 dark:text-purple-400 flex-shrink-0 mt-0.5" />
+                                            <div>
+                                                <p className="text-sm font-semibold text-purple-800 dark:text-purple-200 mb-1">وصف الدور:</p>
+                                                <p className="text-sm text-gray-700 dark:text-gray-300">{ROLE_DESCRIPTIONS[userForm.role]}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        
+                        <h4 className="text-xl font-bold text-gray-700 dark:text-gray-300 border-b pb-2">الصلاحيات التفصيلية (تحدد تلقائياً حسب الدور)</h4>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {availablePermissions.map(perm => (
+                                <div key={perm.key} className="p-4 rounded-xl shadow-md bg-gray-100 dark:bg-gray-600 border border-gray-200">
+                                    <h5 className="font-bold text-lg text-gray-800 dark:text-gray-200 mb-3">{perm.label}</h5>
+                                    
+                                    {/* صلاحية الرؤية */}
+                                    <div className="flex items-center justify-between mb-2">
+                                        <label className="text-gray-700 dark:text-gray-300 font-medium">الرؤية ({perm.key === 'dashboard' ? 'مطلوبة' : 'view'})</label>
+                                        <input
+                                            type="checkbox"
+                                            checked={userForm.permissions[perm.key]?.view || false}
+                                            disabled={perm.key === 'dashboard'} // الرؤية دائما مطلوبة للرئيسية
+                                            onChange={(e) => {
+                                                setUserForm(prev => ({
+                                                    ...prev,
+                                                    permissions: {
+                                                        ...prev.permissions,
+                                                        [perm.key]: {
+                                                            ...prev.permissions[perm.key],
+                                                            view: e.target.checked,
+                                                            // إذا ألغيت الرؤية، ألغِ باقي الصلاحيات
+                                                            ...(e.target.checked ? {} : { add: false, edit: false, delete: false, approve: false, credit: false, cancel: false })
+                                                        }
+                                                    }
+                                                }));
+                                            }}
+                                            className="w-5 h-5 text-purple-600 focus:ring-purple-500 rounded"
+                                        />
+                                    </div>
+
+                                    {/* صلاحيات CRUD (تعديل، إضافة، حذف) - ما عدا المخزن والإعدادات والتقارير */}
+                                    {(perm.key !== 'inventory' && perm.key !== 'settings' && perm.key !== 'dashboard' && perm.key !== 'inventoryEntry') && (
+                                        <div className='space-y-2 border-t pt-2 mt-2'>
+                                            {['add', 'edit', 'delete'].map(action => (
+                                                <div key={action} className="flex items-center justify-between">
+                                                    <label className="text-gray-600 dark:text-gray-400 text-sm">
+                                                        {action === 'add' ? 'إضافة/إنشاء' : action === 'edit' ? 'تعديل' : 'حذف'}
+                                                    </label>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={userForm.permissions[perm.key]?.[action] || false}
+                                                        disabled={!userForm.permissions[perm.key]?.view} // يتطلب صلاحية الرؤية
+                                                        onChange={(e) => {
+                                                            setUserForm(prev => ({
+                                                                ...prev,
+                                                                permissions: {
+                                                                    ...prev.permissions,
+                                                                    [perm.key]: {
+                                                                        ...prev.permissions[perm.key],
+                                                                        [action]: e.target.checked
+                                                                    }
+                                                                }
+                                                            }));
+                                                        }}
+                                                        className="w-5 h-5 text-purple-600 focus:ring-purple-500 rounded"
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                     {/* صلاحيات الإدخال المخزني الخاصة */}
+                                    {perm.key === 'inventoryEntry' && userForm.permissions.inventoryEntry?.view && (
+                                        <div className='space-y-2 border-t pt-2 mt-2'>
+                                            <h6 className="font-semibold text-gray-700 dark:text-gray-300 text-sm">إجراءات الفواتير:</h6>
+                                            {['approve', 'credit', 'cancel'].map(action => (
+                                                <div key={action} className="flex items-center justify-between">
+                                                    <label className="text-gray-600 dark:text-gray-400 text-sm">
+                                                        {action === 'approve' ? 'اعتماد كاش' : action === 'credit' ? 'اعتماد آجل' : 'إلغاء الفاتورة'}
+                                                    </label>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={userForm.permissions.inventoryEntry[action] || false}
+                                                        onChange={(e) => {
+                                                            setUserForm(prev => ({
+                                                                ...prev,
+                                                                permissions: {
+                                                                    ...prev.permissions,
+                                                                    inventoryEntry: {
+                                                                        ...prev.permissions.inventoryEntry,
+                                                                        [action]: e.target.checked
+                                                                    }
+                                                                }
+                                                            }));
+                                                        }}
+                                                        className="w-5 h-5 text-purple-600 focus:ring-purple-500 rounded"
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                        
+                        <ActionButton type="submit" className="w-full bg-purple-600 hover:bg-purple-700 mt-6">
+                            <Save className="w-5 h-5 ml-2" />
+                            {currentUser ? 'حفظ الصلاحيات' : 'إضافة المستخدم'}
+                        </ActionButton>
+                    </form>
+                </Modal>
+            )}
         </div>
     );
 });
@@ -5056,632 +5437,6 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
  * 3.6.1. AdminPage (صفحة الإدارة)
  * صفحة إدارة النظام والمعلومات الإدارية
  */
-/**
- * InventoryWithdrawalComponent - صفحة الاستخراج المخزني الكاملة
- * Features: اختيار من المخزون والموظفين، إضافة عدة مواد، تحديث المخزون
- */
-const InventoryWithdrawalComponent = React.memo(({ data, handleDataAction, handleDelete, showToast, handleRefresh, currentUser }) => {
-    const [isNewWithdrawalModalOpen, setIsNewWithdrawalModalOpen] = useState(false);
-    const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
-    const [currentWithdrawal, setCurrentWithdrawal] = useState(null);
-    const [globalSearch, setGlobalSearch] = useState('');
-    
-    const getDefaultWithdrawalForm = useCallback(() => ({
-        withdrawnBy: '',
-        department: '',
-        items: [],
-        date: getDefaultDateTime(),
-        id: null,
-        notes: ''
-    }), []);
-    
-    const getDefaultItemForm = useCallback(() => ({ 
-        name: '', 
-        barcode: '', 
-        quantity: 1,
-        category: '',
-        availableQty: 0
-    }), []);
-
-    const [withdrawalForm, setWithdrawalForm] = useState(getDefaultWithdrawalForm);
-    const [itemForm, setItemForm] = useState(getDefaultItemForm);
-    const [itemSuggestions, setItemSuggestions] = useState([]);
-    const [showItemSuggestions, setShowItemSuggestions] = useState(false);
-    const [employeeSuggestions, setEmployeeSuggestions] = useState([]);
-    const [showEmployeeSuggestions, setShowEmployeeSuggestions] = useState(false);
-    const [editingItemId, setEditingItemId] = useState(null);
-
-    const handleEmployeeNameChange = useCallback((value) => {
-        setWithdrawalForm(prev => ({ ...prev, withdrawnBy: value, department: '' }));
-        
-        if (value.length >= 2) {
-            const searchNormalized = normalizeTextForSearch(value);
-            const filtered = data.employees.filter(emp => {
-                const empNameNorm = normalizeTextForSearch(emp.name);
-                return empNameNorm.includes(searchNormalized);
-            }).slice(0, 5);
-            
-            setEmployeeSuggestions(filtered);
-            setShowEmployeeSuggestions(true);
-        } else {
-            setShowEmployeeSuggestions(false);
-            setEmployeeSuggestions([]);
-        }
-    }, [data.employees]);
-
-    const selectEmployeeSuggestion = useCallback((employee) => {
-        setWithdrawalForm(prev => ({
-            ...prev,
-            withdrawnBy: employee.name,
-            department: employee.department || ''
-        }));
-        setShowEmployeeSuggestions(false);
-        setEmployeeSuggestions([]);
-    }, []);
-
-    const handleItemNameChange = useCallback((value) => {
-        setItemForm(prev => ({ ...prev, name: value }));
-        
-        if (value.length >= 2) {
-            const searchNormalized = normalizeTextForSearch(value);
-            const filtered = data.inventory.filter(item => {
-                const itemNameNorm = normalizeTextForSearch(item.name);
-                return itemNameNorm.includes(searchNormalized) && item.count > 0;
-            }).slice(0, 5);
-            
-            setItemSuggestions(filtered);
-            setShowItemSuggestions(true);
-        } else {
-            setShowItemSuggestions(false);
-            setItemSuggestions([]);
-        }
-    }, [data.inventory]);
-
-    const handleBarcodeChange = useCallback((value) => {
-        setItemForm(prev => {
-            const newState = { ...prev, barcode: value };
-            
-            // البحث عن المادة بالباركود لملء الاسم تلقائياً
-            if (value && value.trim()) {
-                const foundItem = data.inventory.find(i => 
-                    i.barcode && i.barcode.trim() === value.trim() && i.count > 0
-                );
-                if (foundItem) {
-                    newState.name = foundItem.name;
-                    newState.category = foundItem.category;
-                    newState.availableQty = foundItem.count;
-                } else {
-                    // إذا لم نجد تطابق تام، نحاول البحث الجزئي
-                    const partialMatch = data.inventory.find(i => 
-                        i.barcode && i.barcode.includes(value.trim()) && i.count > 0
-                    );
-                    if (partialMatch && value.length >= 3) {
-                        newState.name = partialMatch.name;
-                        newState.category = partialMatch.category;
-                        newState.availableQty = partialMatch.count;
-                    }
-                }
-            }
-            
-            return newState;
-        });
-    }, [data.inventory]);
-
-    const selectItemSuggestion = useCallback((item) => {
-        setItemForm({
-            name: item.name,
-            barcode: item.barcode || '',
-            category: item.category,
-            quantity: 1,
-            availableQty: item.count
-        });
-        setShowItemSuggestions(false);
-        setItemSuggestions([]);
-    }, []);
-
-    const handleItemFormChange = useCallback((key, value) => {
-        setItemForm(prev => {
-            let newState = { ...prev, [key]: value };
-            
-            if (key === 'quantity') {
-                let cleanValue = convertArabicToEnglish(value);
-                cleanValue = cleanValue.replace(/[^0-9]/g, '');
-                newState[key] = cleanValue;
-            }
-            
-            return newState;
-        });
-    }, []);
-
-    const handleAddItemToWithdrawal = (e) => {
-        e.preventDefault();
-        
-        if (!itemForm.name || !itemForm.quantity || itemForm.quantity <= 0) {
-            showToast('الرجاء ملء جميع حقول المادة بشكل صحيح.', 'error');
-            return;
-        }
-
-        const inventoryItem = data.inventory.find(i => i.name === itemForm.name);
-        if (!inventoryItem) {
-            showToast('المادة غير موجودة في المخزون.', 'error');
-            return;
-        }
-
-        const requestedQty = parseInt(itemForm.quantity);
-        const alreadyInList = withdrawalForm.items
-            .filter(item => item.name === itemForm.name && item.id !== editingItemId)
-            .reduce((sum, item) => sum + item.quantity, 0);
-        
-        if (inventoryItem.count < (requestedQty + alreadyInList)) {
-            showToast(`الكمية المتاحة في المخزون: ${inventoryItem.count - alreadyInList}`, 'error');
-            return;
-        }
-
-        if (editingItemId) {
-            const updatedItem = {
-                ...itemForm,
-                id: editingItemId,
-                quantity: requestedQty
-            };
-            
-            setWithdrawalForm(prev => ({
-                ...prev,
-                items: prev.items.map(item => item.id === editingItemId ? updatedItem : item)
-            }));
-            
-            showToast(`تم تعديل المادة "${updatedItem.name}" بنجاح.`, 'success');
-        } else {
-            const newItem = {
-                ...itemForm,
-                id: crypto.randomUUID(),
-                quantity: requestedQty
-            };
-            
-            setWithdrawalForm(prev => ({
-                ...prev,
-                items: [...prev.items, newItem]
-            }));
-            
-            showToast(`تمت إضافة المادة "${newItem.name}" للسحب.`, 'success');
-        }
-
-        setItemForm(getDefaultItemForm());
-        setEditingItemId(null);
-    };
-
-    const handleRemoveItem = (itemId) => {
-        setWithdrawalForm(prev => ({
-            ...prev,
-            items: prev.items.filter(item => item.id !== itemId)
-        }));
-        showToast('تم حذف المادة من قائمة السحب.', 'info');
-    };
-
-    const handleEditItem = (item) => {
-        setItemForm(item);
-        setEditingItemId(item.id);
-    };
-
-    const handleSaveWithdrawal = () => {
-        if (!withdrawalForm.withdrawnBy || withdrawalForm.items.length === 0) {
-            showToast('الرجاء اختيار المستلم وإضافة مادة واحدة على الأقل.', 'error');
-            return;
-        }
-
-        const newWithdrawal = {
-            ...withdrawalForm,
-            id: crypto.randomUUID(),
-            invoiceNumber: generateInvoiceNumber(),
-            date: getDefaultDateTime()
-        };
-
-        // تحديث البيانات دفعة واحدة
-        const newData = { ...data };
-        
-        // إضافة السند الجديد
-        newData.inventoryWithdrawals = [...(newData.inventoryWithdrawals || []), newWithdrawal];
-        
-        // تحديث المخزون
-        const updatedInventory = [...newData.inventory];
-        newWithdrawal.items.forEach(item => {
-            const index = updatedInventory.findIndex(i => i.name === item.name);
-            if (index !== -1) {
-                updatedInventory[index] = {
-                    ...updatedInventory[index],
-                    count: updatedInventory[index].count - item.quantity
-                };
-            }
-        });
-        newData.inventory = updatedInventory;
-        
-        // تسجيل النشاط
-        if (currentUser) {
-            const activityLog = {
-                id: crypto.randomUUID(),
-                timestamp: getDefaultDateTime(),
-                username: currentUser.username,
-                action: 'إضافة',
-                module: 'الاستخراج المخزني',
-                details: `سند رقم ${newWithdrawal.invoiceNumber}`
-            };
-            const logs = [...(newData.activityLog || [])];
-            logs.unshift(activityLog);
-            if (logs.length > 500) logs.splice(500);
-            newData.activityLog = logs;
-        }
-        
-        // حفظ البيانات مرة واحدة
-        saveData(newData);
-        setRefreshKey(prev => prev + 1);
-
-        showToast('تم حفظ سند السحب بنجاح وتحديث المخزون.', 'success');
-        setIsNewWithdrawalModalOpen(false);
-        setWithdrawalForm(getDefaultWithdrawalForm());
-    };
-
-    const handleViewDetails = (withdrawal) => {
-        setCurrentWithdrawal(withdrawal);
-        setIsDetailsModalOpen(true);
-    };
-
-    const filteredWithdrawals = useMemo(() => {
-        if (!globalSearch.trim()) return data.inventoryWithdrawals || [];
-        
-        const searchNorm = normalizeTextForSearch(globalSearch);
-        return (data.inventoryWithdrawals || []).filter(w => {
-            const withdrawnByNorm = normalizeTextForSearch(w.withdrawnBy || '');
-            const invoiceNorm = normalizeTextForSearch(w.invoiceNumber || '');
-            
-            return withdrawnByNorm.includes(searchNorm) || 
-                   invoiceNorm.includes(searchNorm);
-        });
-    }, [data.inventoryWithdrawals, globalSearch]);
-
-    return (
-        <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <h2 className="text-3xl font-bold text-gray-800 dark:text-gray-200 flex items-center gap-3">
-                    <PackageOpen className="w-8 h-8 text-orange-600 dark:text-orange-400" />
-                    الاستخراج المخزني
-                </h2>
-                
-                <div className="flex gap-2">
-                    <button
-                        onClick={() => setIsNewWithdrawalModalOpen(true)}
-                        className="px-4 py-2 bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white rounded-lg flex items-center gap-2 transition-all duration-200 shadow-lg hover:shadow-xl"
-                        data-testid="button-add-withdrawal"
-                    >
-                        <Plus className="w-5 h-5" />
-                        سند سحب جديد
-                    </button>
-                    
-                    <button
-                        onClick={handleRefresh}
-                        className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
-                        data-testid="button-refresh"
-                    >
-                        <RotateCcw className="w-5 h-5" />
-                    </button>
-                </div>
-            </div>
-
-            <div className="relative">
-                <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                    type="text"
-                    placeholder="بحث في السحوبات..."
-                    value={globalSearch}
-                    onChange={(e) => setGlobalSearch(e.target.value)}
-                    className="w-full pr-10 pl-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                    data-testid="input-search"
-                />
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full">
-                        <thead className="bg-gradient-to-r from-orange-600 to-orange-700 text-white">
-                            <tr>
-                                <th className="px-4 py-3 text-right">رقم السند</th>
-                                <th className="px-4 py-3 text-right">التاريخ</th>
-                                <th className="px-4 py-3 text-right">المستلم</th>
-                                <th className="px-4 py-3 text-right">القسم</th>
-                                <th className="px-4 py-3 text-right">عدد المواد</th>
-                                <th className="px-4 py-3 text-center">الإجراءات</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filteredWithdrawals.length === 0 ? (
-                                <tr>
-                                    <td colSpan="6" className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
-                                        لا توجد سحوبات مسجلة
-                                    </td>
-                                </tr>
-                            ) : (
-                                filteredWithdrawals.map((withdrawal) => (
-                                    <tr key={withdrawal.id} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                        <td className="px-4 py-3">{withdrawal.invoiceNumber}</td>
-                                        <td className="px-4 py-3">{formatDateDDMMYYYY(withdrawal.date)}</td>
-                                        <td className="px-4 py-3">{withdrawal.withdrawnBy}</td>
-                                        <td className="px-4 py-3">{withdrawal.department}</td>
-                                        <td className="px-4 py-3">{withdrawal.items?.length || 0}</td>
-                                        <td className="px-4 py-3">
-                                            <div className="flex justify-center gap-2">
-                                                <button
-                                                    onClick={() => handleViewDetails(withdrawal)}
-                                                    className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50"
-                                                    data-testid={`button-view-${withdrawal.id}`}
-                                                >
-                                                    <Eye className="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            {isNewWithdrawalModalOpen && (
-                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setIsNewWithdrawalModalOpen(false)}>
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-                        <div className="bg-gradient-to-r from-orange-600 to-orange-700 text-white p-6 rounded-t-2xl flex justify-between items-center shrink-0">
-                            <h3 className="text-2xl font-bold flex items-center gap-3">
-                                <PackageOpen className="w-7 h-7" />
-                                سند سحب جديد
-                            </h3>
-                            <button onClick={() => setIsNewWithdrawalModalOpen(false)} className="p-2 hover:bg-white/20 rounded-lg">
-                                <X className="w-6 h-6" />
-                            </button>
-                        </div>
-
-                        <div className="p-6 space-y-6 overflow-y-auto flex-1">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 overflow-visible">
-                                <div className="relative">
-                                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                                        المستلم (موظف) *
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={withdrawalForm.withdrawnBy}
-                                        onChange={(e) => handleEmployeeNameChange(e.target.value)}
-                                        className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                                        placeholder="ابحث عن موظف..."
-                                        data-testid="input-employee-name"
-                                    />
-                                    {showEmployeeSuggestions && employeeSuggestions.length > 0 && (
-                                        <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-700 border-2 border-orange-400 dark:border-orange-600 rounded-lg shadow-xl z-[100] max-h-60 overflow-y-auto" data-testid="suggestions-employees">
-                                            {employeeSuggestions.map((emp, index) => (
-                                                <div
-                                                    key={emp.id}
-                                                    onClick={() => selectEmployeeSuggestion(emp)}
-                                                    className="px-4 py-2 hover:bg-orange-100 dark:hover:bg-orange-900/30 cursor-pointer border-b border-gray-200 dark:border-gray-600 last:border-b-0"
-                                                    data-testid={`suggestion-employee-${index}`}
-                                                >
-                                                    <div className="font-semibold text-gray-900 dark:text-gray-100">{emp.name}</div>
-                                                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                                                        القسم: {emp.department}
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                    {showEmployeeSuggestions && withdrawalForm.withdrawnBy.length >= 2 && employeeSuggestions.length === 0 && (
-                                        <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 rounded-lg shadow-xl z-[100] px-4 py-3">
-                                            <p className="text-sm text-gray-500 dark:text-gray-400 text-center">لا يوجد موظفون متطابقون</p>
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                                        القسم (تلقائي)
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={withdrawalForm.department}
-                                        readOnly
-                                        className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-600 text-gray-900 dark:text-gray-100"
-                                        placeholder="يتم ملؤه تلقائياً"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="border-2 border-dashed border-orange-300 dark:border-orange-700 rounded-xl p-4 overflow-visible">
-                                <h4 className="text-lg font-bold text-gray-800 dark:text-gray-200 mb-4">إضافة مادة</h4>
-                                <form onSubmit={handleAddItemToWithdrawal} className="grid grid-cols-1 md:grid-cols-4 gap-4 overflow-visible">
-                                    <div className="relative">
-                                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">اسم المادة *</label>
-                                        <input
-                                            type="text"
-                                            value={itemForm.name}
-                                            onChange={(e) => handleItemNameChange(e.target.value)}
-                                            className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                                            placeholder="ابحث عن مادة..."
-                                            data-testid="input-item-name"
-                                        />
-                                        {showItemSuggestions && itemSuggestions.length > 0 && (
-                                            <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-700 border-2 border-orange-400 dark:border-orange-600 rounded-lg shadow-xl z-[100] max-h-60 overflow-y-auto" data-testid="suggestions-items">
-                                                {itemSuggestions.map((item, index) => (
-                                                    <div
-                                                        key={item.id}
-                                                        onClick={() => selectItemSuggestion(item)}
-                                                        className="px-4 py-2 hover:bg-orange-100 dark:hover:bg-orange-900/30 cursor-pointer border-b border-gray-200 dark:border-gray-600 last:border-b-0"
-                                                        data-testid={`suggestion-item-${index}`}
-                                                    >
-                                                        <div className="font-semibold text-gray-900 dark:text-gray-100">{item.name}</div>
-                                                        <div className="text-sm text-gray-500 dark:text-gray-400">
-                                                            باركود: {item.barcode || 'غير محدد'} | متوفر: {item.count}
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                        {showItemSuggestions && itemForm.name.length >= 2 && itemSuggestions.length === 0 && (
-                                            <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 rounded-lg shadow-xl z-[100] px-4 py-3">
-                                                <p className="text-sm text-gray-500 dark:text-gray-400 text-center">لا توجد مواد متطابقة</p>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                                            الباركود
-                                        </label>
-                                        <input
-                                            type="text"
-                                            value={itemForm.barcode}
-                                            onChange={(e) => handleBarcodeChange(e.target.value)}
-                                            className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                                            placeholder="مسح الباركود..."
-                                        />
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                                            الكمية *
-                                        </label>
-                                        <input
-                                            type="text"
-                                            value={itemForm.quantity}
-                                            onChange={(e) => handleItemFormChange('quantity', e.target.value)}
-                                            className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                                        />
-                                        {itemForm.availableQty > 0 && (
-                                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                                المتوفر: {itemForm.availableQty}
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    <div className="flex items-end">
-                                        <button
-                                            type="submit"
-                                            className="w-full px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg flex items-center justify-center gap-2 transition-all duration-200"
-                                        >
-                                            <Plus className="w-5 h-5" />
-                                            {editingItemId ? 'تحديث' : 'إضافة'}
-                                        </button>
-                                    </div>
-                                </form>
-                            </div>
-
-                            {withdrawalForm.items.length > 0 && (
-                                <div>
-                                    <h4 className="text-lg font-bold text-gray-800 dark:text-gray-200 mb-4">المواد المضافة ({withdrawalForm.items.length})</h4>
-                                    <div className="space-y-2">
-                                        {withdrawalForm.items.map(item => (
-                                            <div key={item.id} className="flex justify-between items-center bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
-                                                <div className="flex-1">
-                                                    <div className="font-semibold text-gray-900 dark:text-gray-100">{item.name}</div>
-                                                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                                                        الباركود: {item.barcode || 'غير محدد'} | الكمية: {item.quantity}
-                                                    </div>
-                                                </div>
-                                                <div className="flex gap-2">
-                                                    <button
-                                                        onClick={() => handleEditItem(item)}
-                                                        className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50"
-                                                    >
-                                                        <Edit2 className="w-4 h-4" />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleRemoveItem(item.id)}
-                                                        className="p-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            <div className="flex gap-3 justify-end pt-4 border-t border-gray-200 dark:border-gray-700">
-                                <button
-                                    onClick={() => {
-                                        setIsNewWithdrawalModalOpen(false);
-                                        setWithdrawalForm(getDefaultWithdrawalForm());
-                                        setItemForm(getDefaultItemForm());
-                                    }}
-                                    className="px-6 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-all duration-200"
-                                >
-                                    إلغاء
-                                </button>
-                                <button
-                                    onClick={handleSaveWithdrawal}
-                                    className="px-6 py-2 bg-gradient-to-r from-orange-600 to-orange-700 text-white rounded-lg flex items-center gap-2 hover:from-orange-700 hover:to-orange-800 transition-all duration-200 shadow-lg hover:shadow-xl"
-                                >
-                                    <Save className="w-5 h-5" />
-                                    حفظ السند وتحديث المخزون
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {isDetailsModalOpen && currentWithdrawal && (
-                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setIsDetailsModalOpen(false)}>
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-                        <div className="sticky top-0 bg-gradient-to-r from-orange-600 to-orange-700 text-white p-6 rounded-t-2xl flex justify-between items-center z-10">
-                            <h3 className="text-2xl font-bold">تفاصيل سند السحب</h3>
-                            <button onClick={() => setIsDetailsModalOpen(false)} className="p-2 hover:bg-white/20 rounded-lg transition-all duration-200">
-                                <X className="w-6 h-6" />
-                            </button>
-                        </div>
-
-                        <div className="p-6 space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
-                                    <span className="text-sm text-gray-500 dark:text-gray-400">رقم السند:</span>
-                                    <div className="font-bold text-gray-900 dark:text-gray-100">{currentWithdrawal.invoiceNumber}</div>
-                                </div>
-                                <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
-                                    <span className="text-sm text-gray-500 dark:text-gray-400">التاريخ:</span>
-                                    <div className="font-bold text-gray-900 dark:text-gray-100">{formatDateDDMMYYYY(currentWithdrawal.date)}</div>
-                                </div>
-                                <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
-                                    <span className="text-sm text-gray-500 dark:text-gray-400">المستلم:</span>
-                                    <div className="font-bold text-gray-900 dark:text-gray-100">{currentWithdrawal.withdrawnBy}</div>
-                                </div>
-                                <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
-                                    <span className="text-sm text-gray-500 dark:text-gray-400">القسم:</span>
-                                    <div className="font-bold text-gray-900 dark:text-gray-100">{currentWithdrawal.department}</div>
-                                </div>
-                            </div>
-
-                            <div>
-                                <h4 className="font-bold text-lg mb-3 text-gray-900 dark:text-gray-100">المواد المسحوبة ({currentWithdrawal.items?.length || 0}):</h4>
-                                <div className="space-y-2">
-                                    {currentWithdrawal.items?.map((item, index) => (
-                                        <div key={index} className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg border-r-4 border-orange-600">
-                                            <div className="font-semibold text-gray-900 dark:text-gray-100">{item.name}</div>
-                                            <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                                                الباركود: <span className="font-semibold">{item.barcode || 'غير محدد'}</span> | 
-                                                الكمية: <span className="font-semibold text-orange-600 dark:text-orange-400">{item.quantity}</span>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {currentWithdrawal.notes && (
-                                <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
-                                    <span className="text-sm text-gray-500 dark:text-gray-400">ملاحظات:</span>
-                                    <div className="text-gray-900 dark:text-gray-100 mt-1">{currentWithdrawal.notes}</div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-});
 const AdminPage = React.memo(({ data, handleDataAction, showToast }) => {
     const [systemExpiryDate, setSystemExpiryDate] = useState(data.settings.systemExpiryDate || '');
     
@@ -5702,6 +5457,7 @@ const AdminPage = React.memo(({ data, handleDataAction, showToast }) => {
     const systemInfo = {
         version: 'V3.0',
         lastBackup: 'لم يتم إنشاء نسخة احتياطية',
+        totalUsers: data.settings.users.length,
         totalEmployees: data.employees.length,
         totalRevenues: data.revenues.length,
         totalExpenses: data.expenses.length,
@@ -5731,6 +5487,30 @@ const AdminPage = React.memo(({ data, handleDataAction, showToast }) => {
                         <h3 className="text-xl font-bold text-blue-800 dark:text-blue-300">إصدار النظام</h3>
                     </div>
                     <p className="text-3xl font-extrabold text-blue-900 dark:text-blue-200">{systemInfo.version}</p>
+                </div>
+
+                <div className="p-6 rounded-xl shadow-lg bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/30 dark:to-green-800/30 border-r-4 border-green-600" data-testid="card-total-users">
+                    <div className="flex items-center gap-3 mb-3">
+                        <Users className="w-6 h-6 text-green-600 dark:text-green-400" />
+                        <h3 className="text-xl font-bold text-green-800 dark:text-green-300">عدد المستخدمين</h3>
+                    </div>
+                    <p className="text-3xl font-extrabold text-green-900 dark:text-green-200">{systemInfo.totalUsers}</p>
+                </div>
+
+                <div className="p-6 rounded-xl shadow-lg bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/30 dark:to-purple-800/30 border-r-4 border-purple-600" data-testid="card-total-employees">
+                    <div className="flex items-center gap-3 mb-3">
+                        <Users className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                        <h3 className="text-xl font-bold text-purple-800 dark:text-purple-300">عدد الموظفين</h3>
+                    </div>
+                    <p className="text-3xl font-extrabold text-purple-900 dark:text-purple-200">{systemInfo.totalEmployees}</p>
+                </div>
+
+                <div className="p-6 rounded-xl shadow-lg bg-gradient-to-br from-teal-50 to-teal-100 dark:from-teal-900/30 dark:to-teal-800/30 border-r-4 border-teal-600" data-testid="card-total-revenues">
+                    <div className="flex items-center gap-3 mb-3">
+                        <TrendingUp className="w-6 h-6 text-teal-600 dark:text-teal-400" />
+                        <h3 className="text-xl font-bold text-teal-800 dark:text-teal-300">عدد الإيرادات</h3>
+                    </div>
+                    <p className="text-3xl font-extrabold text-teal-900 dark:text-teal-200">{systemInfo.totalRevenues}</p>
                 </div>
 
                 <div className="p-6 rounded-xl shadow-lg bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/30 dark:to-red-800/30 border-r-4 border-red-600" data-testid="card-total-expenses">
@@ -5809,277 +5589,1149 @@ const AdminPage = React.memo(({ data, handleDataAction, showToast }) => {
                 </div>
             </div>
             
-            {/* قسم إدارة كلمات المرور */}
-            <div className="p-6 rounded-xl shadow-lg bg-gradient-to-br from-rose-50 to-rose-100 dark:from-rose-900/30 dark:to-rose-800/30 border-r-4 border-rose-600">
-                <div className="flex items-center gap-3 mb-6">
-                    <Lock className="w-7 h-7 text-rose-600 dark:text-rose-400" />
-                    <h3 className="text-2xl font-bold text-rose-800 dark:text-rose-300">إدارة كلمات المرور</h3>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* كلمة مرور الأدمن */}
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                            🛡️ الأدمن (كل الصلاحيات)
-                        </label>
-                        <input
-                            type="text"
-                            value={data.settings.adminPassword}
-                            onChange={(e) => {
-                                const updatedSettings = { ...data.settings, adminPassword: e.target.value };
-                                handleDataAction('___FULL_DATA_UPDATE___', { ...data, settings: updatedSettings }, false);
-                            }}
-                            className="w-full px-4 py-2 rounded-lg border-2 border-rose-300 dark:border-rose-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-rose-500"
-                            placeholder="1234569"
-                            data-testid="input-admin-password"
-                        />
-                    </div>
-                    
-                    {/* كلمة مرور السوبر فايزر */}
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                            👔 السوبر فايزر (كل شيء إلا الأدمن)
-                        </label>
-                        <input
-                            type="text"
-                            value={data.settings.supervisorPassword}
-                            onChange={(e) => {
-                                const updatedSettings = { ...data.settings, supervisorPassword: e.target.value };
-                                handleDataAction('___FULL_DATA_UPDATE___', { ...data, settings: updatedSettings }, false);
-                            }}
-                            className="w-full px-4 py-2 rounded-lg border-2 border-rose-300 dark:border-rose-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-rose-500"
-                            placeholder="7777"
-                            data-testid="input-supervisor-password"
-                        />
-                    </div>
-                    
-                    {/* كلمة مرور المدير العام */}
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                            📊 المدير العام (عرض فقط)
-                        </label>
-                        <input
-                            type="text"
-                            value={data.settings.generalManagerPassword}
-                            onChange={(e) => {
-                                const updatedSettings = { ...data.settings, generalManagerPassword: e.target.value };
-                                handleDataAction('___FULL_DATA_UPDATE___', { ...data, settings: updatedSettings }, false);
-                            }}
-                            className="w-full px-4 py-2 rounded-lg border-2 border-rose-300 dark:border-rose-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-rose-500"
-                            placeholder="9999"
-                            data-testid="input-manager-password"
-                        />
-                    </div>
-                    
-                    {/* كلمة مرور المحرر */}
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                            ✏️ المحرر (تعديل وحذف)
-                        </label>
-                        <input
-                            type="text"
-                            value={data.settings.editorPassword}
-                            onChange={(e) => {
-                                const updatedSettings = { ...data.settings, editorPassword: e.target.value };
-                                handleDataAction('___FULL_DATA_UPDATE___', { ...data, settings: updatedSettings }, false);
-                            }}
-                            className="w-full px-4 py-2 rounded-lg border-2 border-rose-300 dark:border-rose-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-rose-500"
-                            placeholder="3636"
-                            data-testid="input-editor-password"
-                        />
-                    </div>
-                    
-                    {/* كلمة مرور أمين المخزن */}
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                            📦 أمين المخزن (المخزون)
-                        </label>
-                        <input
-                            type="text"
-                            value={data.settings.warehousePassword}
-                            onChange={(e) => {
-                                const updatedSettings = { ...data.settings, warehousePassword: e.target.value };
-                                handleDataAction('___FULL_DATA_UPDATE___', { ...data, settings: updatedSettings }, false);
-                            }}
-                            className="w-full px-4 py-2 rounded-lg border-2 border-rose-300 dark:border-rose-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-rose-500"
-                            placeholder="1234"
-                            data-testid="input-warehouse-password"
-                        />
-                    </div>
-                    
-                    {/* كلمة مرور أمين المخزن 2 */}
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                            📦 أمين المخزن 2 (المخزون)
-                        </label>
-                        <input
-                            type="text"
-                            value={data.settings.warehouse2Password}
-                            onChange={(e) => {
-                                const updatedSettings = { ...data.settings, warehouse2Password: e.target.value };
-                                handleDataAction('___FULL_DATA_UPDATE___', { ...data, settings: updatedSettings }, false);
-                            }}
-                            className="w-full px-4 py-2 rounded-lg border-2 border-rose-300 dark:border-rose-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-rose-500"
-                            placeholder="2580"
-                            data-testid="input-warehouse2-password"
-                        />
-                    </div>
-                    
-                    {/* كلمة مرور الكاشير */}
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                            💰 الكاشير (الصرفيات المعلقة)
-                        </label>
-                        <input
-                            type="text"
-                            value={data.settings.cashierPassword}
-                            onChange={(e) => {
-                                const updatedSettings = { ...data.settings, cashierPassword: e.target.value };
-                                handleDataAction('___FULL_DATA_UPDATE___', { ...data, settings: updatedSettings }, false);
-                            }}
-                            className="w-full px-4 py-2 rounded-lg border-2 border-rose-300 dark:border-rose-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-rose-500"
-                            placeholder="0000"
-                            data-testid="input-cashier-password"
-                        />
-                    </div>
-                </div>
-                
-                <div className="bg-rose-100 dark:bg-rose-900/30 p-4 rounded-lg border border-rose-300 dark:border-rose-700 mt-6">
-                    <p className="text-sm text-rose-900 dark:text-rose-200 font-semibold">
-                        💡 ملاحظة: يتم حفظ التغييرات تلقائياً عند تعديل كلمات المرور
-                    </p>
-                </div>
-            </div>
-{/* قسم إدارة الصلاحيات */}
-<div className="p-6 rounded-xl shadow-lg bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-900/30 dark:to-indigo-800/30 border-r-4 border-indigo-600 mt-8">
-    <div className="flex items-center gap-3 mb-6">
-        <Shield className="w-7 h-7 text-indigo-600 dark:text-indigo-400" />
-        <h3 className="text-2xl font-bold text-indigo-800 dark:text-indigo-300">إدارة الصلاحيات المخصصة</h3>
-    </div>
-    
-    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-        حدد صلاحيات كل مستخدم بدقة عبر مربعات الاختيار أدناه
-    </p>
-    
-    <div className="space-y-6">
-        {[
-            { key: 'supervisor', label: '👔 السوبر فايزر', password: data.settings.supervisorPassword },
-            { key: 'general_manager', label: '📊 المدير العام', password: data.settings.generalManagerPassword },
-            { key: 'editor', label: '✏️ المحرر', password: data.settings.editorPassword },
-            { key: 'warehouse', label: '📦 أمين المخزن', password: data.settings.warehousePassword },
-            { key: 'warehouse_2', label: '📦 أمين المخزن 2', password: data.settings.warehouse2Password },
-            { key: 'cashier', label: '💰 الكاشير', password: data.settings.cashierPassword }
-        ].map(user => {
-            const userPerms = data.settings.customPermissions?.[user.key] || {};
-            const updatePerm = (module, perm, value) => {
-                const newPerms = { ...userPerms };
-                if (!newPerms[module]) newPerms[module] = {};
-                newPerms[module] = { ...newPerms[module], [perm]: value };
-                
-                const newSettings = {
-                    ...data.settings,
-                    customPermissions: {
-                        ...data.settings.customPermissions,
-                        [user.key]: newPerms
-                    }
-                };
-                handleDataAction('___FULL_DATA_UPDATE___', { ...data, settings: newSettings }, false);
-            };
-            
-            return (
-                <div key={user.key} className="bg-white dark:bg-gray-700 rounded-lg p-4 border border-indigo-200 dark:border-indigo-700">
-                    <div className="flex items-center justify-between mb-3">
-                        <h4 className="text-lg font-bold text-gray-800 dark:text-gray-200">{user.label}</h4>
-                        <span className="text-xs text-gray-500 dark:text-gray-400 px-2 py-1 bg-gray-100 dark:bg-gray-600 rounded">كلمة المرور: {user.password}</span>
-                    </div>
-                    
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-xs">
-                            <thead>
-                                <tr className="border-b border-gray-200 dark:border-gray-600">
-                                    <th className="text-right py-2 px-2 font-semibold text-gray-700 dark:text-gray-300">الصفحة</th>
-                                    <th className="text-center py-2 px-1 font-semibold text-gray-700 dark:text-gray-300">عرض</th>
-                                    <th className="text-center py-2 px-1 font-semibold text-gray-700 dark:text-gray-300">إضافة</th>
-                                    <th className="text-center py-2 px-1 font-semibold text-gray-700 dark:text-gray-300">تعديل</th>
-                                    <th className="text-center py-2 px-1 font-semibold text-gray-700 dark:text-gray-300">حذف</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {[
-                                    { key: 'dashboard', label: 'لوحة التحكم', perms: ['view'] },
-                                    { key: 'revenues', label: 'الإيرادات', perms: ['view', 'add', 'edit', 'delete'] },
-                                    { key: 'expenses', label: 'الصرفيات', perms: ['view', 'add', 'edit', 'delete'] },
-                                    { key: 'advances', label: 'السلف', perms: ['view', 'add', 'edit', 'delete'] },
-                                    { key: 'suspended', label: 'المعلق', perms: ['view', 'add', 'edit', 'delete'] },
-                                    { key: 'pendingExpenses', label: 'الصرفيات المعلقة', perms: ['view', 'add', 'edit', 'delete'] },
-                                    { key: 'employees', label: 'الموظفين', perms: ['view', 'add', 'edit', 'delete'] },
-                                    { key: 'payroll', label: 'كشوفات الرواتب', perms: ['view', 'add', 'edit', 'delete'] },
-                                    { key: 'inventoryEntry', label: 'الإدخال المخزني', perms: ['view', 'add', 'edit', 'delete'] },
-                                    { key: 'inventoryWithdrawal', label: 'الإخراج المخزني', perms: ['view', 'add', 'edit', 'delete'] },
-                                    { key: 'inventory', label: 'المخزون', perms: ['view', 'add', 'edit', 'delete'] },
-                                    { key: 'settings', label: 'الإعدادات', perms: ['view'] }
-                                ].map(module => (
-                                    <tr key={module.key} className="border-b border-gray-100 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600/30">
-                                        <td className="py-2 px-2 text-gray-800 dark:text-gray-200">{module.label}</td>
-                                        <td className="text-center py-2 px-1">
-                                            <input
-                                                type="checkbox"
-                                                checked={userPerms[module.key]?.view || false}
-                                                onChange={(e) => updatePerm(module.key, 'view', e.target.checked)}
-                                                className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
-                                            />
-                                        </td>
-                                        <td className="text-center py-2 px-1">
-                                            {module.perms.includes('add') ? (
-                                                <input
-                                                    type="checkbox"
-                                                    checked={userPerms[module.key]?.add || false}
-                                                    onChange={(e) => updatePerm(module.key, 'add', e.target.checked)}
-                                                    className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
-                                                />
-                                            ) : <span className="text-gray-300">-</span>}
-                                        </td>
-                                        <td className="text-center py-2 px-1">
-                                            {module.perms.includes('edit') ? (
-                                                <input
-                                                    type="checkbox"
-                                                    checked={userPerms[module.key]?.edit || false}
-                                                    onChange={(e) => updatePerm(module.key, 'edit', e.target.checked)}
-                                                    className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
-                                                />
-                                            ) : <span className="text-gray-300">-</span>}
-                                        </td>
-                                        <td className="text-center py-2 px-1">
-                                            {module.perms.includes('delete') ? (
-                                                <input
-                                                    type="checkbox"
-                                                    checked={userPerms[module.key]?.delete || false}
-                                                    onChange={(e) => updatePerm(module.key, 'delete', e.target.checked)}
-                                                    className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
-                                                />
-                                            ) : <span className="text-gray-300">-</span>}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            );
-        })}
-    </div>
-    
-    <div className="bg-indigo-100 dark:bg-indigo-900/30 p-4 rounded-lg border border-indigo-300 dark:border-indigo-700 mt-6">
-        <p className="text-sm text-indigo-900 dark:text-indigo-200 font-semibold">
-            💡 ملاحظة: يتم حفظ التغييرات تلقائياً عند تعديل الصلاحيات
-        </p>
-    </div>
-</div>
-            
-
+            {/* قسم سجل النشاطات */}
+            <ActivityLogSection data={data} />
         </div>
     );
 });
+
+/**
+ * قسم سجل النشاطات
+ */
+const ActivityLogSection = React.memo(({ data }) => {
+    const [searchTerm, setSearchTerm] = React.useState('');
+    const [filterAction, setFilterAction] = React.useState('all');
+    const [filterDays, setFilterDays] = React.useState('all');
+    
+    const activityLog = data.activityLog || [];
+    
+    // فلترة السجلات
+    const filteredLogs = React.useMemo(() => {
+        let logs = [...activityLog];
+        
+        // فلترة حسب نوع العملية
+        if (filterAction !== 'all') {
+            logs = logs.filter(log => log.action === filterAction);
+        }
+        
+        // فلترة حسب التاريخ
+        if (filterDays !== 'all') {
+            const daysAgo = parseInt(filterDays);
+            const cutoffDate = new Date();
+            cutoffDate.setDate(cutoffDate.getDate() - daysAgo);
+            logs = logs.filter(log => new Date(log.timestamp) >= cutoffDate);
+        }
+        
+        // بحث في المحتوى
+        if (searchTerm) {
+            logs = logs.filter(log => 
+                log.username.includes(searchTerm) ||
+                log.action.includes(searchTerm) ||
+                log.module.includes(searchTerm) ||
+                (log.details && log.details.includes(searchTerm))
+            );
+        }
+        
+        return logs;
+    }, [activityLog, searchTerm, filterAction, filterDays]);
+    
+    return (
+        <div className="p-6 rounded-xl shadow-lg bg-gradient-to-br from-gray-50 to-white dark:from-gray-700 dark:to-gray-800 border border-gray-200 dark:border-gray-600">
+            <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-6 flex items-center gap-2">
+                <Clock className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+                سجل النشاطات
+            </h3>
+            
+            {/* الفلاتر والبحث */}
+            <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                        بحث
+                    </label>
+                    <input
+                        type="text"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        placeholder="ابحث في السجلات..."
+                        className="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
+                        data-testid="input-activity-search"
+                    />
+                </div>
+                
+                <div>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                        نوع العملية
+                    </label>
+                    <select
+                        value={filterAction}
+                        onChange={(e) => setFilterAction(e.target.value)}
+                        className="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
+                        data-testid="select-action-filter"
+                    >
+                        <option value="all">الكل</option>
+                        <option value="إضافة">إضافة</option>
+                        <option value="تعديل">تعديل</option>
+                        <option value="حذف">حذف</option>
+                        <option value="موافقة">موافقة</option>
+                        <option value="إلغاء">إلغاء</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                        الفترة الزمنية
+                    </label>
+                    <select
+                        value={filterDays}
+                        onChange={(e) => setFilterDays(e.target.value)}
+                        className="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
+                        data-testid="select-days-filter"
+                    >
+                        <option value="all">كل الفترة</option>
+                        <option value="1">اليوم</option>
+                        <option value="7">آخر 7 أيام</option>
+                        <option value="30">آخر 30 يوم</option>
+                        <option value="90">آخر 90 يوم</option>
+                    </select>
+                </div>
+            </div>
+            
+            {/* عداد النتائج */}
+            <div className="mb-4 text-gray-600 dark:text-gray-400">
+                <span className="font-semibold">عدد السجلات: </span>
+                <span className="text-lg font-bold text-gray-800 dark:text-gray-200">{filteredLogs.length}</span>
+            </div>
+            
+            {/* جدول السجلات */}
+            <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-600">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-600">
+                    <thead className="bg-gray-50 dark:bg-gray-700">
+                        <tr>
+                            <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                                التاريخ والوقت
+                            </th>
+                            <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                                المستخدم
+                            </th>
+                            <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                                العملية
+                            </th>
+                            <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                                القسم
+                            </th>
+                            <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                                التفاصيل
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
+                        {filteredLogs.length === 0 ? (
+                            <tr>
+                                <td colSpan={5} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                                    لا توجد سجلات
+                                </td>
+                            </tr>
+                        ) : (
+                            filteredLogs.map((log) => (
+                                <tr key={log.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" data-testid={`row-activity-${log.id}`}>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                                        {formatDateDDMMYYYY(log.timestamp)} {new Date(log.timestamp).toLocaleTimeString('ar-IQ', { hour: '2-digit', minute: '2-digit' })}
+                                    </td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-800 dark:text-gray-200">
+                                        {log.username}
+                                    </td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm">
+                                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                                            log.action === 'إضافة' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
+                                            log.action === 'تعديل' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' :
+                                            log.action === 'حذف' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' :
+                                            log.action === 'موافقة' ? 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300' :
+                                            'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300'
+                                        }`}>
+                                            {log.action}
+                                        </span>
+                                    </td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                                        {log.module}
+                                    </td>
+                                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                                        {log.details || '-'}
+                                    </td>
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+});
+
+
+
+/**
+ * 3.7. InventoryDispatchComponent (سجل الصرف المخزني)
+ * **تم تحويله إلى صفحة سجل بسيط للعرض فقط**
+ */
+const InventoryDispatchComponent = React.memo(({ data, handleDataAction, showToast, handleDelete, handleRefresh }) => {
+    const [isDispatchDetailsModalOpen, setIsDispatchDetailsModalOpen] = useState(false); 
+    const [currentDispatch, setCurrentDispatch] = useState(null);
+    const [globalSearchHistory, setGlobalSearchHistory] = useState('');
+
+    
+    // قائمة سجلات الصرف (للعرض في الصفحة الرئيسية للمكون)
+    const dispatchHistory = useMemo(() => {
+        let list = data.inventoryDispatches.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+        
+        if (globalSearchHistory) {
+            const searchLower = normalizeTextForSearch(globalSearchHistory);
+            const searchNumeric = normalizeTextForSearch(globalSearchHistory, true);
+            
+            list = list.filter(d => {
+                const matchesName = normalizeTextForSearch(d.employeeName).includes(searchLower);
+                const matchesCost = d.totalCost && normalizeTextForSearch(d.totalCost.toString(), true).includes(searchNumeric);
+                
+                return matchesName || matchesCost;
+            });
+        }
+        return list; 
+    }, [data.inventoryDispatches, globalSearchHistory]);
+    
+    // لفتح مودال التفاصيل عند النقر على سجل في الجدول
+    const openDispatchDetails = (dispatch) => {
+        setCurrentDispatch(dispatch);
+        setIsDispatchDetailsModalOpen(true);
+    };
+
+    return (
+        <div className="p-6 space-y-6 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl">
+            <h2 className="text-4xl font-extrabold text-gray-800 dark:text-gray-200 border-b-2 border-blue-500 pb-3 flex items-center">
+                <LogOut className="w-7 h-7 ml-3 text-blue-600" />
+                سجل عمليات الصرف المخزني
+            </h2>
+
+            <div className="p-6 space-y-4 rounded-xl shadow-lg border-l-4 border-indigo-500 bg-gray-50 dark:bg-gray-800">
+                <h3 className="text-2xl font-bold text-indigo-800 dark:text-indigo-200 flex items-center border-b dark:border-gray-600 pb-2">
+                    <List className="w-5 h-5 ml-2" />
+                    سجل عمليات الصرف التاريخية (للمراجعة)
+                </h3>
+                
+                {/* البحث والتحديث */}
+                <div className="flex justify-between items-center gap-4">
+                    <div className="flex-grow relative">
+                         <input
+                            type="text"
+                            value={globalSearchHistory}
+                            onChange={(e) => setGlobalSearchHistory(e.target.value)}
+                            placeholder="البحث باسم الموظف أو التكلفة..."
+                            className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl pr-10 focus:ring-amber-500 focus:border-amber-500"
+                        />
+                        <Search className="w-5 h-5 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    </div>
+                    <button onClick={handleRefresh} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
+                        <RotateCcw className="w-5 h-5 md:w-6 md:h-6" />
+                    </button>
+                </div>
+
+                <div className="overflow-x-auto shadow-md rounded-xl">
+                    <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-indigo-100 dark:bg-indigo-900/30">
+                            <tr>
+                                <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">التاريخ</th>
+                                <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">الموظف المستلم</th>
+                                <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">عدد المواد</th>
+                                <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">التكلفة الإجمالية (د.ع.)</th>
+                                <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
+                            {dispatchHistory.length === 0 ? (
+                                <tr><td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">لا يوجد سجلات صرف مخزني.</td></tr>
+                            ) : (
+                                dispatchHistory.map(dispatch => (
+                                    <tr key={dispatch.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150 cursor-pointer" onClick={() => openDispatchDetails(dispatch)}>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{formatDateTimeDDMMYYYY(dispatch.date)}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-indigo-600 font-semibold">{highlightText(dispatch.employeeName, globalSearchHistory)}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{dispatch.items.reduce((sum, item) => sum + item.count, 0)}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-red-600">{highlightText(formatCurrencyDisplay(dispatch.totalCost), globalSearchHistory)}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                             <button onClick={(e) => { e.stopPropagation(); handleDelete('inventoryDispatches', dispatch.id); }} className="text-red-600 hover:text-red-900">
+                                                <Trash2 className="w-5 h-5" />
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            
+            {/* مودال عرض تفاصيل الصرف (الجدول السفلي) */}
+            {isDispatchDetailsModalOpen && currentDispatch && (
+                <Modal title={`تفاصيل صرف ${currentDispatch.employeeName}`} onClose={() => setIsDispatchDetailsModalOpen(false)} size="lg">
+                    <div className="space-y-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl">
+                        <h4 className="text-xl font-bold text-gray-800 dark:text-gray-200 border-b dark:border-gray-600 pb-2 mb-4 flex items-center">
+                            <List className="w-5 h-5 ml-2 text-indigo-500" />
+                            بيانات الصرف
+                        </h4>
+                        <p className="font-medium text-gray-700 dark:text-gray-300">**الموظف:** {currentDispatch.employeeName}</p>
+                        <p className="font-medium text-gray-700 dark:text-gray-300">**التاريخ والوقت:** {formatDateTimeDDMMYYYY(currentDispatch.date)}</p>
+                        <p className="font-medium text-gray-700 dark:text-gray-300">**الملاحظات:** {currentDispatch.notes || 'لا توجد ملاحظات.'}</p>
+                        
+                        <h5 className="text-lg font-bold text-gray-800 dark:text-gray-200 border-b pb-2 pt-4">المواد المصروفة:</h5>
+                        <div className="overflow-x-auto shadow-md rounded-xl">
+                             <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-green-200">
+                                    <tr>
+                                        <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800">المادة</th>
+                                        <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800">الكمية</th>
+                                        <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800">تكلفة الوحدة</th>
+                                        <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800">الإجمالي</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
+                                    {currentDispatch.items.map(item => (
+                                        <tr key={item.itemId} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm font-medium">{item.name}</td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm">{item.count}</td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm">{formatCurrencyDisplay(item.unitPrice)}</td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm font-bold">{formatCurrencyDisplay(item.unitPrice * item.count)}</td>
+                                        </tr>
+                                    ))}
+                                    <tr className="bg-green-50 dark:bg-green-900 font-extrabold text-lg">
+                                        <td colSpan="3" className="px-4 py-3 text-right">الإجمالي الكلي:</td>
+                                        <td className="px-4 py-3 text-red-800">{formatCurrencyDisplay(currentDispatch.totalCost)}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </Modal>
+            )}
+
+        </div>
+    );
+});
+
+/**
+ * 3.8. InventoryWithdrawalComponent (الاستخراج المخزني) - نسخة محدّثة ومبسطة
+ */
+const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, showToast, handleRefresh }) => {
+    const { t } = useLanguage();
+    const [isNewWithdrawalModalOpen, setIsNewWithdrawalModalOpen] = useState(false);
+    const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+    const [currentWithdrawal, setCurrentWithdrawal] = useState(null);
+    const [globalSearch, setGlobalSearch] = useState('');
+    const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
+    const [editingItemId, setEditingItemId] = useState(null);
+    
+    // حالة الـ autocomplete
+    const [itemSuggestions, setItemSuggestions] = useState([]);
+    const [showItemSuggestions, setShowItemSuggestions] = useState(false);
+    const [employeeSuggestions, setEmployeeSuggestions] = useState([]);
+    const [showEmployeeSuggestions, setShowEmployeeSuggestions] = useState(false);
+
+    // دالة للحصول على حالة نموذج الاستخراج الافتراضية
+    const getDefaultWithdrawalForm = useCallback(() => ({
+        employeeName: '',
+        withdrawalNumber: generateInvoiceNumber(),
+        items: [],
+        date: getDefaultDateTime(),
+        notes: '',
+        id: null
+    }), []);
+    
+    // دالة للحصول على حالة نموذج المادة الافتراضية
+    const getDefaultItemForm = useCallback(() => ({ 
+        name: '', 
+        barcode: '', 
+        count: 1, 
+        category: data.settings.expenseCategories.find(c => c.includes('مواد')) || data.settings.expenseCategories[0] || '' 
+    }), [data.settings.expenseCategories]);
+
+    const [withdrawalForm, setWithdrawalForm] = useState(getDefaultWithdrawalForm);
+    const [itemForm, setItemForm] = useState(getDefaultItemForm);
+
+    // دالة البحث الذكي في المخزون عند الكتابة في حقل الاسم
+    const handleItemNameChange = useCallback((value) => {
+        setItemForm(prev => ({ ...prev, name: value }));
+        
+        if (value.length >= 2) {
+            const searchNormalized = normalizeTextForSearch(value);
+            
+            const filtered = data.inventory.filter(item => {
+                const itemNameNorm = normalizeTextForSearch(item.name);
+                const itemBarcodeNorm = item.barcode ? normalizeTextForSearch(item.barcode) : '';
+                return (itemNameNorm.includes(searchNormalized) || itemBarcodeNorm.includes(searchNormalized)) && item.count > 0;
+            }).slice(0, 5);
+            
+            setItemSuggestions(filtered);
+            setShowItemSuggestions(true);
+        } else {
+            setShowItemSuggestions(false);
+            setItemSuggestions([]);
+        }
+    }, [data.inventory]);
+
+    // دالة اختيار اقتراح من القائمة
+    const selectItemSuggestion = useCallback((item) => {
+        setItemForm(prev => ({
+            ...prev,
+            name: item.name,
+            barcode: item.barcode || '',
+            category: item.category
+        }));
+        setShowItemSuggestions(false);
+        setItemSuggestions([]);
+    }, []);
+    
+    // دالة البحث الذكي في الموظفين عند الكتابة
+    const handleEmployeeNameChange = useCallback((value) => {
+        setWithdrawalForm(prev => ({ ...prev, employeeName: value }));
+        
+        if (value.length >= 2) {
+            const searchNormalized = normalizeTextForSearch(value);
+            
+            const filtered = data.employees.filter(emp => {
+                const empNameNorm = normalizeTextForSearch(emp.name);
+                return empNameNorm.includes(searchNormalized);
+            }).slice(0, 5);
+            
+            setEmployeeSuggestions(filtered);
+            setShowEmployeeSuggestions(true);
+        } else {
+            setShowEmployeeSuggestions(false);
+            setEmployeeSuggestions([]);
+        }
+    }, [data.employees]);
+    
+    // دالة اختيار موظف من القائمة
+    const selectEmployeeSuggestion = useCallback((employee) => {
+        setWithdrawalForm(prev => ({
+            ...prev,
+            employeeName: employee.name
+        }));
+        setShowEmployeeSuggestions(false);
+        setEmployeeSuggestions([]);
+    }, []);
+
+    // دالة فتح المودال لتعديل مادة موجودة
+    const handleEditItem = useCallback((item) => {
+        setItemForm({
+            name: item.name,
+            barcode: item.barcode,
+            count: item.count,
+            category: item.category
+        });
+        setEditingItemId(item.id);
+        setIsAddItemModalOpen(true);
+    }, []);
+
+    const handleAddItemToWithdrawal = (e) => {
+        e.preventDefault();
+        
+        if (!itemForm.name || !itemForm.count || itemForm.count <= 0 || !itemForm.category) {
+            showToast('الرجاء ملء جميع حقول المادة بشكل صحيح (الاسم، الكمية، الفئة).', 'error');
+            return;
+        }
+        
+        // التحقق من توفر الكمية في المخزون
+        const inventoryItem = data.inventory.find(i => i.name === itemForm.name);
+        if (!inventoryItem) {
+            showToast('المادة غير موجودة في المخزون.', 'error');
+            return;
+        }
+        
+        // حساب إجمالي الكمية المطلوبة (مع المواد الموجودة في الاستخراج)
+        const currentItemInWithdrawal = withdrawalForm.items.find(i => i.name === itemForm.name && i.id !== editingItemId);
+        const totalRequestedCount = parseInt(itemForm.count) + (currentItemInWithdrawal ? currentItemInWithdrawal.count : 0);
+        
+        if (totalRequestedCount > inventoryItem.count) {
+            showToast(`الكمية المتوفرة في المخزون: ${inventoryItem.count}. لا يمكن استخراج ${totalRequestedCount}.`, 'error');
+            return;
+        }
+
+        if (editingItemId) {
+            const updatedItem = {
+                ...itemForm,
+                id: editingItemId,
+                count: parseInt(itemForm.count),
+            };
+            
+            setWithdrawalForm(prev => ({
+                ...prev,
+                items: prev.items.map(item => item.id === editingItemId ? updatedItem : item)
+            }));
+            
+            showToast(`تم تعديل المادة "${updatedItem.name}" بنجاح.`, 'success');
+        } else {
+            const newItem = {
+                ...itemForm,
+                id: crypto.randomUUID(),
+                count: parseInt(itemForm.count),
+            };
+
+            setWithdrawalForm(prev => ({
+                ...prev,
+                items: [...prev.items, newItem]
+            }));
+            
+            showToast(`تمت إضافة المادة "${newItem.name}" بنجاح.`, 'success');
+        }
+        
+        setItemForm(prev => ({ ...getDefaultItemForm(), category: prev.category }));
+        setEditingItemId(null);
+        setIsAddItemModalOpen(false);
+    };
+
+    const handleRemoveItemFromWithdrawal = (id) => {
+        setWithdrawalForm(prev => ({
+            ...prev,
+            items: prev.items.filter(item => item.id !== id)
+        }));
+        showToast('تم حذف المادة بنجاح.', 'warning');
+    };
+
+    // إتمام الاستخراج (خصم من المخزون)
+    const handleCompleteWithdrawal = (e) => {
+        e.preventDefault();
+        
+        if (withdrawalForm.items.length === 0) {
+            showToast('يجب إضافة مواد إلى الاستخراج أولاً.', 'error');
+            return;
+        }
+        if (!withdrawalForm.employeeName) {
+            showToast('الرجاء إدخال اسم الموظف المستلم.', 'error');
+            return;
+        }
+
+        // **إذا كان تعديل، نعيد المواد القديمة للمخزون أولاً**
+        let updatedInventory = [...data.inventory];
+        
+        if (withdrawalForm.id) {
+            const oldWithdrawal = data.inventoryWithdrawals.find(w => w.id === withdrawalForm.id);
+            if (oldWithdrawal) {
+                // إعادة المواد القديمة للمخزون
+                oldWithdrawal.items.forEach(item => {
+                    const inventoryItemIndex = updatedInventory.findIndex(i => i.name === item.name);
+                    if (inventoryItemIndex !== -1) {
+                        updatedInventory[inventoryItemIndex] = {
+                            ...updatedInventory[inventoryItemIndex],
+                            count: updatedInventory[inventoryItemIndex].count + item.count,
+                        };
+                    }
+                });
+            }
+        }
+        
+        // التحقق من توفر جميع المواد في المخزون (بعد إعادة القديمة)
+        for (const item of withdrawalForm.items) {
+            const inventoryItem = updatedInventory.find(i => i.name === item.name);
+            if (!inventoryItem || inventoryItem.count < item.count) {
+                showToast(`الكمية المتوفرة من "${item.name}" غير كافية في المخزون.`, 'error');
+                return;
+            }
+        }
+
+        // خصم المواد الجديدة من المخزون
+        withdrawalForm.items.forEach(item => {
+            const inventoryItemIndex = updatedInventory.findIndex(i => i.name === item.name);
+            if (inventoryItemIndex !== -1) {
+                updatedInventory[inventoryItemIndex] = {
+                    ...updatedInventory[inventoryItemIndex],
+                    count: updatedInventory[inventoryItemIndex].count - item.count,
+                };
+            }
+        });
+
+        const withdrawalToSave = {
+            ...withdrawalForm,
+            id: withdrawalForm.id || crypto.randomUUID(),
+            date: getDefaultDateTime(),
+        };
+
+        // **تحديث شامل لكلا المجموعتين في عملية واحدة**
+        const newData = { ...data };
+        
+        // تحديث الاستخراجات
+        if (!withdrawalForm.id) {
+            newData.inventoryWithdrawals = [...(newData.inventoryWithdrawals || []), withdrawalToSave];
+        } else {
+            const index = newData.inventoryWithdrawals.findIndex(w => w.id === withdrawalForm.id);
+            if (index !== -1) {
+                const updatedWithdrawals = [...newData.inventoryWithdrawals];
+                updatedWithdrawals[index] = withdrawalToSave;
+                newData.inventoryWithdrawals = updatedWithdrawals;
+            }
+        }
+        
+        // تحديث المخزون
+        newData.inventory = updatedInventory;
+        
+        // حفظ كل البيانات مرة واحدة
+        handleDataAction('___FULL_DATA_UPDATE___', newData);
+        
+        setWithdrawalForm(getDefaultWithdrawalForm());
+        setIsNewWithdrawalModalOpen(false);
+        showToast(`تم إتمام الاستخراج #${withdrawalToSave.withdrawalNumber} وخصم المواد من المخزون بنجاح.`, 'success');
+    };
+    
+    // فتح نموذج التفاصيل
+    const openDetailsModal = (withdrawal) => {
+        setCurrentWithdrawal(withdrawal);
+        setIsDetailsModalOpen(true);
+    };
+    
+    // فتح نموذج التعديل
+    const openEditModal = (withdrawal) => {
+        setWithdrawalForm(withdrawal);
+        setIsNewWithdrawalModalOpen(true);
+    };
+    
+    // حذف استخراج (إعادة المواد للمخزون)
+    const handleDeleteWithdrawal = (withdrawal) => {
+        if (!confirm(`هل أنت متأكد من حذف الاستخراج #${withdrawal.withdrawalNumber}؟`)) {
+            return;
+        }
+        
+        let updatedInventory = [...data.inventory];
+        
+        // إعادة المواد للمخزون
+        withdrawal.items.forEach(item => {
+            const inventoryItemIndex = updatedInventory.findIndex(i => i.name === item.name);
+            if (inventoryItemIndex !== -1) {
+                updatedInventory[inventoryItemIndex] = {
+                    ...updatedInventory[inventoryItemIndex],
+                    count: updatedInventory[inventoryItemIndex].count + item.count,
+                };
+            }
+        });
+        
+        // **تحديث شامل لكلا المجموعتين في عملية واحدة**
+        const newData = { ...data };
+        newData.inventoryWithdrawals = newData.inventoryWithdrawals.filter(w => w.id !== withdrawal.id);
+        newData.inventory = updatedInventory;
+        
+        // حفظ كل البيانات مرة واحدة
+        handleDataAction('___FULL_DATA_UPDATE___', newData);
+        
+        showToast(`تم حذف الاستخراج #${withdrawal.withdrawalNumber} وإعادة المواد للمخزون.`, 'success');
+    };
+    
+    // فلترة الاستخراجات - القراءة مباشرة من data
+    const allWithdrawals = data.inventoryWithdrawals || [];
+    let filteredWithdrawals = [...allWithdrawals].sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    if (globalSearch) {
+        const searchLower = normalizeTextForSearch(globalSearch);
+        
+        filteredWithdrawals = filteredWithdrawals.filter(w => {
+            const matchesNum = w.withdrawalNumber && normalizeTextForSearch(w.withdrawalNumber).includes(searchLower);
+            const matchesEmp = w.employeeName && normalizeTextForSearch(w.employeeName).includes(searchLower);
+            const matchesItem = w.items.some(item => normalizeTextForSearch(item.name).includes(searchLower));
+            
+            return matchesNum || matchesEmp || matchesItem;
+        });
+    }
+
+    return (
+        <div className="p-6 space-y-6 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl">
+            <h2 className="text-4xl font-extrabold text-gray-800 dark:text-gray-200 border-b-2 border-green-500 pb-3 flex items-center">
+                <LogOut className="w-7 h-7 ml-3 text-green-600" />
+                {t('inventoryWithdrawal')}
+            </h2>
+
+            {/* البحث */}
+            <div className="relative">
+                <input
+                    type="text"
+                    value={globalSearch}
+                    onChange={(e) => setGlobalSearch(e.target.value)}
+                    placeholder="البحث برقم الاستخراج، اسم الموظف، أو المادة..."
+                    className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl pr-10 focus:ring-green-500 focus:border-green-500"
+                    data-testid="input-search-withdrawals"
+                />
+                <Search className="w-5 h-5 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            </div>
+
+            {/* أزرار الإجراءات */}
+            <div className="flex flex-wrap items-center justify-between gap-4">
+                <button
+                    onClick={() => {
+                        setWithdrawalForm(getDefaultWithdrawalForm());
+                        setIsNewWithdrawalModalOpen(true);
+                    }}
+                    data-testid="button-add-withdrawal"
+                    className="flex items-center px-6 py-3 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-xl hover:from-green-600 hover:to-teal-600 shadow-lg transition duration-200"
+                >
+                    <Plus className="w-5 h-5 ml-2" />
+                    {t('addWithdrawal')}
+                </button>
+
+                <div className="flex flex-wrap gap-2 space-x-reverse">
+                    <button onClick={() => window.print()} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition duration-200">
+                        <Printer className="w-5 h-5 md:w-6 md:h-6" />
+                    </button>
+                    <button onClick={() => {
+                        const csvContent = [
+                            ['رقم الاستخراج', 'التاريخ', 'الموظف', 'عدد المواد', 'الملاحظات'],
+                            ...filteredWithdrawals.map(w => [
+                                w.withdrawalNumber,
+                                formatDateTimeDDMMYYYY(w.date),
+                                w.employeeName,
+                                w.items.reduce((sum, item) => sum + item.count, 0),
+                                w.notes || ''
+                            ])
+                        ].map(row => row.join(',')).join('\n');
+                        const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+                        const link = document.createElement('a');
+                        link.href = URL.createObjectURL(blob);
+                        link.download = `الاستخراجات_المخزنية_${new Date().toISOString().split('T')[0]}.csv`;
+                        link.click();
+                    }} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg transition duration-200">
+                        <Download className="w-5 h-5 md:w-6 md:h-6" />
+                    </button>
+                    <button onClick={handleRefresh} className="flex items-center justify-center p-2 md:p-3 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 shadow-lg transition duration-200">
+                        <RotateCcw className="w-5 h-5 md:w-6 md:h-6" />
+                    </button>
+                </div>
+            </div>
+
+            {/* جدول الاستخراجات */}
+            <div className="bg-white dark:bg-gray-700 p-6 rounded-xl shadow-lg overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50 dark:bg-gray-600">
+                        <tr>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">رقم الاستخراج</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">التاريخ</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">الموظف المستلم</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">عدد المواد</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
+                        {filteredWithdrawals.length === 0 ? (
+                            <tr><td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">{t('noWithdrawals')}</td></tr>
+                        ) : (
+                            filteredWithdrawals.map(withdrawal => (
+                                <tr key={withdrawal.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">{highlightText(withdrawal.withdrawalNumber, globalSearch)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm">{formatDateTimeDDMMYYYY(withdrawal.date)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold">{highlightText(withdrawal.employeeName, globalSearch)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm">{withdrawal.items.reduce((sum, item) => sum + item.count, 0)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2 space-x-reverse">
+                                        <button onClick={() => openDetailsModal(withdrawal)} className="text-blue-600 hover:text-blue-900" data-testid={`button-view-withdrawal-${withdrawal.id}`}>
+                                            <Eye className="w-5 h-5" />
+                                        </button>
+                                        <button onClick={() => openEditModal(withdrawal)} className="text-yellow-600 hover:text-yellow-900" data-testid={`button-edit-withdrawal-${withdrawal.id}`}>
+                                            <Edit className="w-5 h-5" />
+                                        </button>
+                                        <button onClick={() => handleDeleteWithdrawal(withdrawal)} className="text-red-600 hover:text-red-900" data-testid={`button-delete-withdrawal-${withdrawal.id}`}>
+                                            <Trash2 className="w-5 h-5" />
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
+                </table>
+            </div>
+
+            {/* مودال إضافة/تعديل استخراج */}
+            {isNewWithdrawalModalOpen && (
+                <Modal title={withdrawalForm.id ? t('editWithdrawal') : t('addWithdrawal')} onClose={() => setIsNewWithdrawalModalOpen(false)} size="xl">
+                    <form onSubmit={handleCompleteWithdrawal} className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">{t('withdrawalNumber')}</label>
+                                <input
+                                    type="text"
+                                    value={withdrawalForm.withdrawalNumber}
+                                    onChange={(e) => setWithdrawalForm(prev => ({ ...prev, withdrawalNumber: e.target.value }))}
+                                    className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                                    required
+                                    data-testid="input-withdrawal-number"
+                                />
+                            </div>
+                            <div className="relative">
+                                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">{t('receivingEmployee')}</label>
+                                <input
+                                    type="text"
+                                    value={withdrawalForm.employeeName}
+                                    onChange={(e) => handleEmployeeNameChange(e.target.value)}
+                                    className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                                    required
+                                    data-testid="input-employee-name"
+                                />
+                                {showEmployeeSuggestions && employeeSuggestions.length > 0 && (
+                                    <ul className="absolute z-10 w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg mt-1 max-h-40 overflow-y-auto shadow-lg">
+                                        {employeeSuggestions.map(emp => (
+                                            <li
+                                                key={emp.id}
+                                                onClick={() => selectEmployeeSuggestion(emp)}
+                                                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer text-sm"
+                                            >
+                                                {emp.name} - {emp.jobTitle}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">ملاحظات</label>
+                            <textarea
+                                value={withdrawalForm.notes}
+                                onChange={(e) => setWithdrawalForm(prev => ({ ...prev, notes: e.target.value }))}
+                                className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                                rows="2"
+                                data-testid="input-notes"
+                            />
+                        </div>
+
+                        {/* قسم المواد */}
+                        <div className="border-t pt-4">
+                            <div className="flex justify-between items-center mb-3">
+                                <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200">المواد</h3>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setItemForm(getDefaultItemForm());
+                                        setEditingItemId(null);
+                                        setIsAddItemModalOpen(true);
+                                    }}
+                                    className="flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                                    data-testid="button-add-item-to-withdrawal"
+                                >
+                                    <Plus className="w-4 h-4 ml-1" />
+                                    إضافة مادة
+                                </button>
+                            </div>
+                            
+                            {withdrawalForm.items.length === 0 ? (
+                                <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">لم يتم إضافة مواد بعد</p>
+                            ) : (
+                                <div className="space-y-2">
+                                    {withdrawalForm.items.map(item => (
+                                        <div key={item.id} className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                            <div className="flex-1">
+                                                <span className="font-semibold text-gray-800 dark:text-gray-200">{item.name}</span>
+                                                <span className="text-sm text-gray-500 dark:text-gray-400 mr-2">الكمية: {item.count}</span>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <button type="button" onClick={() => handleEditItem(item)} className="text-yellow-600 hover:text-yellow-900">
+                                                    <Edit className="w-4 h-4" />
+                                                </button>
+                                                <button type="button" onClick={() => handleRemoveItemFromWithdrawal(item.id)} className="text-red-600 hover:text-red-900">
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        <button
+                            type="submit"
+                            className="w-full bg-gradient-to-r from-green-500 to-teal-500 text-white py-3 rounded-xl hover:from-green-600 hover:to-teal-600 font-bold shadow-lg"
+                            data-testid="button-complete-withdrawal"
+                        >
+                            <Save className="w-5 h-5 inline ml-2" />
+                            {t('completeWithdrawal')}
+                        </button>
+                    </form>
+                </Modal>
+            )}
+
+            {/* مودال إضافة مادة */}
+            {isAddItemModalOpen && (
+                <Modal title={editingItemId ? "تعديل مادة" : "إضافة مادة"} onClose={() => { setIsAddItemModalOpen(false); setEditingItemId(null); }} size="md">
+                    <form onSubmit={handleAddItemToWithdrawal} className="space-y-4">
+                        <div className="relative">
+                            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">{t('itemName')}</label>
+                            <input
+                                type="text"
+                                value={itemForm.name}
+                                onChange={(e) => handleItemNameChange(e.target.value)}
+                                className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                                required
+                                data-testid="input-item-name"
+                            />
+                            {showItemSuggestions && itemSuggestions.length > 0 && (
+                                <ul className="absolute z-10 w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg mt-1 max-h-40 overflow-y-auto shadow-lg">
+                                    {itemSuggestions.map(item => (
+                                        <li
+                                            key={item.id}
+                                            onClick={() => selectItemSuggestion(item)}
+                                            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer text-sm"
+                                        >
+                                            {item.name} - متوفر: {item.count}
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+                        
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">{t('barcode')}</label>
+                            <input
+                                type="text"
+                                value={itemForm.barcode}
+                                onChange={(e) => setItemForm(prev => ({ ...prev, barcode: e.target.value }))}
+                                className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                                data-testid="input-item-barcode"
+                            />
+                        </div>
+                        
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">{t('quantity')}</label>
+                            <input
+                                type="number"
+                                value={itemForm.count}
+                                onChange={(e) => setItemForm(prev => ({ ...prev, count: parseInt(e.target.value) || 1 }))}
+                                min="1"
+                                className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                                required
+                                data-testid="input-item-count"
+                            />
+                        </div>
+                        
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">{t('materialCategory')}</label>
+                            <select
+                                value={itemForm.category}
+                                onChange={(e) => setItemForm(prev => ({ ...prev, category: e.target.value }))}
+                                className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                                required
+                                data-testid="select-item-category"
+                            >
+                                {data.settings.expenseCategories.map(cat => (
+                                    <option key={cat} value={cat}>{cat}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <button
+                            type="submit"
+                            className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 font-semibold"
+                            data-testid="button-save-item"
+                        >
+                            <Save className="w-4 h-4 inline ml-2" />
+                            {editingItemId ? 'تحديث المادة' : 'إضافة المادة'}
+                        </button>
+                    </form>
+                </Modal>
+            )}
+
+            {/* مودال التفاصيل */}
+            {isDetailsModalOpen && currentWithdrawal && (
+                <Modal title={t('withdrawalDetails')} onClose={() => setIsDetailsModalOpen(false)} size="lg">
+                    <div className="space-y-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <span className="font-semibold text-gray-700 dark:text-gray-300">رقم الاستخراج:</span>
+                                <span className="mr-2 text-gray-900 dark:text-gray-100">{currentWithdrawal.withdrawalNumber}</span>
+                            </div>
+                            <div>
+                                <span className="font-semibold text-gray-700 dark:text-gray-300">التاريخ:</span>
+                                <span className="mr-2 text-gray-900 dark:text-gray-100">{formatDateTimeDDMMYYYY(currentWithdrawal.date)}</span>
+                            </div>
+                            <div className="col-span-2">
+                                <span className="font-semibold text-gray-700 dark:text-gray-300">الموظف المستلم:</span>
+                                <span className="mr-2 text-gray-900 dark:text-gray-100">{currentWithdrawal.employeeName}</span>
+                            </div>
+                            {currentWithdrawal.notes && (
+                                <div className="col-span-2">
+                                    <span className="font-semibold text-gray-700 dark:text-gray-300">ملاحظات:</span>
+                                    <p className="text-gray-900 dark:text-gray-100 mt-1">{currentWithdrawal.notes}</p>
+                                </div>
+                            )}
+                        </div>
+                        
+                        <h5 className="text-lg font-bold text-gray-800 dark:text-gray-200 border-b pb-2 pt-4">المواد المستخرجة:</h5>
+                        <div className="overflow-x-auto shadow-md rounded-xl">
+                            <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-green-100 dark:bg-green-900">
+                                    <tr>
+                                        <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 dark:text-gray-300">المادة</th>
+                                        <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 dark:text-gray-300">الباركود</th>
+                                        <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 dark:text-gray-300">الكمية</th>
+                                        <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 dark:text-gray-300">الفئة</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
+                                    {currentWithdrawal.items.map((item, index) => (
+                                        <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm font-medium">{item.name}</td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm">{item.barcode || '-'}</td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm font-bold text-green-600">{item.count}</td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm">{item.category}</td>
+                                        </tr>
+                                    ))}
+                                    <tr className="bg-green-50 dark:bg-green-900 font-extrabold">
+                                        <td colSpan="2" className="px-4 py-3 text-right">إجمالي الكمية:</td>
+                                        <td className="px-4 py-3 text-green-800 dark:text-green-200">
+                                            {currentWithdrawal.items.reduce((sum, item) => sum + item.count, 0)}
+                                        </td>
+                                        <td></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </Modal>
+            )}
+        </div>
+    );
+};
+
+
+
+/**
+ * 3.8. AboutSystemModal (حول النظام)
+ */
+const AboutSystemModal = ({ onClose }) => (
+    <Modal title="حول نظام المحاسبة العراقي" onClose={onClose} size="sm">
+        <div className="space-y-4 text-center p-4">
+            <h3 className="text-2xl font-extrabold text-blue-900 dark:text-blue-300">نظام المحاسبة العراقي (V3.0)</h3>
+            {/* **تم تغيير الجملة إلى جملة احترافية** */}
+            <p className="text-gray-700 dark:text-gray-300">منصة احترافية متكاملة لإدارة الموارد والمخزون والعمليات التشغيلية بكفاءة عالية.</p>
+            
+            <div className="border-t border-gray-200 pt-4 space-y-2 text-right">
+                {/* **تم تصحيح الاتجاه لليمين** */}
+                <div className="flex justify-between items-center">
+                    <span className="font-semibold text-gray-800 dark:text-gray-200">المصمم:</span>
+                    <span className="font-bold text-indigo-600 dark:text-indigo-400">علاء المالكي</span>
+                </div>
+                <div className="flex justify-between items-center">
+                    <span className="font-semibold text-gray-800 dark:text-gray-200">رقم الهاتف:</span>
+                    <span className="font-bold text-indigo-600 dark:text-indigo-400">٠٧٧١٧٧١٦٢٠٥</span>
+                </div>
+                <div className="flex justify-between items-center">
+                    <span className="font-semibold text-gray-800 dark:text-gray-200">إصدار التحديث:</span>
+                    <span className="font-bold text-indigo-600 dark:text-indigo-400">V3.0</span>
+                </div>
+            </div>
+            
+            <ActionButton onClick={onClose} className="w-full bg-teal-600 hover:bg-teal-700 mt-4">
+                إغلاق
+            </ActionButton>
+        </div>
+    </Modal>
+);
+
+
+/**
+ * 3.9. LoginPage (صفحة تسجيل الدخول)
+ */
+const LoginPage = ({ users, onLogin, showToast, systemExpiryDate }) => {
+    const [username, setUsername] = useState('');
+    const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        
+        // البحث عن المستخدم
+        const user = users.find(u => u.username === username && u.password === password);
+        
+        if (!user) {
+            showToast('اسم المستخدم أو كلمة المرور غير صحيحة', 'error');
+            return;
+        }
+
+        // التحقق من صلاحية النظام
+        // الأدمن يمكنه الدخول دائماً
+        if (user.role !== USER_ROLES.ADMIN && systemExpiryDate) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const expiryDate = new Date(systemExpiryDate);
+            expiryDate.setHours(0, 0, 0, 0);
+            
+            if (today > expiryDate) {
+                showToast('انتهت صلاحية النظام. يرجى التواصل مع المدير', 'error');
+                return;
+            }
+        }
+
+        // تسجيل الدخول بنجاح
+        onLogin(user);
+        showToast(`مرحباً ${user.username}!`, 'success');
+    };
+
+    return (
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 via-purple-800 to-indigo-900 dark:from-gray-900 dark:via-gray-800 dark:to-black p-4" dir="rtl">
+            <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-3xl shadow-2xl p-8 space-y-6">
+                <div className="text-center space-y-2">
+                    <h1 className="text-3xl font-extrabold text-gray-800 dark:text-white">نظام المحاسبة العراقي</h1>
+                    <p className="text-gray-600 dark:text-gray-300">V3.0</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">قم بتسجيل الدخول للمتابعة</p>
+                </div>
+
+                <form onSubmit={handleSubmit} className="space-y-5">
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">اسم المستخدم</label>
+                        <div className="relative">
+                            <User className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                            <input
+                                type="text"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                                required
+                                placeholder="أدخل اسم المستخدم"
+                                className="w-full pr-12 pl-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                                data-testid="input-username"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">كلمة المرور</label>
+                        <div className="relative">
+                            <input
+                                type={showPassword ? 'text' : 'password'}
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                required
+                                placeholder="أدخل كلمة المرور"
+                                className="w-full pr-4 pl-12 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                                data-testid="input-password"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                            >
+                                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                            </button>
+                        </div>
+                    </div>
+
+                    <button
+                        type="submit"
+                        className="w-full py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold rounded-xl shadow-lg transition duration-200 transform hover:scale-105"
+                        data-testid="button-login"
+                    >
+                        تسجيل الدخول
+                    </button>
+                </form>
+
+                <div className="text-center text-sm text-gray-500 dark:text-gray-400">
+                    <p>تصميم: علاء المالكي</p>
+                    <p className="mt-1">07717716205</p>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
+// =================================================================
+// 4. المكون الرئيسي للتطبيق (APP COMPONENT)
 // =================================================================
 
 const AccountingApp = () => {
@@ -6104,91 +6756,29 @@ const AccountingApp = () => {
     const [initialExpenseState, setInitialExpenseState] = useState(null);
     const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
     const [isDarkMode, setIsDarkMode] = useState(false);
-    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); 
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); 
+    
+    const [currentUser, setCurrentUser] = useState(null); // المستخدم المسجل حالياً
     
-    // حالة تسجيل الدخول ونوع المستخدم
-    const [userType, setUserType] = useState(null); // null | 'admin' | 'supervisor' | 'general_manager' | 'warehouse' | 'warehouse_2' | 'cashier' | 'editor'
     
-    // مستخدم ديناميكي حسب كلمة المرور - يستخدم الصلاحيات المخصصة من الإعدادات
-    const currentUser = useMemo(() => {
-        if (!userType) return null;
-        
-        const userProfiles = {
-            admin: {
-                username: "الأدمن",
-                email: "admin@system.local",
-                role: USER_ROLES.ADMIN,
-                permissions: ROLE_PERMISSIONS[USER_ROLES.ADMIN]
-            },
-            supervisor: {
-                username: "السوبر فايزر",
-                email: "supervisor@system.local",
-                role: USER_ROLES.SUPERVISOR,
-                permissions: data.settings.customPermissions?.supervisor || ROLE_PERMISSIONS[USER_ROLES.SUPERVISOR]
-            },
-            general_manager: {
-                username: "المدير العام",
-                email: "manager@system.local",
-                role: USER_ROLES.GENERAL_MANAGER,
-                permissions: data.settings.customPermissions?.general_manager || ROLE_PERMISSIONS[USER_ROLES.GENERAL_MANAGER]
-            },
-            warehouse: {
-                username: "أمين المخزن",
-                email: "warehouse@system.local",
-                role: USER_ROLES.WAREHOUSE_KEEPER,
-                permissions: data.settings.customPermissions?.warehouse || ROLE_PERMISSIONS[USER_ROLES.WAREHOUSE_KEEPER]
-            },
-            warehouse_2: {
-                username: "أمين المخزن 2",
-                email: "warehouse2@system.local",
-                role: USER_ROLES.WAREHOUSE_KEEPER_2,
-                permissions: data.settings.customPermissions?.warehouse_2 || ROLE_PERMISSIONS[USER_ROLES.WAREHOUSE_KEEPER_2]
-            },
-            cashier: {
-                username: "الكاشير",
-                email: "cashier@system.local",
-                role: USER_ROLES.CASHIER,
-                permissions: data.settings.customPermissions?.cashier || ROLE_PERMISSIONS[USER_ROLES.CASHIER]
-            },
-            editor: {
-                username: "المحرر",
-                email: "editor@system.local",
-                role: USER_ROLES.EDITOR,
-                permissions: data.settings.customPermissions?.editor || ROLE_PERMISSIONS[USER_ROLES.EDITOR]
-            }
-        };
-        
-        return userProfiles[userType] || null;
-    }, [userType, data.settings.customPermissions]); 
-    
-    // تحميل واسترجاع حالة تسجيل الدخول من localStorage
+    // تحميل تفضيلات Dark Mode من المستخدم المسجل
     useEffect(() => {
-        const savedUserType = localStorage.getItem("LOGGED_IN_USER_TYPE");
-        const validTypes = ["admin", "supervisor", "general_manager", "warehouse", "warehouse_2", "cashier", "editor"];
-        if (savedUserType && validTypes.includes(savedUserType)) {
-            setUserType(savedUserType);
+        if (currentUser) {
+            setIsDarkMode(currentUser.darkMode || false);
+            setIsSidebarCollapsed(currentUser.sidebarCollapsed || false);
         }
-    }, []);
-    
-    useEffect(() => {
-        if (userType) {
-            localStorage.setItem("LOGGED_IN_USER_TYPE", userType);
-        } else {
-            localStorage.removeItem("LOGGED_IN_USER_TYPE");
-        }
-    }, [userType]);
-    
+    }, [currentUser]);
+
     // دالة تسجيل الدخول
-    const handleLogin = (type) => {
-        setUserType(type);
-        showToast("تم تسجيل الدخول بنجاح", "success");
+    const handleLogin = (user) => {
+        setCurrentUser(user);
     };
-    
+
     // دالة تسجيل الخروج
     const handleLogout = () => {
-        setUserType(null);
-        localStorage.removeItem("LOGGED_IN_USER_TYPE");
-        showToast("تم تسجيل الخروج بنجاح", "success");
+        setCurrentUser(null);
+        setCurrentPage('dashboard');
+        setIsSidebarOpen(false);
     };
     
     // تحميل تفضيلات Dark Mode و Sidebar Collapse من المستخدم
@@ -6204,32 +6794,32 @@ const AccountingApp = () => {
     const toggleDarkMode = () => {
         const newMode = !isDarkMode;
         setIsDarkMode(newMode);
+        const updatedUsers = [...data.settings.users];
+        updatedUsers[0] = { ...updatedUsers[0], darkMode: newMode };
+        handleSettingsUpdate({ ...data.settings, users: updatedUsers });
     };
     
+    // Toggle Language
+    const toggleLanguage = () => {
+        const newLang = language === 'ar' ? 'en' : 'ar';
+        setLanguage(newLang);
+    };
+
     const toggleSidebarCollapse = () => {
         const newCollapse = !isSidebarCollapsed;
         setIsSidebarCollapsed(newCollapse);
-    };
-    
-    const handleRefresh = useCallback(() => {
+        const updatedUsers = [...data.settings.users];
+        updatedUsers[0] = { ...updatedUsers[0], sidebarCollapsed: newCollapse };
+        handleSettingsUpdate({ ...data.settings, users: updatedUsers });
+    }; 
+
+
+    // دالة تحديث الحالة العامة (لحل مشكلة التحديث الفوري)
+    const handleRefresh = useCallback(() => {
         setRefreshKey(prev => prev + 1);
         showToast('تم تحديث بيانات الصفحة.', 'info');
     }, [showToast]);
 
-    
-    // دالة تسجيل النشاطات - ترجع السجل الجديد فقط دون حفظه
-    const logActivity = useCallback((action, module, details) => {
-        if (!currentUser) return null;
-        
-        return {
-            id: crypto.randomUUID(),
-            timestamp: getDefaultDateTime(),
-            username: currentUser.username,
-            action, // إضافة، تعديل، حذف، موافقة، إلغاء
-            module, // اسم القسم
-            details // تفاصيل العملية
-        };
-    }, [currentUser]);
     // 3. CRUD Logic
     const handleDataAction = (collectionName, item, isNew, overwrite = false) => {
         // **دعم التحديث الشامل للبيانات**
@@ -6263,19 +6853,13 @@ const AccountingApp = () => {
             collection.push(newItem);
             newData[collectionName] = collection;
             
-            // تسجيل النشاط
-            const moduleName = navItems.find(i => i.key === collectionName)?.label || collectionName;
-            const details = `${newItem.name || newItem.invoiceNumber || newItem.id}`;
-            const activityLog = logActivity('إضافة', moduleName, details);
-            if (activityLog) {
-                const logs = [...(newData.activityLog || [])];
-                logs.unshift(activityLog);
-                if (logs.length > 500) logs.splice(500);
-                newData.activityLog = logs;
-            }
-            
             if (collectionName !== 'inventory') {
                 showToast(`تم إضافة السجل بنجاح!`, 'success');
+            
+            // تسجيل النشاط
+            const moduleName = navItems.find(i => i.key === collectionName)?.label || collectionName;
+            logActivity("إضافة", moduleName, `${item.description || item.amount || item.name || "سجل جديد"}`);
+
             }
             
             if (collectionName === 'inventory' && !newItem.purchaseHistory) {
@@ -6291,15 +6875,8 @@ const AccountingApp = () => {
                 
                 // تسجيل النشاط
                 const moduleName = navItems.find(i => i.key === collectionName)?.label || collectionName;
-                const details = `${item.name || item.invoiceNumber || item.id}`;
-                const activityLog = logActivity('تعديل', moduleName, details);
-                if (activityLog) {
-                    const logs = [...(newData.activityLog || [])];
-                    logs.unshift(activityLog);
-                    if (logs.length > 500) logs.splice(500);
-                    newData.activityLog = logs;
-                }
-                
+                logActivity("تعديل", moduleName, `${item.description || item.amount || item.name || "سجل"}`);
+
                 showToast(`تم تعديل السجل بنجاح!`, 'success');
             } else if (collectionName === 'pendingInvoices' && item.status) {
                  const existingIndex = collection.findIndex(i => i.id === item.id);
@@ -6354,40 +6931,12 @@ const AccountingApp = () => {
             }
         }
         
-        
-        // **مهم:** إذا تم حذف سند استخراج، يجب إعادة المواد للمخزون
-        if (collectionName === 'inventoryWithdrawals') {
-            const withdrawalToDelete = data.inventoryWithdrawals.find(w => w.id === id);
-            if (withdrawalToDelete && withdrawalToDelete.items) {
-                let updatedInventory = [...newData.inventory];
-                withdrawalToDelete.items.forEach(wItem => {
-                    const index = updatedInventory.findIndex(i => i.name === wItem.name);
-                    if (index !== -1) {
-                        updatedInventory[index] = {
-                            ...updatedInventory[index],
-                            count: updatedInventory[index].count + wItem.quantity,
-                        };
-                    }
-                });
-                newData.inventory = updatedInventory;
-            }
-        }
-        // تسجيل النشاط قبل الحذف
-        const itemToDelete = data[collectionName]?.find(item => item.id === id);
-        if (itemToDelete) {
-            const moduleName = navItems.find(i => i.key === collectionName)?.label || collectionName;
-            const details = `${itemToDelete.name || itemToDelete.invoiceNumber || itemToDelete.id}`;
-            const activityLog = logActivity('حذف', moduleName, details);
-            if (activityLog) {
-                const logs = [...(newData.activityLog || [])];
-                logs.unshift(activityLog);
-                if (logs.length > 500) logs.splice(500);
-                newData.activityLog = logs;
-            }
-        }
-
         newData[collectionName] = newData[collectionName].filter(item => item.id !== id);
         
+        // تسجيل النشاط
+        const moduleName = navItems.find(i => i.key === collectionName)?.label || collectionName;
+        const deletedItem = data[collectionName]?.find(item => item.id === id);
+        logActivity("حذف", moduleName, `${deletedItem?.description || deletedItem?.amount || deletedItem?.name || "سجل"}`);
 
 
         if (showMessage) {
@@ -6406,12 +6955,22 @@ const AccountingApp = () => {
                 // دمج البيانات المحفوظة مع الإعدادات الافتراضية الجديدة في حال عدم وجودها
                 const parsedData = JSON.parse(savedData);
                 
+                // تحديث صلاحيات المستخدمين الموجودين بدمجها مع BASE_PERMISSIONS
+                const updatedUsers = (parsedData.settings?.users || []).map(user => ({
+                    ...user,
+                    permissions: {
+                        ...BASE_PERMISSIONS,
+                        ...user.permissions
+                    }
+                }));
+                
                 setData(prev => ({
                     ...defaultDataStructure,
                     ...parsedData,
                     settings: {
                         ...defaultSettings,
                         ...(parsedData.settings || {}),
+                        users: updatedUsers.length > 0 ? updatedUsers : defaultSettings.users
                     }
                 }));
             }
@@ -6427,7 +6986,33 @@ const AccountingApp = () => {
         } catch (error) {
             console.error("Failed to save data to localStorage", error);
             showToast('خطأ في حفظ البيانات محلياً. يرجى التحقق من مساحة التخزين.', 'error');
+        }
+    };
+    
+    // دالة تسجيل النشاطات
+    const logActivity = (action, module, details = "") => {
+        const newData = { ...data };
+        
+        if (!newData.activityLog) {
+            newData.activityLog = [];
         }
+        
+        const logEntry = {
+            id: crypto.randomUUID(),
+            timestamp: new Date().toISOString(),
+            username: currentUser?.username || "المستخدم",
+            action,
+            module,
+            details
+        };
+        
+        newData.activityLog.unshift(logEntry);
+        
+        if (newData.activityLog.length > 500) {
+            newData.activityLog = newData.activityLog.slice(0, 500);
+        }
+        
+        saveData(newData);
     };
 
     // 5. Settings Update
@@ -6474,11 +7059,10 @@ const AccountingApp = () => {
         { key: 'employees', label: 'الموظفين', icon: Users, component: EmployeePageComponent, props: { handleRefresh } },
         { key: 'payroll', label: 'الرواتب', icon: Calculator, component: PayrollPageComponent, props: { handleRefresh } },
         { key: 'inventoryEntry', label: 'الإدخال المخزني', icon: ClipboardCheck, component: InventoryEntryComponent, props: { handleRefresh } },
-        { key: 'inventoryWithdrawal', label: 'الاستخراج المخزني', icon: PackageOpen, component: InventoryWithdrawalComponent, props: { handleRefresh, currentUser } },
+        { key: 'inventoryWithdrawal', label: 'الاستخراج المخزني', icon: LogOut, component: InventoryWithdrawalComponent, props: { handleRefresh, handleDelete, handleDataAction } },
         { key: 'inventory', label: 'المخزن والمواد', icon: Package, component: InventoryPageComponent, props: { handleRefresh, handleDataAction } },
         { key: 'settings', label: 'الإعدادات', icon: Settings, component: SettingsPage, props: { handleSettingsUpdate } },
         { key: 'admin', label: 'الإدارة', icon: Shield, component: AdminPage, props: { handleDataAction, showToast } },
-        { key: 'about', label: 'حول النظام', icon: Info, component: AboutPage, props: {} },
     ];
     
     // فلترة عناصر القائمة حسب صلاحيات المستخدم
@@ -6529,13 +7113,256 @@ const AccountingApp = () => {
 
 
 
-    // إذا لم يكن المستخدم مسجلاً، عرض صفحة تسجيل الدخول
-    if (!userType || !currentUser) {
+    // =================================================================
+    // AI Chatbot Component
+    // =================================================================
+    const AIChatbot = () => {
+        const CHAT_STORAGE_KEY = 'iraqiAccountingChatHistory';
+        const CHAT_EXPIRY_HOURS = 24;
+        
+        // تحميل المحادثات من localStorage
+        const loadChatHistory = () => {
+            try {
+                const stored = localStorage.getItem(CHAT_STORAGE_KEY);
+                if (stored) {
+                    const parsed = JSON.parse(stored);
+                    const createdAt = new Date(parsed.createdAt);
+                    const now = new Date();
+                    const hoursDiff = (now - createdAt) / (1000 * 60 * 60);
+                    
+                    // إذا مرت أكثر من 24 ساعة، احذف المحادثات القديمة
+                    if (hoursDiff > CHAT_EXPIRY_HOURS) {
+                        localStorage.removeItem(CHAT_STORAGE_KEY);
+                        return getInitialMessages();
+                    }
+                    
+                    return parsed.messages;
+                }
+            } catch (error) {
+                console.error('Error loading chat history:', error);
+            }
+            return getInitialMessages();
+        };
+        
+        const getInitialMessages = () => [{
+            id: 1,
+            text: 'مرحباً! أنا علاء، مساعدك الذكي في نظام الحسابات. كيف يمكنني مساعدتك اليوم؟',
+            sender: 'bot',
+            timestamp: new Date().toISOString()
+        }];
+        
+        const [isOpen, setIsOpen] = useState(false);
+        const [messages, setMessages] = useState(loadChatHistory());
+        const [inputMessage, setInputMessage] = useState('');
+        const [isSending, setIsSending] = useState(false);
+        const messagesEndRef = React.useRef(null);
+        
+        // حفظ المحادثات في localStorage عند كل تحديث
+        useEffect(() => {
+            if (messages.length > 0) {
+                try {
+                    const chatData = {
+                        messages: messages,
+                        createdAt: new Date().toISOString()
+                    };
+                    localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(chatData));
+                } catch (error) {
+                    console.error('Error saving chat history:', error);
+                }
+            }
+        }, [messages]);
+
+        const scrollToBottom = () => {
+            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        };
+
+        useEffect(() => {
+            scrollToBottom();
+        }, [messages]);
+
+        const handleSendMessage = async (e) => {
+            e.preventDefault();
+            
+            if (!inputMessage.trim() || isSending) return;
+
+            const userMessage = {
+                id: Date.now(),
+                text: inputMessage,
+                sender: 'user',
+                timestamp: new Date().toISOString()
+            };
+
+            setMessages(prev => [...prev, userMessage]);
+            setInputMessage('');
+            setIsSending(true);
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        message: inputMessage,
+                        context: {
+                            currentPage,
+                            user: currentUser.username
+                        }
+                    }),
+                });
+
+                if (!response.ok) {
+                    throw new Error('فشل في الاتصال بالخادم');
+                }
+
+                const data = await response.json();
+                
+                const botMessage = {
+                    id: Date.now() + 1,
+                    text: data.reply || 'عذراً، حدث خطأ في معالجة طلبك.',
+                    sender: 'bot',
+                    timestamp: new Date().toISOString()
+                };
+
+                setMessages(prev => [...prev, botMessage]);
+            } catch (error) {
+                console.error('Chat error:', error);
+                const errorMessage = {
+                    id: Date.now() + 1,
+                    text: 'عذراً، حدث خطأ في الاتصال. يرجى المحاولة مرة أخرى.',
+                    sender: 'bot',
+                    timestamp: new Date().toISOString()
+                };
+                setMessages(prev => [...prev, errorMessage]);
+            } finally {
+                setIsSending(false);
+            }
+        };
+
+        const formatTime = (date) => {
+            return new Date(date).toLocaleTimeString('ar-IQ', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
+        };
+
         return (
-            <LoginPage onLogin={handleLogin} settings={data.settings} />
+            <div className="fixed bottom-4 left-4 z-50" dir="rtl">
+                {/* Chat Window */}
+                {isOpen && (
+                    <div className="mb-4 w-96 max-w-[calc(100vw-2rem)] bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden transition-all duration-300">
+                        {/* Header */}
+                        <div className="bg-gradient-to-r from-teal-600 to-blue-600 p-4 flex items-center justify-between">
+                            <div className="flex items-center space-x-3 space-x-reverse">
+                                <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
+                                    <MessageCircle className="w-6 h-6 text-teal-600" />
+                                </div>
+                                <div>
+                                    <h3 className="text-white font-bold text-lg">اسأل علاء</h3>
+                                    <p className="text-teal-100 text-xs">متصل الآن</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setIsOpen(false)}
+                                className="text-white hover:bg-white/20 p-2 rounded-lg transition"
+                                data-testid="button-close-chatbot"
+                            >
+                                <Minimize2 className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {/* Messages Container */}
+                        <div className="h-96 overflow-y-auto p-4 space-y-4 bg-gray-50 dark:bg-gray-900">
+                            {messages.map((message) => (
+                                <div
+                                    key={message.id}
+                                    className={`flex ${message.sender === 'user' ? 'justify-start' : 'justify-end'}`}
+                                >
+                                    <div
+                                        className={`max-w-[80%] rounded-2xl p-3 ${
+                                            message.sender === 'user'
+                                                ? 'bg-teal-600 text-white rounded-tr-none'
+                                                : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700 rounded-tl-none'
+                                        }`}
+                                    >
+                                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.text}</p>
+                                        <p className={`text-xs mt-1 ${
+                                            message.sender === 'user' 
+                                                ? 'text-teal-100' 
+                                                : 'text-gray-500 dark:text-gray-400'
+                                        }`}>
+                                            {formatTime(message.timestamp)}
+                                        </p>
+                                    </div>
+                                </div>
+                            ))}
+                            {isSending && (
+                                <div className="flex justify-end">
+                                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl rounded-tl-none p-3">
+                                        <div className="flex space-x-2 space-x-reverse">
+                                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                            <div ref={messagesEndRef} />
+                        </div>
+
+                        {/* Input Form */}
+                        <form onSubmit={handleSendMessage} className="p-4 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+                            <div className="flex items-center space-x-2 space-x-reverse">
+                                <input
+                                    type="text"
+                                    value={inputMessage}
+                                    onChange={(e) => setInputMessage(e.target.value)}
+                                    placeholder="اكتب رسالتك هنا..."
+                                    disabled={isSending}
+                                    className="flex-1 p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-transparent transition bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                                    data-testid="input-chat-message"
+                                />
+                                <button
+                                    type="submit"
+                                    disabled={!inputMessage.trim() || isSending}
+                                    className="bg-teal-600 hover:bg-teal-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white p-3 rounded-xl transition duration-200 shadow-lg"
+                                    data-testid="button-send-message"
+                                >
+                                    <Send className="w-5 h-5" />
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                )}
+
+                {/* Floating Toggle Button */}
+                <button
+                    onClick={() => setIsOpen(!isOpen)}
+                    className="bg-gradient-to-r from-teal-600 to-blue-600 hover:from-teal-700 hover:to-blue-700 text-white w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 hover:scale-110"
+                    data-testid="button-toggle-chatbot"
+                >
+                    {isOpen ? (
+                        <X className="w-5 h-5 md:w-6 md:h-6" />
+                    ) : (
+                        <MessageCircle className="w-5 h-5 md:w-6 md:h-6" />
+                    )}
+                </button>
+            </div>
+        );
+    };
+
+
+    // عرض صفحة تسجيل الدخول إذا لم يكن هناك مستخدم مسجل
+    if (!currentUser) {
+        return (
+            <LoginPage
+                users={data.settings.users}
+                onLogin={handleLogin}
+                showToast={showToast}
+                systemExpiryDate={data.settings.systemExpiryDate}
+            />
         );
     }
-
     return (
         <div className="min-h-screen flex bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950 antialiased text-right overflow-x-hidden" dir="rtl">
             <style>
@@ -6562,12 +7389,12 @@ const AccountingApp = () => {
             <div className={`app-sidebar ${isSidebarCollapsed ? 'w-16' : 'w-64'} bg-gradient-to-b from-blue-900 via-blue-800 to-blue-900 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 text-white flex flex-col shadow-2xl border-l border-blue-700 dark:border-gray-700 fixed top-0 right-0 h-full z-50 transition-all duration-300 ${isSidebarOpen ? 'translate-x-0' : 'rtl:translate-x-full ltr:-translate-x-full'} lg:!translate-x-0`}>
                 <div className={`${isSidebarCollapsed ? 'p-2' : 'p-6'} text-center border-b-2 border-blue-600 dark:border-gray-700 transition-all duration-300 bg-blue-950/30 dark:bg-gray-950/30`}>
                     {/* زر الطي في أعلى Sidebar */}
-                    <button onClick={toggleSidebarCollapse} className={`${isSidebarCollapsed ? 'mx-auto' : 'absolute left-3 top-4'} flex items-center justify-center text-white p-2 rounded-full lg:inline-block hidden hover:bg-blue-800 transition`}>
+                    <button onClick={toggleSidebarCollapse} className={`${isSidebarCollapsed ? 'mx-auto' : 'absolute left-3 top-4'} text-white p-2 rounded-full lg:inline-block hidden hover:bg-blue-800 transition`}>
                         {isSidebarCollapsed ? <ChevronLeft className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
                     </button>
                     {!isSidebarCollapsed && <h1 className="text-3xl font-extrabold">{data.settings.companyName}</h1>}
                     {!isSidebarCollapsed && <p className="text-sm opacity-75">مرحباً, {currentUser.username}</p>}
-                    <button onClick={() => setIsSidebarOpen(false)} className="absolute left-3 top-4 flex items-center justify-center text-white p-2 rounded-full lg:hidden hover:bg-blue-800">
+                    <button onClick={() => setIsSidebarOpen(false)} className="absolute left-3 top-4 text-white p-2 rounded-full lg:hidden hover:bg-blue-800">
                         <X className="w-5 h-5 md:w-6 md:h-6" />
                     </button>
                 </div>
@@ -6610,32 +7437,32 @@ const AccountingApp = () => {
                         {!isSidebarCollapsed && <span className="text-lg">{isDarkMode ? t("lightMode") : t("darkMode")}</span>}
                     </button>
                     
+                    {/* زر تبديل اللغة - مخفي */}
+                    {/* <button
+                    
                     {/* زر تسجيل الخروج */}
                     <button
                         onClick={handleLogout}
                         data-testid="button-logout"
-                        title={isSidebarCollapsed ? "تسجيل الخروج" : ""}
-                        className={`w-full flex items-center ${isSidebarCollapsed ? "justify-center p-2" : "text-right p-3"} rounded-xl transition-all duration-200 bg-red-600/20 hover:bg-red-600/40 dark:bg-red-900/30 dark:hover:bg-red-900/50 border border-red-500/30 hover:scale-102`}
+                        title={isSidebarCollapsed ? 'تسجيل الخروج' : ''}
+                        className={`w-full flex items-center ${isSidebarCollapsed ? "justify-center p-2" : "text-right p-3"} rounded-xl transition-all duration-200 hover:bg-red-600/50 dark:hover:bg-red-700/50 hover:scale-102 text-red-100 hover:text-white`}
                     >
                         <LogOut className={`w-5 h-5 ${!isSidebarCollapsed && "ml-3"}`} />
                         {!isSidebarCollapsed && <span className="text-lg">تسجيل الخروج</span>}
                     </button>
-                    
-                    {/* زر تبديل اللغة - مخفي */}
                 </nav>
-                    
             </div>
 
             {/* Main Content Area */}
             <main className={`flex-grow p-2 sm:p-4 md:p-8 overflow-x-hidden ${isSidebarCollapsed ? 'lg:mr-16' : 'lg:mr-64'}`}>
                 {/* Header for Mobile/Tablet */}
                 <header className="app-header flex justify-between items-center bg-gradient-to-r from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 p-4 mb-4 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 lg:hidden">
-                    <button onClick={() => setIsSidebarOpen(true)} className="flex items-center justify-center text-blue-600 dark:text-blue-400 p-2 rounded-lg hover:bg-gray-100 dark:bg-gray-600 dark:hover:bg-gray-700 transition">
+                    <button onClick={() => setIsSidebarOpen(true)} className="text-blue-600 dark:text-blue-400 p-2 rounded-lg hover:bg-gray-100 dark:bg-gray-600 dark:hover:bg-gray-700 transition">
                         <Menu className="w-5 h-5 md:w-6 md:h-6" />
                     </button>
                     <h1 className="text-xl font-bold text-gray-800 dark:text-gray-200 dark:text-gray-100">{navItems.find(item => item.key === currentPage)?.label}</h1>
                 <div className="flex items-center space-x-2 space-x-reverse">
-                        <button onClick={toggleDarkMode} className="flex items-center justify-center p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 hover:scale-110 text-gray-700 dark:text-gray-200">
+                        <button onClick={toggleDarkMode} className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 hover:scale-110 text-gray-700 dark:text-gray-200">
                             {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                         </button>
                         {/* زر تبديل اللغة - مخفي */}
@@ -6692,6 +7519,8 @@ const AccountingApp = () => {
                 />
             )}
 
+            {/* About System Modal */}
+            {isAboutModalOpen && <AboutSystemModal onClose={() => setIsAboutModalOpen(false)} />}
 
 
             {/* Notification Toast */}
@@ -6703,6 +7532,8 @@ const AccountingApp = () => {
                 />
             )}
 
+            {/* AI Chatbot */}
+            <AIChatbot />
         </div>
     );
 };
