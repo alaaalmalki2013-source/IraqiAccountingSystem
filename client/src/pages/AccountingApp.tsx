@@ -53,11 +53,13 @@ import {
     Send,
     Minimize2,
     Languages,
+    FolderOpen,
+    Upload,
+    FileText,
     Clock,
     XCircle,
     FileImage,
     Shield,
-    Upload,
     FileDown,
     Mail,
     Key
@@ -5503,6 +5505,91 @@ const UserManagementSection = React.memo(({ data, handleDataAction, showToast })
  * صفحة إدارة النظام والمعلومات الإدارية
  */
 /**
+ * قسم إدارة رابط Google Drive
+ */
+const GoogleDriveLinkSection = React.memo(({ data, handleDataAction, showToast }) => {
+    const [googleDriveUrl, setGoogleDriveUrl] = useState(data.settings.googleDriveFolderUrl || '');
+
+    const handleUpdateGoogleDriveUrl = () => {
+        const updatedSettings = {
+            ...data.settings,
+            googleDriveFolderUrl: googleDriveUrl
+        };
+
+        handleDataAction('___FULL_DATA_UPDATE___', {
+            ...data,
+            settings: updatedSettings
+        }, false);
+
+        showToast('تم تحديث رابط مجلد Google Drive بنجاح! 📁', 'success');
+    };
+
+    return (
+        <div className="p-6 rounded-xl shadow-lg bg-gradient-to-br from-green-50 to-teal-100 dark:from-green-900/30 dark:to-teal-800/30 border-r-4 border-green-600">
+            <h3 className="text-2xl font-bold text-green-800 dark:text-green-300 mb-6 flex items-center gap-2">
+                <FolderOpen className="w-6 h-6" />
+                إدارة مجلد الفواتير والمستمسكات (Google Drive)
+            </h3>
+
+            <div className="space-y-4">
+                <div className="bg-green-100 dark:bg-green-900/30 p-4 rounded-lg border border-green-300 dark:border-green-700">
+                    <p className="text-sm text-green-900 dark:text-green-200 font-semibold mb-2">
+                        📂 المجلد الحالي:
+                    </p>
+                    {googleDriveUrl ? (
+                        <div className="flex items-center gap-2">
+                            <a 
+                                href={googleDriveUrl} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-blue-600 dark:text-blue-400 hover:underline font-mono text-sm break-all"
+                            >
+                                {googleDriveUrl}
+                            </a>
+                            <ExternalLink className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                        </div>
+                    ) : (
+                        <p className="text-sm text-gray-600 dark:text-gray-400 italic">لم يتم تعيين رابط بعد</p>
+                    )}
+                </div>
+
+                <div>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                        رابط مجلد Google Drive
+                    </label>
+                    <input
+                        type="url"
+                        value={googleDriveUrl}
+                        onChange={(e) => setGoogleDriveUrl(e.target.value)}
+                        className="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
+                        placeholder="https://drive.google.com/drive/folders/..."
+                        data-testid="input-google-drive-url"
+                    />
+                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                        الصق رابط المجلد المشترك من Google Drive حيث سيتم حفظ جميع الفواتير والمستمسكات
+                    </p>
+                </div>
+
+                <ActionButton
+                    onClick={handleUpdateGoogleDriveUrl}
+                    className="w-full bg-green-600 hover:bg-green-700"
+                    data-testid="button-update-google-drive-url"
+                >
+                    <Save className="w-5 h-5 ml-2" />
+                    حفظ رابط المجلد
+                </ActionButton>
+
+                <div className="bg-blue-100 dark:bg-blue-900/30 p-4 rounded-lg border border-blue-300 dark:border-blue-700">
+                    <p className="text-xs text-blue-900 dark:text-blue-200 font-semibold">
+                        💡 ملاحظة: تأكد من أن المجلد مشارك مع جميع المستخدمين المعنيين. يمكن رفع الملفات يدوياً أو من خلال الماسح الضوئي.
+                    </p>
+                </div>
+            </div>
+        </div>
+    );
+});
+
+/**
  * قسم تغيير الماستر كي
  */
 const MasterKeySection = React.memo(({ data, handleDataAction, showToast }) => {
@@ -5770,6 +5857,9 @@ const AdminPage = React.memo(({ data, handleDataAction, showToast }) => {
                     )}
                 </div>
             </div>
+            
+            {/* قسم إدارة رابط Google Drive */}
+            <GoogleDriveLinkSection data={data} handleDataAction={handleDataAction} showToast={showToast} />
             
             {/* قسم تغيير الماستر كي */}
             <MasterKeySection data={data} handleDataAction={handleDataAction} showToast={showToast} />

@@ -251,6 +251,7 @@ export const settings = pgTable("settings", {
   id: varchar("id").primaryKey().default('main_settings'),
   companyName: text("company_name").notNull().default('شركتي'),
   companyLogoUrl: text("company_logo_url"),
+  googleDriveFolderUrl: text("google_drive_folder_url"), // رابط مجلد Google Drive للفواتير والمستمسكات
   systemExpiryDate: text("system_expiry_date"), // DD/MM/YYYY
   masterKey: text("master_key").notNull().default('8809912@..Alaa'),
   expenseCategories: jsonb("expense_categories").default('[]'),
@@ -346,6 +347,40 @@ export const payrollsRelations = relations(payrolls, ({ one }) => ({
 export const activityLogsRelations = relations(activityLogs, ({ one }) => ({
   user: one(users, {
     fields: [activityLogs.userId],
+    references: [users.id],
+  }),
+}));
+
+// ===================================
+// 14. جدول المستندات والفواتير المرفوعة
+// ===================================
+export const employeeDocuments = pgTable("employee_documents", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  employeeId: varchar("employee_id").references(() => employees.id),
+  employeeName: text("employee_name").notNull(),
+  documentType: text("document_type").notNull(), // 'invoice', 'id_card', 'certificate', 'contract', 'other'
+  documentName: text("document_name").notNull(),
+  fileData: text("file_data"), // base64 encoded file data
+  fileType: text("file_type"), // 'image/png', 'image/jpeg', 'application/pdf', etc.
+  fileSize: integer("file_size"), // in bytes
+  notes: text("notes"),
+  uploadDate: text("upload_date").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdBy: varchar("created_by").references(() => users.id),
+});
+
+export const insertEmployeeDocumentSchema = createInsertSchema(employeeDocuments).omit({ id: true, createdAt: true });
+export const selectEmployeeDocumentSchema = createSelectSchema(employeeDocuments);
+export type InsertEmployeeDocument = z.infer<typeof insertEmployeeDocumentSchema>;
+export type EmployeeDocument = typeof employeeDocuments.$inferSelect;
+
+export const employeeDocumentsRelations = relations(employeeDocuments, ({ one }) => ({
+  employee: one(employees, {
+    fields: [employeeDocuments.employeeId],
+    references: [employees.id],
+  }),
+  createdByUser: one(users, {
+    fields: [employeeDocuments.createdBy],
     references: [users.id],
   }),
 }));
