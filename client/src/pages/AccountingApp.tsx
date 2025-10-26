@@ -7015,6 +7015,11 @@ const AccountingApp = () => {
             ...user,
             permissions: mergedPermissions
         });
+        
+        // حفظ وقت تسجيل الدخول في localStorage
+        const loginTime = new Date().toISOString();
+        localStorage.setItem('lastLoginTime', loginTime);
+        localStorage.setItem('lastLoginDate', new Date().toDateString());
     };
 
     // دالة تسجيل الخروج
@@ -7022,7 +7027,78 @@ const AccountingApp = () => {
         setCurrentUser(null);
         setCurrentPage('dashboard');
         setIsSidebarOpen(false);
+        // مسح بيانات الجلسة
+        localStorage.removeItem('lastLoginTime');
+        localStorage.removeItem('lastLoginDate');
     };
+    
+    // **نظام تسجيل الخروج التلقائي عند الساعة 5 صباحاً**
+    useEffect(() => {
+        if (!currentUser) return;
+        
+        const checkAutoLogout = () => {
+            const now = new Date();
+            const currentHour = now.getHours();
+            const currentMinute = now.getMinutes();
+            
+            // التحقق من وقت تسجيل الدخول
+            const lastLoginDate = localStorage.getItem('lastLoginDate');
+            const today = new Date().toDateString();
+            
+            // إذا كانت الساعة 5 صباحاً أو أكثر وآخر تسجيل دخول كان في يوم سابق
+            if (currentHour >= 5 && lastLoginDate && lastLoginDate !== today) {
+                showToast('تم تسجيل الخروج تلقائياً - بداية يوم عمل جديد. يرجى تسجيل الدخول مرة أخرى.', 'info');
+                handleLogout();
+                return;
+            }
+            
+            // إذا وصلت الساعة 5 صباحاً تماماً في نفس اليوم
+            if (currentHour === 5 && currentMinute === 0 && lastLoginDate === today) {
+                showToast('تم تسجيل الخروج تلقائياً - بداية يوم عمل جديد. يرجى تسجيل الدخول مرة أخرى.', 'info');
+                handleLogout();
+            }
+        };
+        
+        // فحص فوري عند التحميل
+        checkAutoLogout();
+        
+        // فحص كل دقيقة
+        const interval = setInterval(checkAutoLogout, 60000); // 60 ثانية
+        
+        return () => clearInterval(interval);
+    }, [currentUser, handleLogout, showToast]);
+    
+    // **فحص الجلسة عند العودة للنافذة أو إعادة التركيز**
+    useEffect(() => {
+        if (!currentUser) return;
+        
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                const lastLoginDate = localStorage.getItem('lastLoginDate');
+                const today = new Date().toDateString();
+                const now = new Date();
+                const currentHour = now.getHours();
+                
+                // إذا كان آخر تسجيل دخول في يوم سابق والساعة بعد 5 صباحاً
+                if (lastLoginDate && lastLoginDate !== today && currentHour >= 5) {
+                    showToast('انتهت جلستك - يرجى تسجيل الدخول مرة أخرى.', 'warning');
+                    handleLogout();
+                }
+            }
+        };
+        
+        const handleBeforeUnload = () => {
+            // يمكن إضافة منطق إضافي هنا إذا لزم الأمر
+        };
+        
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+        };
+    }, [currentUser, handleLogout, showToast]);
     
     // تحميل تفضيلات Dark Mode و Sidebar Collapse من المستخدم
     useEffect(() => {

@@ -76,6 +76,13 @@ The system is built as a single-page application with a modern and professional 
     -   **💼 المحاسب (Accountant):** View access to all modules + approve inventory entries and pending expenses.
     -   **💰 الكاشير (Cashier):** Approve inventory withdrawals (which adds to pending expenses), manage suspended payments, limited inventory entry access.
     -   **Security:** Cannot create new admin accounts. Cannot modify or delete the main admin account. Role change triggers automatic permission update.
+-   **Auto-Logout System:** Automatic session management for security and daily workflow:
+    -   **Daily Reset at 5:00 AM:** All users are automatically logged out at 5:00 AM to mark the start of a new working day.
+    -   **Session Tracking:** Login time and date stored in localStorage to track session validity.
+    -   **Cross-Day Detection:** System detects if user returns after 5:00 AM on a different day and requires re-login.
+    -   **Visibility Check:** When browser window regains focus, system validates session and logs out if needed.
+    -   **Clean Logout:** Session data cleared from localStorage on manual or automatic logout.
+    -   **User Notifications:** Clear toast messages inform users when auto-logout occurs.
 
 ## External Dependencies
 -   **Frontend:**
