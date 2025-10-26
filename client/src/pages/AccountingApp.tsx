@@ -7614,6 +7614,8 @@ const AccountingApp = () => {
         if (!currentUser) return [];
         return navItems.filter(item => {
             const perm = currentUser.permissions[item.key];
+            // حول النظام متاحة للجميع
+            if (item.key === 'about') return true;
             // تحقق من صلاحية الرؤية
             return perm && perm.view;
         });
