@@ -5482,7 +5482,7 @@ const AccountingApp = () => {
     // حالة تسجيل الدخول ونوع المستخدم
     const [userType, setUserType] = useState(null); // null | 'admin' | 'supervisor' | 'general_manager' | 'warehouse' | 'warehouse_2' | 'cashier' | 'editor'
     
-    // مستخدم ديناميكي حسب كلمة المرور
+    // مستخدم ديناميكي حسب كلمة المرور - يستخدم الصلاحيات المخصصة من الإعدادات
     const currentUser = useMemo(() => {
         if (!userType) return null;
         
@@ -5497,42 +5497,42 @@ const AccountingApp = () => {
                 username: "السوبر فايزر",
                 email: "supervisor@system.local",
                 role: USER_ROLES.SUPERVISOR,
-                permissions: ROLE_PERMISSIONS[USER_ROLES.SUPERVISOR]
+                permissions: data.settings.customPermissions?.supervisor || ROLE_PERMISSIONS[USER_ROLES.SUPERVISOR]
             },
             general_manager: {
                 username: "المدير العام",
                 email: "manager@system.local",
                 role: USER_ROLES.GENERAL_MANAGER,
-                permissions: ROLE_PERMISSIONS[USER_ROLES.GENERAL_MANAGER]
+                permissions: data.settings.customPermissions?.general_manager || ROLE_PERMISSIONS[USER_ROLES.GENERAL_MANAGER]
             },
             warehouse: {
                 username: "أمين المخزن",
                 email: "warehouse@system.local",
                 role: USER_ROLES.WAREHOUSE_KEEPER,
-                permissions: ROLE_PERMISSIONS[USER_ROLES.WAREHOUSE_KEEPER]
+                permissions: data.settings.customPermissions?.warehouse || ROLE_PERMISSIONS[USER_ROLES.WAREHOUSE_KEEPER]
             },
             warehouse_2: {
                 username: "أمين المخزن 2",
                 email: "warehouse2@system.local",
                 role: USER_ROLES.WAREHOUSE_KEEPER_2,
-                permissions: ROLE_PERMISSIONS[USER_ROLES.WAREHOUSE_KEEPER_2]
+                permissions: data.settings.customPermissions?.warehouse_2 || ROLE_PERMISSIONS[USER_ROLES.WAREHOUSE_KEEPER_2]
             },
             cashier: {
                 username: "الكاشير",
                 email: "cashier@system.local",
                 role: USER_ROLES.CASHIER,
-                permissions: ROLE_PERMISSIONS[USER_ROLES.CASHIER]
+                permissions: data.settings.customPermissions?.cashier || ROLE_PERMISSIONS[USER_ROLES.CASHIER]
             },
             editor: {
                 username: "المحرر",
                 email: "editor@system.local",
                 role: USER_ROLES.EDITOR,
-                permissions: ROLE_PERMISSIONS[USER_ROLES.EDITOR]
+                permissions: data.settings.customPermissions?.editor || ROLE_PERMISSIONS[USER_ROLES.EDITOR]
             }
         };
         
         return userProfiles[userType] || null;
-    }, [userType]); 
+    }, [userType, data.settings.customPermissions]); 
     
     // تحميل واسترجاع حالة تسجيل الدخول من localStorage
     useEffect(() => {
