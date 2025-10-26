@@ -6788,14 +6788,14 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
 
 
 /**
- * 3.9. WelcomeMessage (رسالة الترحيب)
+ * 3.9. WelcomeMessage (رسالة الترحيب المؤقتة)
  */
-const WelcomeMessage = ({ user, companyName, onContinue }) => {
+const WelcomeMessage = ({ user, companyName }) => {
     return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 via-purple-800 to-indigo-900 dark:from-gray-900 dark:via-gray-800 dark:to-black p-4" dir="rtl">
             <div className="w-full max-w-sm md:max-w-md bg-white dark:bg-gray-800 rounded-3xl shadow-2xl p-6 md:p-10 space-y-6 text-center animate-fade-in">
                 <div className="flex justify-center">
-                    <div className="w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br from-green-400 to-teal-500 rounded-full flex items-center justify-center shadow-lg">
+                    <div className="w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br from-green-400 to-teal-500 rounded-full flex items-center justify-center shadow-lg animate-pulse">
                         <CheckCircle className="w-8 h-8 md:w-10 md:h-10 text-white" />
                     </div>
                 </div>
@@ -6815,12 +6815,12 @@ const WelcomeMessage = ({ user, companyName, onContinue }) => {
                     </p>
                 </div>
 
-                <button
-                    onClick={onContinue}
-                    className="w-full py-3 md:py-3.5 text-sm md:text-base bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold rounded-xl shadow-lg transition duration-200 transform hover:scale-105"
-                >
-                    المتابعة إلى النظام
-                </button>
+                <div className="pt-2">
+                    <div className="inline-flex items-center space-x-2 space-x-reverse text-sm text-gray-500 dark:text-gray-400">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                        <span>جارٍ تحميل النظام...</span>
+                    </div>
+                </div>
             </div>
         </div>
     );
@@ -6832,6 +6832,7 @@ const WelcomeMessage = ({ user, companyName, onContinue }) => {
 const LoginPage = ({ users, onLogin, showToast, systemExpiryDate, companyName, masterKey }) => {
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
+    const [welcomeUser, setWelcomeUser] = useState(null);
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -6878,10 +6879,23 @@ const LoginPage = ({ users, onLogin, showToast, systemExpiryDate, companyName, m
             }
         }
 
-        // تسجيل الدخول مباشرة
-        showToast(`مرحباً ${user.username}! 🎉`, 'success');
-        onLogin(user);
+        // عرض رسالة الترحيب المؤقتة والدخول تلقائياً بعد ثانيتين
+        setWelcomeUser(user);
+        setTimeout(() => {
+            onLogin(user);
+            setWelcomeUser(null);
+        }, 2000);
     };
+    
+    // عرض رسالة الترحيب المؤقتة
+    if (welcomeUser) {
+        return (
+            <WelcomeMessage
+                user={welcomeUser}
+                companyName={companyName}
+            />
+        );
+    }
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 via-purple-800 to-indigo-900 dark:from-gray-900 dark:via-gray-800 dark:to-black p-4" dir="rtl">
