@@ -5057,7 +5057,6 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
  * صفحة إدارة النظام والمعلومات الإدارية
  */
 const AdminPage = React.memo(({ data, handleDataAction, showToast }) => {
-    const [systemExpiryDate, setSystemExpiryDate] = useState(data.settings.systemExpiryDate || '');
     
     const handleExpiryDateUpdate = () => {
         const updatedSettings = {
