@@ -5299,7 +5299,7 @@ const AccountingApp = () => {
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); 
     
     // حالة تسجيل الدخول ونوع المستخدم
-    const [userType, setUserType] = useState(null); // null | 'admin' | 'warehouse' | 'cashier'
+    const [userType, setUserType] = useState(null); // null | 'admin' | 'supervisor' | 'general_manager' | 'warehouse' | 'warehouse_2' | 'cashier' | 'editor'
     
     // مستخدم ديناميكي حسب كلمة المرور
     const currentUser = useMemo(() => {
@@ -5312,17 +5312,41 @@ const AccountingApp = () => {
                 role: USER_ROLES.ADMIN,
                 permissions: ROLE_PERMISSIONS[USER_ROLES.ADMIN]
             },
+            supervisor: {
+                username: "السوبر فايزر",
+                email: "supervisor@system.local",
+                role: USER_ROLES.SUPERVISOR,
+                permissions: ROLE_PERMISSIONS[USER_ROLES.SUPERVISOR]
+            },
+            general_manager: {
+                username: "المدير العام",
+                email: "manager@system.local",
+                role: USER_ROLES.GENERAL_MANAGER,
+                permissions: ROLE_PERMISSIONS[USER_ROLES.GENERAL_MANAGER]
+            },
             warehouse: {
                 username: "أمين المخزن",
                 email: "warehouse@system.local",
                 role: USER_ROLES.WAREHOUSE_KEEPER,
                 permissions: ROLE_PERMISSIONS[USER_ROLES.WAREHOUSE_KEEPER]
             },
+            warehouse_2: {
+                username: "أمين المخزن 2",
+                email: "warehouse2@system.local",
+                role: USER_ROLES.WAREHOUSE_KEEPER_2,
+                permissions: ROLE_PERMISSIONS[USER_ROLES.WAREHOUSE_KEEPER_2]
+            },
             cashier: {
                 username: "الكاشير",
                 email: "cashier@system.local",
                 role: USER_ROLES.CASHIER,
                 permissions: ROLE_PERMISSIONS[USER_ROLES.CASHIER]
+            },
+            editor: {
+                username: "المحرر",
+                email: "editor@system.local",
+                role: USER_ROLES.EDITOR,
+                permissions: ROLE_PERMISSIONS[USER_ROLES.EDITOR]
             }
         };
         
@@ -5332,7 +5356,8 @@ const AccountingApp = () => {
     // تحميل واسترجاع حالة تسجيل الدخول من localStorage
     useEffect(() => {
         const savedUserType = localStorage.getItem("LOGGED_IN_USER_TYPE");
-        if (savedUserType && ["admin", "warehouse", "cashier"].includes(savedUserType)) {
+        const validTypes = ["admin", "supervisor", "general_manager", "warehouse", "warehouse_2", "cashier", "editor"];
+        if (savedUserType && validTypes.includes(savedUserType)) {
             setUserType(savedUserType);
         }
     }, []);

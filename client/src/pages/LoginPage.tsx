@@ -2,11 +2,15 @@ import { useState } from 'react';
 import { Lock, Eye, EyeOff, LogIn } from 'lucide-react';
 
 interface LoginPageProps {
-    onLogin: (userType: 'admin' | 'warehouse' | 'cashier') => void;
+    onLogin: (userType: 'admin' | 'supervisor' | 'general_manager' | 'warehouse' | 'warehouse_2' | 'cashier' | 'editor') => void;
     settings: {
         adminPassword: string;
+        supervisorPassword: string;
+        generalManagerPassword: string;
         warehousePassword: string;
+        warehouse2Password: string;
         cashierPassword: string;
+        editorPassword: string;
         companyName: string;
     };
 }
@@ -22,10 +26,18 @@ export default function LoginPage({ onLogin, settings }: LoginPageProps) {
         
         if (password === settings.adminPassword) {
             onLogin('admin');
+        } else if (password === settings.supervisorPassword) {
+            onLogin('supervisor');
+        } else if (password === settings.generalManagerPassword) {
+            onLogin('general_manager');
         } else if (password === settings.warehousePassword) {
             onLogin('warehouse');
+        } else if (password === settings.warehouse2Password) {
+            onLogin('warehouse_2');
         } else if (password === settings.cashierPassword) {
             onLogin('cashier');
+        } else if (password === settings.editorPassword) {
+            onLogin('editor');
         } else {
             setError('كلمة المرور غير صحيحة');
             setIsShaking(true);
