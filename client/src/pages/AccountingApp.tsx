@@ -5058,7 +5058,7 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
  */
 /**
  * InventoryWithdrawalComponent - صفحة الاستخراج المخزني الكاملة
- * Features: اختيار من المخزون، إضافة عدة مواد، حساب التكاليف، تحديث المخزون
+ * Features: اختيار من المخزون والموظفين، إضافة عدة مواد، تحديث المخزون
  */
 const InventoryWithdrawalComponent = React.memo(({ data, handleDataAction, handleDelete, showToast, handleRefresh }) => {
     const [isNewWithdrawalModalOpen, setIsNewWithdrawalModalOpen] = useState(false);
@@ -5068,96 +5068,132 @@ const InventoryWithdrawalComponent = React.memo(({ data, handleDataAction, handl
     
     const getDefaultWithdrawalForm = useCallback(() => ({
         withdrawnBy: '',
-        purpose: '',
-        department: data.settings.departments[0] || '',
+        department: '',
         items: [],
-        totalCost: 0,
         date: getDefaultDateTime(),
         id: null,
         notes: ''
-    }), [data.settings.departments]);
+    }), []);
     
     const getDefaultItemForm = useCallback(() => ({ 
         name: '', 
         barcode: '', 
         quantity: 1,
-        unitCost: 0,
-        totalCost: 0,
         category: '',
         availableQty: 0
     }), []);
 
     const [withdrawalForm, setWithdrawalForm] = useState(getDefaultWithdrawalForm);
     const [itemForm, setItemForm] = useState(getDefaultItemForm);
-    const [suggestions, setSuggestions] = useState([]);
-    const [showSuggestions, setShowSuggestions] = useState(false);
+    const [itemSuggestions, setItemSuggestions] = useState([]);
+    const [showItemSuggestions, setShowItemSuggestions] = useState(false);
+    const [employeeSuggestions, setEmployeeSuggestions] = useState([]);
+    const [showEmployeeSuggestions, setShowEmployeeSuggestions] = useState(false);
     const [editingItemId, setEditingItemId] = useState(null);
-    
-    const calculateTotal = useCallback(() => {
-        return withdrawalForm.items.reduce((sum, item) => sum + (parseFloat(item.totalCost || 0)), 0);
-    }, [withdrawalForm.items]);
 
-    useEffect(() => {
-        setWithdrawalForm(prev => ({ ...prev, totalCost: calculateTotal() }));
-    }, [calculateTotal]);
+    const handleEmployeeNameChange = useCallback((value) => {
+        setWithdrawalForm(prev => ({ ...prev, withdrawnBy: value, department: '' }));
+        
+        if (value.length >= 2) {
+            const searchNormalized = normalizeTextForSearch(value);
+            const filtered = data.employees.filter(emp => {
+                const empNameNorm = normalizeTextForSearch(emp.name);
+                return empNameNorm.includes(searchNormalized);
+            }).slice(0, 5);
+            
+            setEmployeeSuggestions(filtered);
+            setShowEmployeeSuggestions(true);
+        } else {
+            setShowEmployeeSuggestions(false);
+            setEmployeeSuggestions([]);
+        }
+    }, [data.employees]);
+
+    const selectEmployeeSuggestion = useCallback((employee) => {
+        setWithdrawalForm(prev => ({
+            ...prev,
+            withdrawnBy: employee.name,
+            department: employee.department || ''
+        }));
+        setShowEmployeeSuggestions(false);
+        setEmployeeSuggestions([]);
+    }, []);
 
     const handleItemNameChange = useCallback((value) => {
-        setItemForm(prev => ({ ...prev, name: value }));
+        setItemForm(prev => {
+            const newState = { ...prev, name: value };
+            
+            // البحث عن المادة بالاسم لملء الباركود تلقائياً
+            if (value) {
+                const foundItem = data.inventory.find(i => i.name === value && i.quantity > 0);
+                if (foundItem) {
+                    newState.barcode = foundItem.barcode || '';
+                    newState.category = foundItem.category;
+                    newState.availableQty = foundItem.quantity;
+                }
+            }
+            
+            return newState;
+        });
         
         if (value.length >= 2) {
             const searchNormalized = normalizeTextForSearch(value);
             const filtered = data.inventory.filter(item => {
                 const itemNameNorm = normalizeTextForSearch(item.name);
-                const itemBarcodeNorm = item.barcode ? normalizeTextForSearch(item.barcode) : '';
-                return (itemNameNorm.includes(searchNormalized) || itemBarcodeNorm.includes(searchNormalized)) && item.quantity > 0;
+                return itemNameNorm.includes(searchNormalized) && item.quantity > 0;
             }).slice(0, 5);
             
-            setSuggestions(filtered);
-            setShowSuggestions(true);
+            setItemSuggestions(filtered);
+            setShowItemSuggestions(true);
         } else {
-            setShowSuggestions(false);
-            setSuggestions([]);
+            setShowItemSuggestions(false);
+            setItemSuggestions([]);
         }
     }, [data.inventory]);
 
-    const selectSuggestion = useCallback((item) => {
+    const handleBarcodeChange = useCallback((value) => {
+        setItemForm(prev => {
+            const newState = { ...prev, barcode: value };
+            
+            // البحث عن المادة بالباركود لملء الاسم تلقائياً
+            if (value) {
+                const foundItem = data.inventory.find(i => i.barcode === value && i.quantity > 0);
+                if (foundItem) {
+                    newState.name = foundItem.name;
+                    newState.category = foundItem.category;
+                    newState.availableQty = foundItem.quantity;
+                }
+            }
+            
+            return newState;
+        });
+    }, [data.inventory]);
+
+    const selectItemSuggestion = useCallback((item) => {
         setItemForm({
             name: item.name,
             barcode: item.barcode || '',
-            unitCost: item.price || 0,
             category: item.category,
             quantity: 1,
-            totalCost: item.price || 0,
             availableQty: item.quantity
         });
-        setShowSuggestions(false);
-        setSuggestions([]);
+        setShowItemSuggestions(false);
+        setItemSuggestions([]);
     }, []);
 
     const handleItemFormChange = useCallback((key, value) => {
         setItemForm(prev => {
             let newState = { ...prev, [key]: value };
             
-            if (key === 'barcode') {
-                const foundItem = data.inventory.find(i => i.barcode === value);
-                if (foundItem && foundItem.quantity > 0) {
-                    newState.name = foundItem.name;
-                    newState.unitCost = foundItem.price;
-                    newState.category = foundItem.category;
-                    newState.availableQty = foundItem.quantity;
-                }
-            }
-            
-            if (key === 'quantity' || key === 'unitCost') {
+            if (key === 'quantity') {
                 let cleanValue = convertArabicToEnglish(value);
-                cleanValue = cleanValue.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+                cleanValue = cleanValue.replace(/[^0-9]/g, '');
                 newState[key] = cleanValue;
-                newState.totalCost = (parseFloat(newState.quantity) || 0) * (parseFloat(newState.unitCost) || 0);
             }
             
             return newState;
         });
-    }, [data.inventory]);
+    }, []);
 
     const handleAddItemToWithdrawal = (e) => {
         e.preventDefault();
@@ -5187,9 +5223,7 @@ const InventoryWithdrawalComponent = React.memo(({ data, handleDataAction, handl
             const updatedItem = {
                 ...itemForm,
                 id: editingItemId,
-                quantity: requestedQty,
-                unitCost: parseFloat(itemForm.unitCost),
-                totalCost: parseFloat(itemForm.totalCost)
+                quantity: requestedQty
             };
             
             setWithdrawalForm(prev => ({
@@ -5202,9 +5236,7 @@ const InventoryWithdrawalComponent = React.memo(({ data, handleDataAction, handl
             const newItem = {
                 ...itemForm,
                 id: crypto.randomUUID(),
-                quantity: requestedQty,
-                unitCost: parseFloat(itemForm.unitCost),
-                totalCost: parseFloat(itemForm.totalCost)
+                quantity: requestedQty
             };
             
             setWithdrawalForm(prev => ({
@@ -5233,8 +5265,8 @@ const InventoryWithdrawalComponent = React.memo(({ data, handleDataAction, handl
     };
 
     const handleSaveWithdrawal = () => {
-        if (!withdrawalForm.withdrawnBy || !withdrawalForm.purpose || withdrawalForm.items.length === 0) {
-            showToast('الرجاء ملء جميع الحقول وإضافة مادة واحدة على الأقل.', 'error');
+        if (!withdrawalForm.withdrawnBy || withdrawalForm.items.length === 0) {
+            showToast('الرجاء اختيار المستلم وإضافة مادة واحدة على الأقل.', 'error');
             return;
         }
 
@@ -5275,11 +5307,9 @@ const InventoryWithdrawalComponent = React.memo(({ data, handleDataAction, handl
         const searchNorm = normalizeTextForSearch(globalSearch);
         return (data.inventoryWithdrawals || []).filter(w => {
             const withdrawnByNorm = normalizeTextForSearch(w.withdrawnBy || '');
-            const purposeNorm = normalizeTextForSearch(w.purpose || '');
             const invoiceNorm = normalizeTextForSearch(w.invoiceNumber || '');
             
             return withdrawnByNorm.includes(searchNorm) || 
-                   purposeNorm.includes(searchNorm) || 
                    invoiceNorm.includes(searchNorm);
         });
     }, [data.inventoryWithdrawals, globalSearch]);
@@ -5332,16 +5362,15 @@ const InventoryWithdrawalComponent = React.memo(({ data, handleDataAction, handl
                                 <th className="px-4 py-3 text-right">رقم السند</th>
                                 <th className="px-4 py-3 text-right">التاريخ</th>
                                 <th className="px-4 py-3 text-right">المستلم</th>
-                                <th className="px-4 py-3 text-right">الغرض</th>
+                                <th className="px-4 py-3 text-right">القسم</th>
                                 <th className="px-4 py-3 text-right">عدد المواد</th>
-                                <th className="px-4 py-3 text-right">التكلفة الإجمالية</th>
                                 <th className="px-4 py-3 text-center">الإجراءات</th>
                             </tr>
                         </thead>
                         <tbody>
                             {filteredWithdrawals.length === 0 ? (
                                 <tr>
-                                    <td colSpan="7" className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                                    <td colSpan="6" className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                                         لا توجد سحوبات مسجلة
                                     </td>
                                 </tr>
@@ -5351,11 +5380,8 @@ const InventoryWithdrawalComponent = React.memo(({ data, handleDataAction, handl
                                         <td className="px-4 py-3">{withdrawal.invoiceNumber}</td>
                                         <td className="px-4 py-3">{formatDateDDMMYYYY(withdrawal.date)}</td>
                                         <td className="px-4 py-3">{withdrawal.withdrawnBy}</td>
-                                        <td className="px-4 py-3">{withdrawal.purpose}</td>
+                                        <td className="px-4 py-3">{withdrawal.department}</td>
                                         <td className="px-4 py-3">{withdrawal.items?.length || 0}</td>
-                                        <td className="px-4 py-3 font-bold text-orange-600 dark:text-orange-400">
-                                            {formatCurrency(withdrawal.totalCost)}
-                                        </td>
                                         <td className="px-4 py-3">
                                             <div className="flex justify-center gap-2">
                                                 <button
@@ -5390,44 +5416,45 @@ const InventoryWithdrawalComponent = React.memo(({ data, handleDataAction, handl
 
                         <div className="p-6 space-y-6">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
+                                <div className="relative">
                                     <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                                        المستلم *
+                                        المستلم (موظف) *
                                     </label>
                                     <input
                                         type="text"
                                         value={withdrawalForm.withdrawnBy}
-                                        onChange={(e) => setWithdrawalForm(prev => ({ ...prev, withdrawnBy: e.target.value }))}
+                                        onChange={(e) => handleEmployeeNameChange(e.target.value)}
                                         className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                                        placeholder="اسم المستلم"
+                                        placeholder="ابحث عن موظف..."
                                     />
+                                    {showEmployeeSuggestions && employeeSuggestions.length > 0 && (
+                                        <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 rounded-lg shadow-xl z-50 max-h-60 overflow-y-auto">
+                                            {employeeSuggestions.map(emp => (
+                                                <div
+                                                    key={emp.id}
+                                                    onClick={() => selectEmployeeSuggestion(emp)}
+                                                    className="px-4 py-2 hover:bg-orange-100 dark:hover:bg-orange-900/30 cursor-pointer border-b border-gray-200 dark:border-gray-600 last:border-b-0"
+                                                >
+                                                    <div className="font-semibold text-gray-900 dark:text-gray-100">{emp.name}</div>
+                                                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                                                        القسم: {emp.department}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div>
                                     <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                                        القسم
+                                        القسم (تلقائي)
                                     </label>
-                                    <select
+                                    <input
+                                        type="text"
                                         value={withdrawalForm.department}
-                                        onChange={(e) => setWithdrawalForm(prev => ({ ...prev, department: e.target.value }))}
-                                        className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                                    >
-                                        {data.settings.departments.map(dept => (
-                                            <option key={dept} value={dept}>{dept}</option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div className="md:col-span-2">
-                                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                                        الغرض *
-                                    </label>
-                                    <textarea
-                                        value={withdrawalForm.purpose}
-                                        onChange={(e) => setWithdrawalForm(prev => ({ ...prev, purpose: e.target.value }))}
-                                        className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                                        rows="2"
-                                        placeholder="الغرض من السحب..."
+                                        readOnly
+                                        className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-600 text-gray-900 dark:text-gray-100"
+                                        placeholder="يتم ملؤه تلقائياً"
                                     />
                                 </div>
                             </div>
@@ -5444,22 +5471,35 @@ const InventoryWithdrawalComponent = React.memo(({ data, handleDataAction, handl
                                             className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                                             placeholder="ابحث عن مادة..."
                                         />
-                                        {showSuggestions && suggestions.length > 0 && (
+                                        {showItemSuggestions && itemSuggestions.length > 0 && (
                                             <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 rounded-lg shadow-xl z-50 max-h-60 overflow-y-auto">
-                                                {suggestions.map(item => (
+                                                {itemSuggestions.map(item => (
                                                     <div
                                                         key={item.id}
-                                                        onClick={() => selectSuggestion(item)}
+                                                        onClick={() => selectItemSuggestion(item)}
                                                         className="px-4 py-2 hover:bg-orange-100 dark:hover:bg-orange-900/30 cursor-pointer border-b border-gray-200 dark:border-gray-600 last:border-b-0"
                                                     >
                                                         <div className="font-semibold text-gray-900 dark:text-gray-100">{item.name}</div>
                                                         <div className="text-sm text-gray-500 dark:text-gray-400">
-                                                            متوفر: {item.quantity} | السعر: {formatCurrency(item.price)}
+                                                            باركود: {item.barcode || 'غير محدد'} | متوفر: {item.quantity}
                                                         </div>
                                                     </div>
                                                 ))}
                                             </div>
                                         )}
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                                            الباركود
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={itemForm.barcode}
+                                            onChange={(e) => handleBarcodeChange(e.target.value)}
+                                            className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                                            placeholder="مسح الباركود..."
+                                        />
                                     </div>
 
                                     <div>
@@ -5477,16 +5517,6 @@ const InventoryWithdrawalComponent = React.memo(({ data, handleDataAction, handl
                                                 المتوفر: {itemForm.availableQty}
                                             </div>
                                         )}
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">سعر الوحدة</label>
-                                        <input
-                                            type="text"
-                                            value={itemForm.unitCost}
-                                            readOnly
-                                            className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-600 text-gray-900 dark:text-gray-100"
-                                        />
                                     </div>
 
                                     <div className="flex items-end">
@@ -5510,7 +5540,7 @@ const InventoryWithdrawalComponent = React.memo(({ data, handleDataAction, handl
                                                 <div className="flex-1">
                                                     <div className="font-semibold text-gray-900 dark:text-gray-100">{item.name}</div>
                                                     <div className="text-sm text-gray-500 dark:text-gray-400">
-                                                        الكمية: {item.quantity} × {formatCurrency(item.unitCost)} = {formatCurrency(item.totalCost)}
+                                                        الباركود: {item.barcode || 'غير محدد'} | الكمية: {item.quantity}
                                                     </div>
                                                 </div>
                                                 <div className="flex gap-2">
@@ -5529,12 +5559,6 @@ const InventoryWithdrawalComponent = React.memo(({ data, handleDataAction, handl
                                                 </div>
                                             </div>
                                         ))}
-                                    </div>
-                                    
-                                    <div className="mt-4 p-4 bg-gradient-to-r from-orange-100 to-orange-200 dark:from-orange-900/30 dark:to-orange-800/30 rounded-lg border-r-4 border-orange-600">
-                                        <div className="text-xl font-bold text-orange-800 dark:text-orange-300">
-                                            التكلفة الإجمالية: {formatCurrency(withdrawalForm.totalCost)}
-                                        </div>
                                     </div>
                                 </div>
                             )}
@@ -5591,31 +5615,20 @@ const InventoryWithdrawalComponent = React.memo(({ data, handleDataAction, handl
                                     <span className="text-sm text-gray-500 dark:text-gray-400">القسم:</span>
                                     <div className="font-bold text-gray-900 dark:text-gray-100">{currentWithdrawal.department}</div>
                                 </div>
-                                <div className="col-span-2 bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
-                                    <span className="text-sm text-gray-500 dark:text-gray-400">الغرض:</span>
-                                    <div className="font-bold text-gray-900 dark:text-gray-100">{currentWithdrawal.purpose}</div>
-                                </div>
                             </div>
 
                             <div>
-                                <h4 className="font-bold text-lg mb-3 text-gray-900 dark:text-gray-100">المواد المسحوبة:</h4>
+                                <h4 className="font-bold text-lg mb-3 text-gray-900 dark:text-gray-100">المواد المسحوبة ({currentWithdrawal.items?.length || 0}):</h4>
                                 <div className="space-y-2">
                                     {currentWithdrawal.items?.map((item, index) => (
                                         <div key={index} className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg border-r-4 border-orange-600">
                                             <div className="font-semibold text-gray-900 dark:text-gray-100">{item.name}</div>
                                             <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                                                الكمية: <span className="font-semibold">{item.quantity}</span> | 
-                                                سعر الوحدة: <span className="font-semibold">{formatCurrency(item.unitCost)}</span> | 
-                                                الإجمالي: <span className="font-semibold text-orange-600 dark:text-orange-400">{formatCurrency(item.totalCost)}</span>
+                                                الباركود: <span className="font-semibold">{item.barcode || 'غير محدد'}</span> | 
+                                                الكمية: <span className="font-semibold text-orange-600 dark:text-orange-400">{item.quantity}</span>
                                             </div>
                                         </div>
                                     ))}
-                                </div>
-                            </div>
-
-                            <div className="p-4 bg-gradient-to-r from-orange-100 to-orange-200 dark:from-orange-900/30 dark:to-orange-800/30 rounded-lg border-r-4 border-orange-600">
-                                <div className="text-2xl font-bold text-orange-800 dark:text-orange-300">
-                                    التكلفة الإجمالية: {formatCurrency(currentWithdrawal.totalCost)}
                                 </div>
                             </div>
 
