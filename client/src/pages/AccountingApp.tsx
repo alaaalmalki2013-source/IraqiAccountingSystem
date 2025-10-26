@@ -6832,7 +6832,6 @@ const WelcomeMessage = ({ user, companyName, onContinue }) => {
 const LoginPage = ({ users, onLogin, showToast, systemExpiryDate, companyName, masterKey }) => {
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
-    const [welcomeUser, setWelcomeUser] = useState(null);
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -6879,23 +6878,10 @@ const LoginPage = ({ users, onLogin, showToast, systemExpiryDate, companyName, m
             }
         }
 
-        // عرض رسالة الترحيب
-        setWelcomeUser(user);
+        // تسجيل الدخول مباشرة
+        showToast(`مرحباً ${user.username}! 🎉`, 'success');
+        onLogin(user);
     };
-    
-    // إذا كانت رسالة الترحيب تظهر
-    if (welcomeUser) {
-        return (
-            <WelcomeMessage
-                user={welcomeUser}
-                companyName={companyName}
-                onContinue={() => {
-                    onLogin(welcomeUser);
-                    setWelcomeUser(null);
-                }}
-            />
-        );
-    }
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 via-purple-800 to-indigo-900 dark:from-gray-900 dark:via-gray-800 dark:to-black p-4" dir="rtl">
