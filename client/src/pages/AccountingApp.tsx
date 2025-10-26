@@ -5275,23 +5275,41 @@ const InventoryWithdrawalComponent = React.memo(({ data, handleDataAction, handl
             date: getDefaultDateTime()
         };
 
-        handleDataAction('inventoryWithdrawals', newWithdrawal, true);
+        // تحديث البيانات دفعة واحدة
+        const newData = { ...data };
         
+        // إضافة السند الجديد
+        newData.inventoryWithdrawals = [...(newData.inventoryWithdrawals || []), newWithdrawal];
+        
+        // تحديث المخزون
+        const updatedInventory = [...newData.inventory];
         newWithdrawal.items.forEach(item => {
-            const inventoryItem = data.inventory.find(i => i.name === item.name);
-            if (inventoryItem) {
-                const updatedItem = {
-                    ...inventoryItem,
-                    count: inventoryItem.count - item.quantity
+            const index = updatedInventory.findIndex(i => i.name === item.name);
+            if (index !== -1) {
+                updatedInventory[index] = {
+                    ...updatedInventory[index],
+                    count: updatedInventory[index].count - item.quantity
                 };
-                handleDataAction('inventory', updatedItem, false);
             }
         });
+        newData.inventory = updatedInventory;
+        
+        // تسجيل النشاط
+        const activityLog = logActivity('إضافة', 'الاستخراج المخزني', `سند رقم ${newWithdrawal.invoiceNumber}`);
+        if (activityLog) {
+            const logs = [...(newData.activityLog || [])];
+            logs.unshift(activityLog);
+            if (logs.length > 500) logs.splice(500);
+            newData.activityLog = logs;
+        }
+        
+        // حفظ البيانات مرة واحدة
+        saveData(newData);
+        setRefreshKey(prev => prev + 1);
 
         showToast('تم حفظ سند السحب بنجاح وتحديث المخزون.', 'success');
         setIsNewWithdrawalModalOpen(false);
         setWithdrawalForm(getDefaultWithdrawalForm());
-        handleRefresh();
     };
 
     const handleViewDetails = (withdrawal) => {
