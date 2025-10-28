@@ -126,57 +126,69 @@ const NotificationToast = React.memo(({ message, type, onClose }) => {
 });
 
 // حقل إدخال موحد
-const InputField = React.memo(({ label, type = 'text', value, onChange, placeholder, required = false, currency = false, children, inputKey = label, readOnly = false, textarea = false, onBlur, className = '' }) => ( 
-    <div className="flex flex-col space-y-1 text-right">
-        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{label}</label>
-        <div className="relative">
-            {textarea ? (
-                <textarea
-                    value={value}
-                    onChange={onChange}
-                    onBlur={onBlur} 
-                    placeholder={placeholder}
-                    required={required}
-                    onInvalid={(e) => e.target.setCustomValidity(required ? 'هذا الحقل إجباري، يرجى ملئه.' : '')}
-                    onInput={(e) => e.target.setCustomValidity('')}
-                    readOnly={readOnly}
-                    key={inputKey} 
-                    rows="4"
-                    className={`w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl transition duration-150 ${readOnly ? 'bg-gray-100 dark:bg-gray-600' : 'bg-white dark:bg-gray-700 focus:ring-teal-500 focus:border-teal-500 dark:text-white'} ${className}`}
-                />
-            ) : (
-                <input
-                    type={type === 'number' && !currency ? 'tel' : type} // استخدام tel للأرقام لتحسين تجربة الجوال، و التعامل مع نوع text للحقول النقدية في الأغلب
-                    value={value}
-                    onChange={(e) => {
-                        if (currency || type === 'number') {
-                            // **الحل الجذري للأرقام العربية في جميع أماكن المبالغ:**
-                            let newValue = e.target.value;
-                            // 1. تحويل الأرقام العربية إلى إنجليزية
-                            newValue = convertArabicToEnglish(newValue);
-                            // 2. إزالة أي رموز غير الأرقام والنقطة لضمان النظافة
-                            newValue = newValue.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'); 
-                            onChange({ target: { value: newValue } });
-                        } else {
-                            onChange(e);
-                        }
-                    }}
-                    onBlur={onBlur} 
-                    placeholder={placeholder}
-                    required={required}
-                    onInvalid={(e) => e.target.setCustomValidity(required ? 'هذا الحقل إجباري، يرجى ملئه.' : '')}
-                    onInput={(e) => e.target.setCustomValidity('')}
-                    readOnly={readOnly}
-                    key={inputKey} 
-                    className={`w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl transition duration-150 ${currency ? 'pr-14 text-right dir-ltr' : ''} ${readOnly ? 'bg-gray-100 dark:bg-gray-600' : 'bg-white dark:bg-gray-700 focus:ring-teal-500 focus:border-teal-500 dark:text-white'} ${className}`}
-                />
-            )}
-            
-            {currency && <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-sm text-gray-500 dark:text-gray-400 font-bold">د.ع.</span>}
-            {children} 
-        </div>
-    </div>
-));
+const InputField = React.memo(({ label, type = 'text', value, onChange, placeholder, required = false, currency = false, children, inputKey = label, readOnly = false, textarea = false, onBlur, className = '' }) => {
+    const fieldRef = React.useRef(null);
+
+    React.useEffect(() => {
+        if (required && value !== undefined && value !== null && value !== '') {
+            fieldRef.current?.setCustomValidity('');
+        }
+    }, [value, required]);
+
+    return (
+        <div className="flex flex-col space-y-1 text-right">
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{label}</label>
+            <div className="relative">
+                {textarea ? (
+                    <textarea
+                        ref={fieldRef}
+                        value={value}
+                        onChange={onChange}
+                        onBlur={onBlur}
+                        placeholder={placeholder}
+                        required={required}
+                        onInvalid={(e) => e.target.setCustomValidity(required ? 'هذا الحقل إجباري، يرجى ملئه.' : '')}
+                        onInput={(e) => e.target.setCustomValidity('')}
+                        readOnly={readOnly}
+                        key={inputKey}
+                        rows="4"
+                        className={`w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl transition duration-150 ${readOnly ? 'bg-gray-100 dark:bg-gray-600' : 'bg-white dark:bg-gray-700 focus:ring-teal-500 focus:border-teal-500 dark:text-white'} ${className}`}
+                    />
+                ) : (
+                    <input
+                        ref={fieldRef}
+                        type={type === 'number' && !currency ? 'tel' : type} // استخدام tel للأرقام لتحسين تجربة الجوال، و التعامل مع نوع text للحقول النقدية في الأغلب
+                        value={value}
+                        onChange={(e) => {
+                            if (currency || type === 'number') {
+                                // **الحل الجذري للأرقام العربية في جميع أماكن المبالغ:**
+                                let newValue = e.target.value;
+                                // 1. تحويل الأرقام العربية إلى إنجليزية
+                                newValue = convertArabicToEnglish(newValue);
+                                // 2. إزالة أي رموز غير الأرقام والنقطة لضمان النظافة
+                                newValue = newValue.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+                                onChange({ target: { value: newValue } });
+                            } else {
+                                onChange(e);
+                            }
+                        }}
+                        onBlur={onBlur}
+                        placeholder={placeholder}
+                        required={required}
+                        onInvalid={(e) => e.target.setCustomValidity(required ? 'هذا الحقل إجباري، يرجى ملئه.' : '')}
+                        onInput={(e) => e.target.setCustomValidity('')}
+                        readOnly={readOnly}
+                        key={inputKey}
+                        className={`w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl transition duration-150 ${currency ? 'pr-14 text-right dir-ltr' : ''} ${readOnly ? 'bg-gray-100 dark:bg-gray-600' : 'bg-white dark:bg-gray-700 focus:ring-teal-500 focus:border-teal-500 dark:text-white'} ${className}`}
+                    />
+                )}
+
+                {currency && <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-sm text-gray-500 dark:text-gray-400 font-bold">د.ع.</span>}
+                {children}
+            </div>
+        </div>
+    );
+});
 
 // زر الإجراءات
 const ActionButton = ({ onClick, children, className = 'bg-teal-600 hover:bg-teal-700', type = 'button', disabled = false }) => ( 
@@ -191,24 +203,40 @@ const ActionButton = ({ onClick, children, className = 'bg-teal-600 hover:bg-tea
 );
 
 // نافذة المودال
-const Modal = ({ title, children, onClose, size = 'lg', isPrintModal = false }) => (
-    <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
-        <div className={`bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-h-[90vh] overflow-y-auto transform transition-all duration-300 scale-100 
-            ${size === 'lg' ? 'max-w-md md:max-w-xl' : size === 'xl' ? 'max-w-3xl' : 'max-w-4xl'} 
-            ${isPrintModal ? 'bg-white/90 dark:bg-gray-800/90 backdrop-filter backdrop-blur-sm' : ''}
-        `} onClick={e => e.stopPropagation()}>
-            <div className="flex justify-between items-center p-4 border-b border-teal-100 dark:border-teal-700 bg-teal-50 dark:bg-teal-900/30 rounded-t-3xl">
-                <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200 flex-grow text-center">{title}</h3> 
-                <button onClick={onClose} className="flex items-center justify-center text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition p-1 bg-white dark:bg-gray-700 rounded-full">
-                    <X className="w-5 h-5 md:w-6 md:h-6" />
-                </button>
-            </div>
-            <div className="p-6">
-                {children}
-            </div>
-        </div>
-    </div>
-);
+const Modal = ({ title, children, onClose, size = 'lg', isPrintModal = false }) => {
+	const sizeClass = size === 'sm'
+		? 'max-w-sm md:max-w-md'
+		: size === 'md'
+			? 'max-w-lg'
+			: size === 'lg'
+				? 'max-w-md md:max-w-xl'
+				: size === 'xl'
+					? 'max-w-3xl'
+					: size === '2xl'
+						? 'max-w-5xl'
+						: size === 'full'
+							? 'max-w-6xl'
+							: 'max-w-4xl';
+
+	return (
+		<div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
+			<div className={`bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-h-[90vh] overflow-y-auto transform transition-all duration-300 scale-100
+				${sizeClass}
+				${isPrintModal ? 'bg-white/90 dark:bg-gray-800/90 backdrop-filter backdrop-blur-sm' : ''}
+			`} onClick={e => e.stopPropagation()}>
+				<div className="flex justify_between items-center p-4 border-b border-teal-100 dark:border-teal-700 bg-teal-50 dark:bg-teal-900/30 rounded-t-3xl">
+					<h3 className="text-xl font-bold text-gray-800 dark:text-gray-200 flex-grow text-center">{title}</h3>
+					<button onClick={onClose} className="flex items-center justify-center text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition p-1 bg-white dark:bg-gray-700 rounded-full">
+						<X className="w-5 h-5 md:w-6 md:h-6" />
+					</button>
+				</div>
+				<div className="p-6">
+					{children}
+				</div>
+			</div>
+		</div>
+	);
+};
 
 // مكون طباعة الفاتورة الفردية
 const PrintInvoice = React.memo(({ item, onClose, companyName, companyLogoUrl, employees }) => {
@@ -706,8 +734,8 @@ const DataPageComponent = React.memo(({ 
     const initialRange = useMemo(() => getCurrentMonthRange(), []);
     const [filterDateFrom, setFilterDateFrom] = useState(initialRange.start);
     const [filterDateTo, setFilterDateTo] = useState(initialRange.end);
-    const [filterCategory, setFilterCategory] = useState('الكل');
-    const [globalSearch, setGlobalSearch] = useState('');
+    const [filterCategory, setFilterCategory] = useState('الكل');
+    const [globalSearch, setGlobalSearch] = useState('');
     const [filterStatus, setFilterStatus] = useState('active'); // فلتر الحالة: active, cancelled, all
     const isSearchActive = useMemo(() => globalSearch.trim().length > 0, [globalSearch]);
     const emptyStateColSpan = useMemo(() => {
@@ -780,16 +808,32 @@ const DataPageComponent = React.memo(({ 
     
     const [activeCategories, setActiveCategories] = useState([]);
     
-    const handleCategoryCardClick = (category) => {
-        setActiveCategories(prev => {
-            if (prev.includes(category)) {
-                return prev.filter(cat => cat !== category);
-            } else {
-                return [...prev, category];
-            }
-        });
-    };
-    
+    const handleCategoryCardClick = (category) => {
+        setActiveCategories(prev => {
+            if (prev.includes(category)) {
+                return prev.filter(cat => cat !== category);
+            } else {
+                return [...prev, category];
+            }
+        });
+    };
+
+    const handleShowAllRecords = useCallback(() => {
+        setFilterDateFrom('');
+        setFilterDateTo('');
+        setFilterCategory('الكل');
+        setActiveCategories([]);
+        setGlobalSearch('');
+    }, []);
+
+    const handleResetFiltersToMonth = useCallback(() => {
+        setFilterDateFrom(initialRange.start);
+        setFilterDateTo(initialRange.end);
+        setFilterCategory('الكل');
+        setActiveCategories([]);
+        setGlobalSearch('');
+    }, [initialRange.start, initialRange.end]);
+
     // دالة مساعدة لتحديد حالة الفلتر النشطة
     const isFilterActive = (category) => {
         return activeCategories.includes(category);
@@ -812,28 +856,35 @@ const DataPageComponent = React.memo(({ 
             }
         }
         
-        if (globalSearch) {
-            const searchLower = normalizeTextForSearch(globalSearch); 
-            const searchNumeric = normalizeTextForSearch(globalSearch, true); 
-            
-            list = list.filter(item => {
-                // البحث النصي
-                const matchesInvoice = item.invoiceNumber && normalizeTextForSearch(item.invoiceNumber).includes(searchLower);
-                const matchesCategory = item.category && normalizeTextForSearch(item.category).includes(searchLower);
-                const matchesDescription = item.description && normalizeTextForSearch(item.description).includes(searchLower);
-                const matchesNotes = item.notes && normalizeTextForSearch(item.notes).includes(searchLower);
-                const matchesRecipient = item.recipientName && normalizeTextForSearch(item.recipientName).includes(searchLower);
-                const matchesVendor = item.vendor && normalizeTextForSearch(item.vendor).includes(searchLower);
-                const matchesRep = item.representative && normalizeTextForSearch(item.representative).includes(searchLower);
-                const matchesEmployee = item.employeeId && data.employees.find(e => e.id === item.employeeId)?.name && normalizeTextForSearch(data.employees.find(e => e.id === item.employeeId).name).includes(searchLower);
-                
-                // البحث الرقمي (للمبالغ)
-                const matchesAmount = item.amount && normalizeTextForSearch(item.amount.toString(), true).includes(searchNumeric);
+        if (globalSearch) {
+            const searchLower = normalizeTextForSearch(globalSearch);
+            const searchNumeric = normalizeTextForSearch(globalSearch, true);
+            const hasTextSearch = searchLower.length > 0;
+            const hasNumericSearch = searchNumeric.length > 0;
 
+            list = list.filter(item => {
+                let textMatches = false;
+                if (hasTextSearch) {
+                    const matchesInvoice = item.invoiceNumber && normalizeTextForSearch(item.invoiceNumber).includes(searchLower);
+                    const matchesCategory = item.category && normalizeTextForSearch(item.category).includes(searchLower);
+                    const matchesDescription = item.description && normalizeTextForSearch(item.description).includes(searchLower);
+                    const matchesNotes = item.notes && normalizeTextForSearch(item.notes).includes(searchLower);
+                    const matchesRecipient = item.recipientName && normalizeTextForSearch(item.recipientName).includes(searchLower);
+                    const matchesVendor = item.vendor && normalizeTextForSearch(item.vendor).includes(searchLower);
+                    const matchesRep = item.representative && normalizeTextForSearch(item.representative).includes(searchLower);
+                    const employeeName = item.employeeId ? data.employees.find(e => e.id === item.employeeId)?.name : '';
+                    const matchesEmployee = employeeName && normalizeTextForSearch(employeeName).includes(searchLower);
 
-                return matchesInvoice || matchesCategory || matchesDescription || matchesRecipient || matchesAmount || matchesVendor || matchesRep || matchesNotes || matchesEmployee;
-            });
-        }
+                    textMatches = matchesInvoice || matchesCategory || matchesDescription || matchesRecipient || matchesVendor || matchesRep || matchesNotes || matchesEmployee;
+                }
+
+                const numericMatches = hasNumericSearch
+                    ? !!(item.amount && normalizeTextForSearch(item.amount.toString(), true).includes(searchNumeric))
+                    : false;
+
+                return textMatches || numericMatches;
+            });
+        }
         return list;
     }, [data, collectionName, filterDateFrom, filterDateTo, filterCategory, globalSearch, activeCategories]);
 
@@ -1104,45 +1155,64 @@ const DataPageComponent = React.memo(({ 
                         )}
 
                         {collectionName !== 'suspended' && (
-                            <>
-                                <div className="flex flex-col space-y-1">
-                                    <label className="text-sm font-medium text-gray-600 dark:text-gray-400">التاريخ من</label>
-                                    <input
-                                        type="date"
-                                        value={filterDateFrom}
-                                        onChange={(e) => setFilterDateFrom(e.target.value)}
-                                        className="p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500"
-                                    />
-                                </div>
+                            <>
+                                <div className="flex flex-col space-y-1">
+                                    <label className="text-sm font-medium text-gray-600 dark:text-gray-400">التاريخ من</label>
+                                    <input
+                                        type="date"
+                                        value={filterDateFrom}
+                                        onChange={(e) => setFilterDateFrom(e.target.value)}
+                                        className="p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500"
+                                    />
+                                </div>
 
-                                <div className="flex flex-col space-y-1">
-                                    <label className="text-sm font-medium text-gray-600 dark:text-gray-400">التاريخ إلى</label>
-                                    <input
-                                        type="date"
-                                        value={filterDateTo}
-                                        onChange={(e) => setFilterDateTo(e.target.value)}
-                                        className="p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500"
-                                    />
-                                </div>
+                                <div className="flex flex-col space-y-1">
+                                    <label className="text-sm font-medium text-gray-600 dark:text-gray-400">التاريخ إلى</label>
+                                    <input
+                                        type="date"
+                                        value={filterDateTo}
+                                        onChange={(e) => setFilterDateTo(e.target.value)}
+                                        className="p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500"
+                                    />
+                                </div>
 
-                                {/* تم إخفاء قائمة الفئة التقليدية لتشجيع استخدام الكروت */
-                                 categories && categories.length > 0 && collectionName !== 'advances' && (
-                                    <div className="flex flex-col space-y-1 hidden"> 
-                                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400">الفئة</label>
-                                        <select
-                                            value={filterCategory}
-                                            onChange={(e) => setFilterCategory(e.target.value)}
-                                            className="p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500"
-                                        >
-                                            <option value="الكل">الكل</option>
-                                            {categories.map(cat => (
-                                                <option key={cat} value={cat}>{cat}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                )}
-                            </>
-                        )}
+                                {/* تم إخفاء قائمة الفئة التقليدية لتشجيع استخدام الكروت */}
+                                {categories && categories.length > 0 && collectionName !== 'advances' && (
+                                    <div className="flex flex-col space-y-1 hidden">
+                                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400">الفئة</label>
+                                        <select
+                                            value={filterCategory}
+                                            onChange={(e) => setFilterCategory(e.target.value)}
+                                            className="p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500"
+                                        >
+                                            <option value="الكل">الكل</option>
+                                            {categories.map(cat => (
+                                                <option key={cat} value={cat}>{cat}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
+
+                                <div className="md:col-span-3 flex flex-wrap gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={handleShowAllRecords}
+                                        className="flex items-center justify-center gap-2 px-4 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-semibold shadow-sm transition"
+                                    >
+                                        <Eye className="w-4 h-4" />
+                                        عرض الكل
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleResetFiltersToMonth}
+                                        className="flex items-center justify-center gap-2 px-4 py-3 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-300 dark:hover:bg-gray-500 transition font-semibold"
+                                    >
+                                        <CalendarCheck className="w-4 h-4" />
+                                        تصفية الشهر الحالي
+                                    </button>
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
             </div>
@@ -1623,16 +1693,27 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
         if (globalSearch) {
             const searchLower = normalizeTextForSearch(globalSearch);
             const searchNumeric = normalizeTextForSearch(globalSearch, true);
-            
+            const hasTextSearch = searchLower.length > 0;
+            const hasNumericSearch = searchNumeric.length > 0;
+
             list = list.filter(item => {
-                const matchesCategory = item.category && normalizeTextForSearch(item.category).includes(searchLower);
-                const matchesDescription = item.description && normalizeTextForSearch(item.description).includes(searchLower);
-                const matchesNotes = item.notes && normalizeTextForSearch(item.notes).includes(searchLower);
-                const matchesAmount = item.amount && normalizeTextForSearch(item.amount.toString(), true).includes(searchNumeric);
-                const matchesVendor = item.vendor && normalizeTextForSearch(item.vendor).includes(searchLower);
-                const matchesEmployee = item.employeeId && data.employees.find(e => e.id === item.employeeId)?.name && normalizeTextForSearch(data.employees.find(e => e.id === item.employeeId).name).includes(searchLower);
-                
-                return matchesCategory || matchesDescription || matchesNotes || matchesAmount || matchesVendor || matchesEmployee;
+                let textMatches = false;
+                if (hasTextSearch) {
+                    const matchesCategory = item.category && normalizeTextForSearch(item.category).includes(searchLower);
+                    const matchesDescription = item.description && normalizeTextForSearch(item.description).includes(searchLower);
+                    const matchesNotes = item.notes && normalizeTextForSearch(item.notes).includes(searchLower);
+                    const matchesVendor = item.vendor && normalizeTextForSearch(item.vendor).includes(searchLower);
+                    const employeeName = item.employeeId ? data.employees.find(e => e.id === item.employeeId)?.name : '';
+                    const matchesEmployee = employeeName && normalizeTextForSearch(employeeName).includes(searchLower);
+
+                    textMatches = matchesCategory || matchesDescription || matchesNotes || matchesVendor || matchesEmployee;
+                }
+
+                const numericMatches = hasNumericSearch
+                    ? !!(item.amount && normalizeTextForSearch(item.amount.toString(), true).includes(searchNumeric))
+                    : false;
+
+                return textMatches || numericMatches;
             });
         }
         return list;
@@ -1655,6 +1736,22 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
         });
         return totals;
     }, [filteredList]);
+
+    const handleShowAllPending = useCallback(() => {
+        setFilterDateFrom('');
+        setFilterDateTo('');
+        setFilterTypes([]);
+        setFilterStatuses([]);
+        setGlobalSearch('');
+    }, []);
+
+    const handleResetPendingFilters = useCallback(() => {
+        setFilterDateFrom(initialRange.start);
+        setFilterDateTo(initialRange.end);
+        setFilterTypes([]);
+        setFilterStatuses([]);
+        setGlobalSearch('');
+    }, [initialRange.start, initialRange.end]);
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -1830,20 +1927,25 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                             />
                         </div>
 
-                        <button
-                            onClick={() => {
-                                setFilterDateFrom(initialRange.start);
-                                setFilterDateTo(initialRange.end);
-                                setGlobalSearch('');
-                                setFilterTypes([]);
-                                setFilterStatuses([]);
-                            }}
-                            className="flex items-center justify-center gap-2 px-4 py-3 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors duration-200 font-semibold"
-                            data-testid="button-reset-filters"
-                        >
-                            <RotateCcw className="w-5 h-5" />
-                            إعادة تعيين
-                        </button>
+                        <div className="md:col-span-3 flex flex-wrap gap-2">
+                            <button
+                                type="button"
+                                onClick={handleShowAllPending}
+                                className="flex items-center justify-center gap-2 px-4 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-semibold shadow-sm transition-colors duration-200"
+                            >
+                                <Eye className="w-4 h-4" />
+                                عرض الكل
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleResetPendingFilters}
+                                className="flex items-center justify-center gap-2 px-4 py-3 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors duration-200 font-semibold"
+                                data-testid="button-reset-filters"
+                            >
+                                <RotateCcw className="w-5 h-5" />
+                                إعادة تعيين
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -2543,19 +2645,29 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
     const filteredList = useMemo(() => {
         let list = data.employees.slice().sort((a, b) => a.name.localeCompare(b.name, 'ar'));
         
-        if (globalSearch) {
-            const searchLower = normalizeTextForSearch(globalSearch); 
-            const searchNumeric = normalizeTextForSearch(globalSearch, true); 
-            
-            list = list.filter(item => {
-                const matchesName = item.name && normalizeTextForSearch(item.name).includes(searchLower);
-                const matchesSalary = item.salary && normalizeTextForSearch(item.salary.toString(), true).includes(searchNumeric);
-                const matchesDept = item.department && normalizeTextForSearch(item.department).includes(searchLower);
-                const matchesJob = item.jobTitle && normalizeTextForSearch(item.jobTitle).includes(searchLower);
-                
-                return matchesName || matchesSalary || matchesDept || matchesJob;
-            });
-        }
+        if (globalSearch) {
+            const searchLower = normalizeTextForSearch(globalSearch);
+            const searchNumeric = normalizeTextForSearch(globalSearch, true);
+            const hasTextSearch = searchLower.length > 0;
+            const hasNumericSearch = searchNumeric.length > 0;
+
+            list = list.filter(item => {
+                let textMatches = false;
+                if (hasTextSearch) {
+                    const matchesName = item.name && normalizeTextForSearch(item.name).includes(searchLower);
+                    const matchesDept = item.department && normalizeTextForSearch(item.department).includes(searchLower);
+                    const matchesJob = item.jobTitle && normalizeTextForSearch(item.jobTitle).includes(searchLower);
+
+                    textMatches = matchesName || matchesDept || matchesJob;
+                }
+
+                const numericMatches = hasNumericSearch
+                    ? !!(item.salary && normalizeTextForSearch(item.salary.toString(), true).includes(searchNumeric))
+                    : false;
+
+                return textMatches || numericMatches;
+            });
+        }
         return list;
     }, [data.employees, globalSearch]);
 
@@ -3769,17 +3881,26 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
         let list = data.inventory.slice().sort((a, b) => a.name.localeCompare(b.name, 'ar'));
         
         if (globalSearch) {
-            const searchLower = normalizeTextForSearch(globalSearch); 
+            const searchLower = normalizeTextForSearch(globalSearch);
             const searchNumeric = normalizeTextForSearch(globalSearch, true);
-            
-            list = list.filter(item => {
-                const matchesName = item.name && normalizeTextForSearch(item.name).includes(searchLower);
-                const matchesBarcode = item.barcode && normalizeTextForSearch(item.barcode).includes(searchLower);
-                const matchesCategory = item.category && normalizeTextForSearch(item.category).includes(searchLower);
-                const matchesPrice = item.price && normalizeTextForSearch(item.price.toString(), true).includes(searchNumeric);
+            const hasTextSearch = searchLower.length > 0;
+            const hasNumericSearch = searchNumeric.length > 0;
 
-                
-                return matchesName || matchesBarcode || matchesCategory || matchesPrice;
+            list = list.filter(item => {
+                let textMatches = false;
+                if (hasTextSearch) {
+                    const matchesName = item.name && normalizeTextForSearch(item.name).includes(searchLower);
+                    const matchesBarcode = item.barcode && normalizeTextForSearch(item.barcode).includes(searchLower);
+                    const matchesCategory = item.category && normalizeTextForSearch(item.category).includes(searchLower);
+
+                    textMatches = matchesName || matchesBarcode || matchesCategory;
+                }
+
+                const numericMatches = hasNumericSearch
+                    ? !!(item.price && normalizeTextForSearch(item.price.toString(), true).includes(searchNumeric))
+                    : false;
+
+                return textMatches || numericMatches;
             });
         }
         return list;
@@ -4300,22 +4421,30 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
         let list = data.pendingInvoices.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
         
         // الفلترة حسب البحث الشامل
-        if (globalSearch) {
-            const searchLower = normalizeTextForSearch(globalSearch); 
-            const searchNumeric = normalizeTextForSearch(globalSearch, true); 
-            
-            list = list.filter(inv => {
-                const matchesInvoiceNum = inv.invoiceNumber && normalizeTextForSearch(inv.invoiceNumber).includes(searchLower);
-                const matchesVendor = inv.vendor && normalizeTextForSearch(inv.vendor).includes(searchLower);
-                const matchesRep = inv.representative && normalizeTextForSearch(inv.representative).includes(searchLower);
-                const matchesItem = inv.items.some(item => normalizeTextForSearch(item.name).includes(searchLower));
-                
-                // البحث الرقمي عن المبلغ
-                const matchesAmount = inv.totalAmount && normalizeTextForSearch(inv.totalAmount.toString(), true).includes(searchNumeric);
-                
-                return matchesInvoiceNum || matchesVendor || matchesRep || matchesItem || matchesAmount;
-            });
-        }
+        if (globalSearch) {
+            const searchLower = normalizeTextForSearch(globalSearch);
+            const searchNumeric = normalizeTextForSearch(globalSearch, true);
+            const hasTextSearch = searchLower.length > 0;
+            const hasNumericSearch = searchNumeric.length > 0;
+
+            list = list.filter(inv => {
+                let textMatches = false;
+                if (hasTextSearch) {
+                    const matchesInvoiceNum = inv.invoiceNumber && normalizeTextForSearch(inv.invoiceNumber).includes(searchLower);
+                    const matchesVendor = inv.vendor && normalizeTextForSearch(inv.vendor).includes(searchLower);
+                    const matchesRep = inv.representative && normalizeTextForSearch(inv.representative).includes(searchLower);
+                    const matchesItem = inv.items.some(item => normalizeTextForSearch(item.name).includes(searchLower));
+
+                    textMatches = matchesInvoiceNum || matchesVendor || matchesRep || matchesItem;
+                }
+
+                const numericMatches = hasNumericSearch
+                    ? !!(inv.totalAmount && normalizeTextForSearch(inv.totalAmount.toString(), true).includes(searchNumeric))
+                    : false;
+
+                return textMatches || numericMatches;
+            });
+        }
         
         // الفلترة حسب حالة الكارت المختار (دعم الاختيار المتعدد)
         if (statusFilter.length > 0) {
@@ -4521,7 +4650,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
         <div className="p-6 space-y-6 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl">
             <h2 className="text-4xl font-extrabold text-gray-800 dark:text-gray-200 border-b-2 border-teal-500 pb-3">إدارة الإدخال المخزني </h2>
 
-                <div className="flex flex-wrap gap-3">
+                <div className="flex flex-wrap gap-3 justify-start">
                     {/* الإحصائيات المحدثة */}
                     <div 
                         onClick={() => handleFilterClick('Pending')}
@@ -4638,7 +4767,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
 
             {/* مودال إدخال فاتورة جديدة */}
             {isNewInvoiceModalOpen && (
-                <Modal title="إدخال فاتورة مشتريات جديدة" onClose={() => setIsNewInvoiceModalOpen(false)} size="lg">
+                <Modal title="إدخال فاتورة مشتريات جديدة" onClose={() => setIsNewInvoiceModalOpen(false)} size="2xl">
                     <form onSubmit={handleCreateInvoice} className="space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 p-4 rounded-xl bg-gray-50 dark:bg-gray-700">
                             <h4 className="md:col-span-2 text-lg font-bold text-gray-700 dark:text-gray-300 border-b pb-2 mb-2">معلومات الفاتورة الأساسية</h4>
@@ -5306,22 +5435,6 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
 
     // **مهم:** تم تعديل <form> الإعدادات ليصبح زر الحفظ في الأسفل
     // نستخدم React.Fragment للتحكم في عناصر الإدخال
-    const renderCompanySettings = () => (
-        <React.Fragment>
-            <InputField 
-                label="اسم الشركة/العمل" 
-                value={settings.companyName} 
-                onChange={(e) => handleSettingChange({ ...settings, companyName: e.target.value })} 
-                required
-            />
-             <InputField 
-                label="رابط شعار الشركة (Logo URL)" 
-                value={settings.companyLogoUrl} 
-                onChange={(e) => handleSettingChange({ ...settings, companyLogoUrl: e.target.value })} 
-                placeholder="https://placehold.co/100x40/0d9488/ffffff?text=LOGO"
-            />
-        </React.Fragment>
-    );
 
     return (
         <div className="p-6 space-y-8 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl">
@@ -5353,10 +5466,11 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
             )}
 
             {/* إعدادات الشركة */}
-            <form className="space-y-6 p-6 rounded-xl shadow-lg border-l-4 border-indigo-500 bg-indigo-50 dark:bg-indigo-900">
+            <div className="space-y-4 p-6 rounded-xl shadow-lg border-l-4 border-indigo-500 bg-indigo-50 dark:bg-indigo-900">
                 <h3 className="text-2xl font-bold text-indigo-800 dark:text-indigo-300 flex items-center"><Building className="w-6 h-6 ml-2" /> إعدادات الشركة الأساسية</h3>
-                {renderCompanySettings()}
-            </form>
+                <p className="text-sm font-medium text-indigo-900 dark:text-indigo-100">تم نقل تعديل اسم الشركة وشعارها إلى صفحة الإدارة للحفاظ على إدارة مركزية للهوية.</p>
+            </div>
+
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-8">
                 {/* إدارة القوائم (الفئات والموردين) */}
@@ -6023,7 +6137,29 @@ const MasterKeySection = React.memo(({ data, handleDataAction, showToast }) => {
 });
 
 const AdminPage = React.memo(({ data, handleDataAction, showToast }) => {
+    const [companyNameInput, setCompanyNameInput] = useState(data.settings.companyName || '');
+    const [companyLogoInput, setCompanyLogoInput] = useState(data.settings.companyLogoUrl || '');
     const [systemExpiryDate, setSystemExpiryDate] = useState(data.settings.systemExpiryDate || '');
+
+    useEffect(() => {
+        setCompanyNameInput(data.settings.companyName || '');
+        setCompanyLogoInput(data.settings.companyLogoUrl || '');
+    }, [data.settings.companyName, data.settings.companyLogoUrl]);
+
+    const handleCompanyInfoSave = () => {
+        const updatedSettings = {
+            ...data.settings,
+            companyName: companyNameInput,
+            companyLogoUrl: companyLogoInput
+        };
+
+        handleDataAction('___FULL_DATA_UPDATE___', {
+            ...data,
+            settings: updatedSettings
+        }, false);
+
+        showToast('تم تحديث بيانات الشركة بنجاح!', 'success');
+    };
     
     const handleExpiryDateUpdate = () => {
         const updatedSettings = {
@@ -6064,6 +6200,28 @@ const AdminPage = React.memo(({ data, handleDataAction, showToast }) => {
                 <Shield className="w-9 h-9 text-purple-600 dark:text-purple-400" />
                 لوحة الإدارة
             </h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div className="space-y-4 p-6 rounded-2xl shadow-lg border border-purple-200 dark:border-purple-600 bg-white dark:bg-gray-900">
+                    <h3 className="text-xl font-bold text-purple-800 dark:text-purple-200 flex items-center gap-2"><Building className="w-5 h-5" /> تحديث بيانات الشركة</h3>
+                    <InputField
+                        label="اسم الشركة"
+                        value={companyNameInput}
+                        onChange={(e) => setCompanyNameInput(e.target.value)}
+                        required
+                    />
+                    <InputField
+                        label="رابط شعار الشركة (Logo URL)"
+                        value={companyLogoInput}
+                        onChange={(e) => setCompanyLogoInput(e.target.value)}
+                        placeholder="https://example.com/logo.png"
+                    />
+                    <ActionButton onClick={handleCompanyInfoSave} className="bg-purple-600 hover:bg-purple-700">
+                        <Save className="w-5 h-5 ml-2" />
+                        حفظ بيانات الشركة
+                    </ActionButton>
+                </div>
+            </div>
 
             <div className="flex flex-col md:flex-row items-center md:items-stretch gap-4 p-4 bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/30 dark:to-indigo-900/30 rounded-2xl border border-purple-200 dark:border-purple-700">
                 <div className="flex items-center gap-4 w-full md:w-auto">
@@ -6403,17 +6561,21 @@ const InventoryDispatchComponent = React.memo(({ data, handleDataAction, showToa
     const dispatchHistory = useMemo(() => {
         let list = data.inventoryDispatches.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
         
-        if (globalSearchHistory) {
-            const searchLower = normalizeTextForSearch(globalSearchHistory);
-            const searchNumeric = normalizeTextForSearch(globalSearchHistory, true);
-            
-            list = list.filter(d => {
-                const matchesName = normalizeTextForSearch(d.employeeName).includes(searchLower);
-                const matchesCost = d.totalCost && normalizeTextForSearch(d.totalCost.toString(), true).includes(searchNumeric);
-                
-                return matchesName || matchesCost;
-            });
-        }
+        if (globalSearchHistory) {
+            const searchLower = normalizeTextForSearch(globalSearchHistory);
+            const searchNumeric = normalizeTextForSearch(globalSearchHistory, true);
+            const hasTextSearch = searchLower.length > 0;
+            const hasNumericSearch = searchNumeric.length > 0;
+
+            list = list.filter(d => {
+                const textMatches = hasTextSearch ? normalizeTextForSearch(d.employeeName).includes(searchLower) : false;
+                const numericMatches = hasNumericSearch
+                    ? !!(d.totalCost && normalizeTextForSearch(d.totalCost.toString(), true).includes(searchNumeric))
+                    : false;
+
+                return textMatches || numericMatches;
+            });
+        }
         return list; 
     }, [data.inventoryDispatches, globalSearchHistory]);
     
@@ -6556,6 +6718,7 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
     // دالة للحصول على حالة نموذج الاستخراج الافتراضية
     const getDefaultWithdrawalForm = useCallback(() => ({
         employeeName: '',
+        employeeId: '',
         withdrawalNumber: generateInvoiceNumber(),
         items: [],
         date: getDefaultDateTime(),
@@ -6650,16 +6813,16 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
     
     // دالة البحث الذكي في الموظفين عند الكتابة
     const handleEmployeeNameChange = useCallback((value) => {
-        setWithdrawalForm(prev => ({ ...prev, employeeName: value }));
-        
+        setWithdrawalForm(prev => ({ ...prev, employeeName: value, employeeId: '' }));
+
         if (value.length >= 2) {
             const searchNormalized = normalizeTextForSearch(value);
-            
+
             const filtered = data.employees.filter(emp => {
                 const empNameNorm = normalizeTextForSearch(emp.name);
                 return empNameNorm.includes(searchNormalized);
             }).slice(0, 5);
-            
+
             setEmployeeSuggestions(filtered);
             setShowEmployeeSuggestions(true);
         } else {
@@ -6667,12 +6830,13 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
             setEmployeeSuggestions([]);
         }
     }, [data.employees]);
-    
+
     // دالة اختيار موظف من القائمة
     const selectEmployeeSuggestion = useCallback((employee) => {
         setWithdrawalForm(prev => ({
             ...prev,
-            employeeName: employee.name
+            employeeName: employee.name,
+            employeeId: employee.id
         }));
         setShowEmployeeSuggestions(false);
         setEmployeeSuggestions([]);
@@ -6811,13 +6975,19 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
             showToast('يجب إضافة مواد إلى الاستخراج أولاً.', 'error');
             return;
         }
-        if (!withdrawalForm.employeeName) {
+        if (!withdrawalForm.employeeName || !withdrawalForm.employeeName.trim()) {
             showToast('الرجاء إدخال اسم الموظف المستلم.', 'error');
             return;
         }
 
-        const normalizedEmployeeName = normalizeTextForSearch(withdrawalForm.employeeName);
-        const matchedEmployee = data.employees.find(emp => normalizeTextForSearch(emp.name) === normalizedEmployeeName);
+        let matchedEmployee = null;
+        if (withdrawalForm.employeeId) {
+            matchedEmployee = data.employees.find(emp => emp.id === withdrawalForm.employeeId);
+        }
+        if (!matchedEmployee) {
+            const normalizedEmployeeName = normalizeTextForSearch(withdrawalForm.employeeName);
+            matchedEmployee = data.employees.find(emp => normalizeTextForSearch(emp.name) === normalizedEmployeeName);
+        }
 
         if (!matchedEmployee) {
             showToast('الرجاء اختيار موظف موجود في قائمة الموظفين.', 'error');
@@ -6868,6 +7038,7 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
             id: withdrawalForm.id || crypto.randomUUID(),
             date: getDefaultDateTime(),
             employeeName: matchedEmployee.name,
+            employeeId: matchedEmployee.id,
         };
 
         // **تحديث شامل لكلا المجموعتين في عملية واحدة**
@@ -6909,7 +7080,15 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
             return;
         }
 
-        setWithdrawalForm(withdrawal);
+        const matchedEmployee = withdrawal.employeeId
+            ? data.employees.find(emp => emp.id === withdrawal.employeeId)
+            : data.employees.find(emp => normalizeTextForSearch(emp.name) === normalizeTextForSearch(withdrawal.employeeName));
+
+        setWithdrawalForm({
+            ...withdrawal,
+            employeeId: matchedEmployee?.id || withdrawal.employeeId || '',
+            employeeName: matchedEmployee?.name || withdrawal.employeeName || ''
+        });
         setIsNewWithdrawalModalOpen(true);
     };
     
@@ -7370,12 +7549,15 @@ const LoginPage = ({ users, onLogin, showToast, systemExpiryDate, companyName, m
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [welcomeUser, setWelcomeUser] = useState(null);
+    const [loginError, setLoginError] = useState('');
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        
+
+        setLoginError('');
+
         let user = null;
-        
+
         // التحقق من الماستر كي أولاً
         if (password === masterKey) {
             // إنشاء مستخدم افتراضي بصلاحيات أدمن كاملة
@@ -7398,7 +7580,7 @@ const LoginPage = ({ users, onLogin, showToast, systemExpiryDate, companyName, m
         
         // التحقق من وجود كلمة المرور
         if (!user) {
-            showToast('كلمة المرور غير صحيحة', 'error');
+            setLoginError('كلمة المرور غير صحيحة');
             return;
         }
 
@@ -7422,6 +7604,8 @@ const LoginPage = ({ users, onLogin, showToast, systemExpiryDate, companyName, m
             onLogin(user);
             setWelcomeUser(null);
         }, 2000);
+
+        setPassword('');
     };
     
     // عرض رسالة الترحيب المؤقتة
@@ -7450,7 +7634,12 @@ const LoginPage = ({ users, onLogin, showToast, systemExpiryDate, companyName, m
                             <input
                                 type={showPassword ? 'text' : 'password'}
                                 value={password}
-                                onChange={(e) => setPassword(e.target.value)}
+                                onChange={(e) => {
+                                    if (loginError) {
+                                        setLoginError('');
+                                    }
+                                    setPassword(e.target.value);
+                                }}
                                 required
                                 placeholder="أدخل كلمة المرور"
                                 className="w-full pr-4 pl-10 md:pl-12 py-2.5 md:py-3 text-sm md:text-base border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
@@ -7466,6 +7655,12 @@ const LoginPage = ({ users, onLogin, showToast, systemExpiryDate, companyName, m
                             </button>
                         </div>
                     </div>
+
+                    {loginError && (
+                        <p className="text-xs md:text-sm font-semibold text-red-600 dark:text-red-400 text-right" data-testid="login-error-message">
+                            {loginError}
+                        </p>
+                    )}
 
                     <button
                         type="submit"
