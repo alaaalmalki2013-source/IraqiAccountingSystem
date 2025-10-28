@@ -2532,7 +2532,7 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
     const [globalSearch, setGlobalSearch] = useState('');
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
-    const isSearchActive = useMemo(() => globalSearch.trim().length > 0, [globalSearch]);
+    const searchActive = useMemo(() => globalSearch.trim().length > 0, [globalSearch]);
 
     
     const formatDOB = (dateString) => {
@@ -2801,7 +2801,7 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
                             filteredList.map(emp => (
                                 <tr
                                     key={emp.id}
-                                    className={`hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150 ${isSearchActive ? 'bg-amber-50 dark:bg-amber-900/40 border-r-4 border-amber-400' : ''}`}
+                                    className={`hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150 ${searchActive ? 'bg-amber-50 dark:bg-amber-900/40 border-r-4 border-amber-400' : ''}`}
                                 >
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600 cursor-pointer" onClick={() => openDetailsModal(emp)}>{highlightText(emp.name, globalSearch)}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{highlightText(formatDOB(emp.dateOfBirth), globalSearch)}</td>
