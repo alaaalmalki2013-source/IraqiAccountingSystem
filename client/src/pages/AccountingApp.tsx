@@ -709,6 +709,13 @@ const DataPageComponent = React.memo(({ 
     const [filterCategory, setFilterCategory] = useState('الكل');
     const [globalSearch, setGlobalSearch] = useState('');
     const [filterStatus, setFilterStatus] = useState('active'); // فلتر الحالة: active, cancelled, all
+    const isSearchActive = useMemo(() => globalSearch.trim().length > 0, [globalSearch]);
+    const emptyStateColSpan = useMemo(() => {
+        const base = 2; // التاريخ + الإجراءات
+        const vendorColumn = collectionName === 'expenses' ? 1 : 0;
+        const invoiceColumn = collectionName !== 'revenues' ? 1 : 0;
+        return fields.length + base + vendorColumn + invoiceColumn;
+    }, [fields.length, collectionName]);
     
     // دالة تهيئة النماذج لتبسيط useEffect
     const getInitialFormState = useCallback((item = null, initialDispatch = null) => {
@@ -756,12 +763,12 @@ const DataPageComponent = React.memo(({ 
     }, [initialExpenseState]); // Added initialExpenseState to dependency array
     
     // **جديد:** كروت الفئات
-    const categoryTotals = useMemo(() => {
-        const totals = data[collectionName].reduce((acc, item) => {
-            const category = item.category || 'غير مصنف';
-            acc[category] = (acc[category] || 0) + (parseFloat(item.amount) || 0);
-            return acc;
-        }, {});
+    const categoryTotals = useMemo(() => {
+        const totals = data[collectionName].reduce((acc, item) => {
+            const category = item.category || 'غير مصنف';
+            acc[category] = (acc[category] || 0) + (parseFloat(item.amount) || 0);
+            return acc;
+        }, {});
         // تحويل الكائن إلى مصفوفة لسهولة العرض
         return Object.keys(totals).map(category => ({
             category,
@@ -769,7 +776,7 @@ const DataPageComponent = React.memo(({ 
             // تحديد اللون بناءً على نوع الصفحة
             color: type === 'revenue' ? 'green' : 'red'
         }));
-    }, [data, collectionName, type]);
+    }, [data, collectionName, type]);
     
     const [activeCategories, setActiveCategories] = useState([]);
     
@@ -940,7 +947,6 @@ const DataPageComponent = React.memo(({ 
         // إنشاء صف واحد كمثال
         const exampleRow = {
             'التاريخ (yyyy-mm-dd)': '2025-01-01',
-            'رقم الفاتورة': 'INV001',
             'المبلغ': 100000,
         };
         
@@ -1015,7 +1021,7 @@ const DataPageComponent = React.memo(({ 
                         const newItem = {
                             id: crypto.randomUUID(),
                             date: row['التاريخ (yyyy-mm-dd)'] ? `${row['التاريخ (yyyy-mm-dd)']}T${new Date().toTimeString().slice(0, 5)}` : getDefaultDateTime(),
-                            invoiceNumber: row['رقم الفاتورة'] || generateInvoiceNumber(),
+                            invoiceNumber: generateInvoiceNumber(),
                             amount: parseFloat(row['المبلغ']) || 0,
                         };
                         
@@ -1050,6 +1056,9 @@ const DataPageComponent = React.memo(({ 
                 showToast(`تم استيراد ${successCount} سجل بنجاح${errorCount > 0 ? ` (${errorCount} خطأ)` : ''}`, successCount > 0 ? 'success' : 'error');
                 setIsImportModalOpen(false);
                 setSelectedFile(null);
+                if (typeof handleRefresh === 'function') {
+                    handleRefresh();
+                }
             } catch (error) {
                 console.error('خطأ في قراءة ملف Excel:', error);
                 showToast('حدث خطأ في قراءة ملف Excel', 'error');
@@ -1139,25 +1148,25 @@ const DataPageComponent = React.memo(({ 
             </div>
 
             {/* **جديد:** كروت الفئات (Multiple Select) */}
-            {categoryTotals.length > 0 && (
-                <div className="space-y-4">
-                    <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4 flex items-center gap-2">
-                        <Filter className="w-5 h-5 ml-2" />
-                        فلترة حسب فئة {type === 'revenue' ? 'الإيراد' : 'الصرف'}
-                    </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                        {categoryTotals.map(cat => {
+            {collectionName !== 'suspended' && categoryTotals.length > 0 && (
+                <div className="space-y-4" dir="rtl">
+                    <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4 flex items-center gap-2">
+                        <Filter className="w-5 h-5 ml-2" />
+                        فلترة حسب فئة {type === 'revenue' ? 'الإيراد' : 'الصرف'}
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 text-right justify-items-end">
+                        {categoryTotals.map(cat => {
                             const customColor = CUSTOM_CATEGORY_COLORS[cat.category] || (cat.color === 'green' ? { bg: 'bg-green-50 dark:bg-green-900', text: 'text-green-800 dark:text-green-200', border: 'border-green-500' } : { bg: 'bg-red-50 dark:bg-red-900', text: 'text-red-800 dark:text-red-200', border: 'border-red-500' });
                             return (
-                                <div 
-                                    key={cat.category}
-                                    onClick={() => handleCategoryCardClick(cat.category)}
-                                    className={`p-4 rounded-2xl shadow-lg cursor-pointer transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl
-                                        ${isFilterActive(cat.category) 
-                                            ? `${customColor.bg.replace('-50', '-200').replace('-100', '-200')} ${customColor.border.replace('border-', 'ring-4 ring-opacity-60 ring-')} ${customColor.text.replace('-800', '-900')}`
-                                            : `${customColor.bg} ${customColor.text} ${customColor.border}`
-                                        }
-                                    `}
+                                <div
+                                    key={cat.category}
+                                    onClick={() => handleCategoryCardClick(cat.category)}
+                                    className={`p-4 rounded-2xl shadow-lg cursor-pointer transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl text-right
+                                        ${isFilterActive(cat.category)
+                                            ? `${customColor.bg.replace('-50', '-200').replace('-100', '-200')} ${customColor.border.replace('border-', 'ring-4 ring-opacity-60 ring-')} ${customColor.text.replace('-800', '-900')}`
+                                            : `${customColor.bg} ${customColor.text} ${customColor.border}`
+                                        }
+                                    `}
                                     style={{ 
                                         '--ring-current': customColor.border.replace('border-', '') // لتحديد لون الـ ring
                                     }}
@@ -1206,26 +1215,33 @@ const DataPageComponent = React.memo(({ 
 
             <div className="bg-white dark:bg-gray-700 p-6 rounded-xl shadow-lg overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50 dark:bg-gray-600 rounded-t-xl">
-                        <tr>
-                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">التاريخ والوقت</th>
-                            {fields.map(field => (
-                                <th key={field.key} className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">{field.label}</th>
-                            ))}
-                            {collectionName === 'expenses' && <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">المورد والمندوب</th>}
-                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">رقم الفاتورة</th>
-                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">الإجراءات</th>
-                        </tr>
-                    </thead>
-                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
-                        {filteredList.length === 0 ? (
-                            <tr><td colSpan={fields.length + (collectionName === 'expenses' ? 4 : 3)} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">لا توجد سجلات متاحة تتوافق مع الفلاتر.</td></tr>
-                        ) : (
-                            filteredList.map(item => (
-                                <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150 cursor-pointer" onClick={() => openModal(item)} data-testid={`row-${item.id}`}>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{formatDateTimeDDMMYYYY(item.date)}</td>
-                                    {fields.map(field => {
-                                        const itemValue = item[field.key] || '';
+                    <thead className="bg-gray-50 dark:bg-gray-600 rounded-t-xl">
+                        <tr>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">التاريخ والوقت</th>
+                            {fields.map(field => (
+                                <th key={field.key} className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">{field.label}</th>
+                            ))}
+                            {collectionName === 'expenses' && <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">المورد والمندوب</th>}
+                            {collectionName !== 'revenues' && (
+                                <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">رقم الفاتورة</th>
+                            )}
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
+                        {filteredList.length === 0 ? (
+                            <tr><td colSpan={emptyStateColSpan} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">لا توجد سجلات متاحة تتوافق مع الفلاتر.</td></tr>
+                        ) : (
+                            filteredList.map(item => (
+                                <tr
+                                    key={item.id}
+                                    className={`hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150 cursor-pointer ${isSearchActive ? 'bg-amber-50 dark:bg-amber-900/40 border-r-4 border-amber-400' : ''}`}
+                                    onClick={() => openModal(item)}
+                                    data-testid={`row-${item.id}`}
+                                >
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{formatDateTimeDDMMYYYY(item.date)}</td>
+                                    {fields.map(field => {
+                                        const itemValue = item[field.key] || '';
 
                                         if (field.key === 'employeeName' && item.employeeId) {
                                             const employee = data.employees.find(e => e.id === item.employeeId);
@@ -1251,21 +1267,23 @@ const DataPageComponent = React.memo(({ 
                                         );
                                     })}
                                     
-                                    {collectionName === 'expenses' && (
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
-                                            {item.vendor && <span className="font-semibold">{highlightText(item.vendor, globalSearch)}</span>}
-                                            {item.vendor && item.representative && <span className="text-gray-400 dark:text-gray-500"> (</span>}
-                                            {item.representative && <span className="text-sm italic">{highlightText(item.representative, globalSearch)}</span>}
-                                            {item.vendor && item.representative && <span className="text-gray-400 dark:text-gray-500">)</span>}
-                                            {!item.vendor && <span className="text-gray-400 dark:text-gray-500">N/A</span>}
-                                        </td>
-                                    )}
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300 font-mono">{highlightText(item.invoiceNumber || 'N/A', globalSearch)}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium" onClick={(e) => e.stopPropagation()}>
-                                        <div className="flex space-x-3 space-x-reverse">
-                                            {(type === 'expense' || type === 'advance') && (
-                                                <button onClick={() => handlePrint(item)} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100">
-                                                    <Printer className="w-5 h-5" />
+                                    {collectionName === 'expenses' && (
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                                            {item.vendor && <span className="font-semibold">{highlightText(item.vendor, globalSearch)}</span>}
+                                            {item.vendor && item.representative && <span className="text-gray-400 dark:text-gray-500"> (</span>}
+                                            {item.representative && <span className="text-sm italic">{highlightText(item.representative, globalSearch)}</span>}
+                                            {item.vendor && item.representative && <span className="text-gray-400 dark:text-gray-500">)</span>}
+                                            {!item.vendor && <span className="text-gray-400 dark:text-gray-500">N/A</span>}
+                                        </td>
+                                    )}
+                                    {collectionName !== 'revenues' && (
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300 font-mono">{highlightText(item.invoiceNumber || 'N/A', globalSearch)}</td>
+                                    )}
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium" onClick={(e) => e.stopPropagation()}>
+                                        <div className="flex space-x-3 space-x-reverse">
+                                            {(type === 'expense' || type === 'advance') && (
+                                                <button onClick={() => handlePrint(item)} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100">
+                                                    <Printer className="w-5 h-5" />
                                                 </button>
                                             )}
                                             <button onClick={() => openModal(item)} className="text-indigo-600 hover:text-indigo-900">
@@ -1499,7 +1517,7 @@ const DataPageComponent = React.memo(({ 
 /**
  * 3.3. PendingExpenses Component - الصرفيات المعلقة
  */
-const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDelete, showToast, setCurrentPage, setInitialExpenseState, handleRefresh }) => {
+const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDelete, showToast, setCurrentPage, setInitialExpenseState, handleRefresh, initialExpenseState, currentUser }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [currentItem, setCurrentItem] = useState(null);
     const [viewItem, setViewItem] = useState(null);
@@ -1518,10 +1536,19 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
     });
     const [selectedVendor, setSelectedVendor] = useState('');
     const [globalSearch, setGlobalSearch] = useState('');
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+    const [selectedFile, setSelectedFile] = useState(null);
+    const isSearchActive = useMemo(() => globalSearch.trim().length > 0, [globalSearch]);
     const [filterTypes, setFilterTypes] = useState([]); // مصفوفة للسماح باختيار متعدد: ['expense', 'advance']
     const [filterStatuses, setFilterStatuses] = useState([]); // مصفوفة للسماح باختيار متعدد: ['pending', 'cancelled', 'paid']
     const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
-    
+    const [pendingAutoApprove, setPendingAutoApprove] = useState(false);
+
+    const canAddPending = !!currentUser?.permissions?.pendingExpenses?.add;
+    const canEditPending = !!currentUser?.permissions?.pendingExpenses?.edit;
+    const canApprovePending = !!currentUser?.permissions?.pendingExpenses?.approve;
+    const canCancelPending = !!currentUser?.permissions?.pendingExpenses?.cancel;
+
     const initialRange = useMemo(() => getCurrentMonthRange(), []);
     const [filterDateFrom, setFilterDateFrom] = useState(initialRange.start);
     const [filterDateTo, setFilterDateTo] = useState(initialRange.end);
@@ -1549,6 +1576,30 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
             setSelectedVendor('');
         }
     }, [currentItem, data.employees]);
+
+    useEffect(() => {
+        if (initialExpenseState) {
+            const normalizedAmount = convertArabicToEnglish((initialExpenseState.amount ?? '').toString());
+            setFormState({
+                type: 'expense',
+                date: initialExpenseState.date || getDefaultDateTime(),
+                amount: normalizedAmount || initialExpenseState.amount?.toString() || '',
+                category: initialExpenseState.category || data.settings.expenseCategories[0] || '',
+                description: initialExpenseState.description || '',
+                vendor: initialExpenseState.vendor || '',
+                representative: initialExpenseState.representative || '',
+                employeeId: data.employees[0]?.id || '',
+                notes: initialExpenseState.notes || '',
+                status: 'pending',
+                invoiceImageUrl: initialExpenseState.invoiceImageUrl || ''
+            });
+            setSelectedVendor(initialExpenseState.vendor || '');
+            setCurrentItem(null);
+            setPendingAutoApprove(true);
+            setIsModalOpen(true);
+            setInitialExpenseState(null);
+        }
+    }, [initialExpenseState, data.settings.expenseCategories, data.employees, setInitialExpenseState]);
 
     const filteredList = useMemo(() => {
         let list = data.pendingExpenses.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -1607,37 +1658,68 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        
+
+        const isNew = !currentItem;
+
+        if (isNew && !canAddPending) {
+            showToast('ليس لديك صلاحية إضافة صرفيات معلقة.', 'error');
+            return;
+        }
+
+        if (!isNew && !canEditPending) {
+            showToast('ليس لديك صلاحية تعديل الصرفيات المعلقة.', 'error');
+            return;
+        }
+
         const itemToSave = formState.type === 'expense' ? {
             ...formState,
             vendor: selectedVendor
         } : formState;
-        
+
         // vendor اختياري، لكن إذا تم اختياره، يجب اختيار representative
         if (formState.type === 'expense' && selectedVendor && !itemToSave.representative) {
             showToast('يجب اختيار المندوب عند اختيار المورد.', 'error');
             return;
         }
-        
+
         if (formState.type === 'advance' && !itemToSave.employeeId) {
             showToast('يجب اختيار الموظف للسلفة.', 'error');
             return;
         }
 
-        handleDataAction('pendingExpenses', itemToSave, !currentItem);
+        const pendingId = currentItem?.id || crypto.randomUUID();
+        const parsedAmount = parseFloat(convertArabicToEnglish(itemToSave.amount || '0')) || 0;
+
+        const pendingItem = {
+            ...itemToSave,
+            id: pendingId,
+            amount: parsedAmount,
+            status: currentItem?.status || 'pending'
+        };
+
+        handleDataAction('pendingExpenses', pendingItem, isNew);
+        if (isNew && pendingAutoApprove && canApprovePending) {
+            handleApprove(pendingItem, { bypassPermissionCheck: true, silent: true });
+        }
+
         setIsModalOpen(false);
         setCurrentItem(null);
+        setPendingAutoApprove(false);
+        setSelectedVendor('');
     };
 
-    const handleApprove = (item) => {
-        if (!window.confirm('هل أنت متأكد من الموافقة على هذا الطلب؟')) {
+    const handleApprove = (item, { bypassPermissionCheck = false, silent = false } = {}) => {
+        if (!bypassPermissionCheck && !canApprovePending) {
+            showToast('ليس لديك صلاحية اعتماد الصرفيات المعلقة.', 'error');
             return;
         }
-        
-        // إنشاء نسخة محدثة من البيانات
+
         const updatedData = { ...data };
-        
-        // إضافة العنصر إلى الصرفيات أو السلف
+
+        if (!updatedData.pendingExpenses.find(p => p.id === item.id)) {
+            updatedData.pendingExpenses = [...updatedData.pendingExpenses, item];
+        }
+
         if (item.type === 'expense') {
             const expenseData = {
                 id: crypto.randomUUID(),
@@ -1663,25 +1745,27 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
             };
             updatedData.advances = [...updatedData.advances, advanceData];
         }
-        
-        // تغيير حالة العنصر إلى "مصروفة" بدلاً من حذفه
-        updatedData.pendingExpenses = updatedData.pendingExpenses.map(p => 
+
+        updatedData.pendingExpenses = updatedData.pendingExpenses.map(p =>
             p.id === item.id ? { ...p, status: 'paid' } : p
         );
-        
-        // حفظ البيانات المحدثة مرة واحدة
+
         handleDataAction('___FULL_DATA_UPDATE___', updatedData, false);
-        
-        showToast(`تمت الموافقة وإضافة ${item.type === 'expense' ? 'الصرفية' : 'السلفة'} بنجاح!`, 'success');
+
+        if (!silent) {
+            showToast(`تمت الموافقة وإضافة ${item.type === 'expense' ? 'الصرفية' : 'السلفة'} بنجاح!`, 'success');
+        }
     };
 
     const handleCancel = (item) => {
-        if (window.confirm('هل أنت متأكد من إلغاء هذا الطلب؟')) {
-            // تغيير حالة العنصر إلى ملغي بدلاً من حذفه
-            const updatedItem = { ...item, status: 'cancelled' };
-            handleDataAction('pendingExpenses', updatedItem, false);
-            showToast('تم إلغاء الطلب بنجاح!', 'success');
+        if (!canCancelPending) {
+            showToast('ليس لديك صلاحية إلغاء الصرفيات المعلقة.', 'error');
+            return;
         }
+
+        const updatedItem = { ...item, status: 'cancelled' };
+        handleDataAction('pendingExpenses', updatedItem, false);
+        showToast('تم إلغاء الطلب بنجاح!', 'success');
     };
 
     const totalFilteredAmount = filteredList.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
@@ -1877,7 +1961,8 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                         setCurrentItem(null);
                         setIsModalOpen(true);
                     }}
-                    className="flex items-center px-6 py-3 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-xl hover:from-green-600 hover:to-teal-600 shadow-lg transition duration-200"
+                    disabled={!canAddPending}
+                    className={`flex items-center px-6 py-3 rounded-xl shadow-lg transition duration-200 ${canAddPending ? 'bg-gradient-to-r from-green-500 to-teal-500 text-white hover:from-green-600 hover:to-teal-600' : 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-300 cursor-not-allowed'}`}
                     data-testid="button-add-pending"
                 >
                     <Plus className="w-5 h-5 ml-2" />
@@ -1989,33 +2074,39 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                                         <td className="px-6 py-4 whitespace-nowrap text-sm" onClick={(e) => e.stopPropagation()}>
                                             {item.status === 'pending' && (
                                                 <div className="flex gap-2">
-                                                    <button
-                                                        onClick={() => {
-                                                            setCurrentItem(item);
-                                                            setIsModalOpen(true);
-                                                        }}
-                                                        className="px-3 py-1 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors flex items-center gap-1 text-xs font-semibold"
-                                                        data-testid={`button-edit-${item.id}`}
-                                                    >
-                                                        <Edit2 className="w-4 h-4" />
-                                                        تعديل
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleApprove(item)}
-                                                        className="px-3 py-1 bg-green-600 dark:bg-green-500 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-600 transition-colors flex items-center gap-1 text-xs font-semibold"
-                                                        data-testid={`button-approve-${item.id}`}
-                                                    >
-                                                        <CheckCircle className="w-4 h-4" />
-                                                        موافقة
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleCancel(item)}
-                                                        className="px-3 py-1 bg-red-600 dark:bg-red-500 text-white rounded-lg hover:bg-red-700 dark:hover:bg-red-600 transition-colors flex items-center gap-1 text-xs font-semibold"
-                                                        data-testid={`button-cancel-${item.id}`}
-                                                    >
-                                                        <XCircle className="w-4 h-4" />
-                                                        إلغاء
-                                                    </button>
+                                                    {canEditPending && (
+                                                        <button
+                                                            onClick={() => {
+                                                                setCurrentItem(item);
+                                                                setIsModalOpen(true);
+                                                            }}
+                                                            className="px-3 py-1 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors flex items-center gap-1 text-xs font-semibold"
+                                                            data-testid={`button-edit-${item.id}`}
+                                                        >
+                                                            <Edit2 className="w-4 h-4" />
+                                                            تعديل
+                                                        </button>
+                                                    )}
+                                                    {canApprovePending && (
+                                                        <button
+                                                            onClick={() => handleApprove(item)}
+                                                            className="px-3 py-1 bg-green-600 dark:bg-green-500 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-600 transition-colors flex items-center gap-1 text-xs font-semibold"
+                                                            data-testid={`button-approve-${item.id}`}
+                                                        >
+                                                            <CheckCircle className="w-4 h-4" />
+                                                            موافقة
+                                                        </button>
+                                                    )}
+                                                    {canCancelPending && (
+                                                        <button
+                                                            onClick={() => handleCancel(item)}
+                                                            className="px-3 py-1 bg-red-600 dark:bg-red-500 text-white rounded-lg hover:bg-red-700 dark:hover:bg-red-600 transition-colors flex items-center gap-1 text-xs font-semibold"
+                                                            data-testid={`button-cancel-${item.id}`}
+                                                        >
+                                                            <XCircle className="w-4 h-4" />
+                                                            إلغاء
+                                                        </button>
+                                                    )}
                                                 </div>
                                             )}
                                         </td>
@@ -2029,9 +2120,10 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
 
             {/* Modal */}
             {isModalOpen && (
-                <Modal 
-                    title={currentItem ? 'تعديل صرفية معلقة' : 'إضافة صرفية معلقة جديدة'} 
-                    onClose={() => setIsModalOpen(false)}
+                <Modal
+                    title={currentItem ? 'تعديل صرفية معلقة' : 'إضافة صرفية معلقة جديدة'}
+                    onClose={() => { setIsModalOpen(false); setPendingAutoApprove(false); }}
+                    size="xl"
                 >
                     <form onSubmit={handleSubmit} className="space-y-5">
                         <InputField
@@ -2211,28 +2303,29 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                             </>
                         )}
 
-                        {/* حقل رفع صورة الفاتورة */}
-                        <div className="flex flex-col space-y-1 text-right">
-                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">صورة الفاتورة</label>
-                            <input
-                                type="url"
-                                placeholder="أدخل رابط الصورة"
-                                value={formState.invoiceImageUrl || ''}
-                                onChange={(e) => setFormState({ ...formState, invoiceImageUrl: e.target.value })}
-                                className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500 transition duration-150 text-right"
-                                data-testid="input-invoice-image"
-                            />
-                            {formState.invoiceImageUrl && (
-                                <button
-                                    type="button"
-                                    onClick={() => setImagePreviewUrl(formState.invoiceImageUrl)}
-                                    className="text-blue-600 dark:text-blue-400 text-sm hover:underline flex items-center gap-1 justify-end mt-1"
-                                >
-                                    <FileImage className="w-4 h-4" />
-                                    معاينة الصورة
-                                </button>
-                            )}
-                        </div>
+                        {formState.type === 'expense' && (
+                            <div className="flex flex-col space-y-1 text-right">
+                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">صورة الفاتورة</label>
+                                <input
+                                    type="url"
+                                    placeholder="أدخل رابط الصورة"
+                                    value={formState.invoiceImageUrl || ''}
+                                    onChange={(e) => setFormState({ ...formState, invoiceImageUrl: e.target.value })}
+                                    className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500 transition duration-150 text-right"
+                                    data-testid="input-invoice-image"
+                                />
+                                {formState.invoiceImageUrl && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setImagePreviewUrl(formState.invoiceImageUrl)}
+                                        className="text-blue-600 dark:text-blue-400 text-sm hover:underline flex items-center gap-1 justify-end mt-1"
+                                    >
+                                        <FileImage className="w-4 h-4" />
+                                        معاينة الصورة
+                                    </button>
+                                )}
+                            </div>
+                        )}
 
                         <ActionButton type="submit" className="w-full bg-teal-600 hover:bg-teal-700">
                             <Save className="w-5 h-5 ml-2" />
@@ -2432,11 +2525,13 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
  * 3.3. EmployeePage Component
  */
 const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete, setPrintReportData, setIsReportModalOpen, showToast, handleRefresh }) => {
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
-    const [currentEmployee, setCurrentEmployee] = useState(null);
-    const [formState, setFormState] = useState({});
-    const [globalSearch, setGlobalSearch] = useState(''); 
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+    const [currentEmployee, setCurrentEmployee] = useState(null);
+    const [formState, setFormState] = useState({});
+    const [globalSearch, setGlobalSearch] = useState('');
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
     
     const formatDOB = (dateString) => {
@@ -2519,28 +2614,133 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
         setIsReportModalOpen(true);
     };
     
-    const handleExportAll = () => {
-        if (filteredList.length === 0) {
-             showToast('لا توجد بيانات للتصدير.', "error");
-             return;
-           }
-            
-        const exportContent = filteredList.map(item => ({
-            'الاسم': item.name,
-            'تاريخ الميلاد': formatDOB(item.dateOfBirth),
-            'القسم': item.department,
-            'المنصب': item.jobTitle,
-            'الراتب': parseFloat(item.salary || 0),
-            'رقم الهاتف': item.phone || 'N/A',
-            'رابط المستندات': item.docUrl || 'N/A',
-        }));
+    const handleExportAll = () => {
+        if (filteredList.length === 0) {
+      showToast('لا توجد بيانات للتصدير.', "error");
+      return;
+    }
 
-        exportToCsv(exportContent, `تقرير_الموظفين`);
-        showToast('تم تصدير البيانات إلى Excel بنجاح!', "success");
-    };
+        const exportContent = filteredList.map(item => ({
+            'الاسم': item.name,
+            'تاريخ الميلاد': formatDOB(item.dateOfBirth),
+            'القسم': item.department,
+            'المنصب': item.jobTitle,
+            'الراتب': parseFloat(item.salary || 0),
+            'رقم الهاتف': item.phone || 'N/A',
+            'رابط المستندات': item.docUrl || 'N/A',
+        }));
+
+        exportToCsv(exportContent, `تقرير_الموظفين`);
+        showToast('تم تصدير البيانات إلى Excel بنجاح!', "success");
+    };
+
+    const downloadEmployeeTemplate = () => {
+        const template = [{
+            'اسم الموظف': 'محمد علي',
+            'تاريخ الميلاد (yyyy-mm-dd)': '1990-05-12',
+            'القسم': data.settings.departments[0] || 'الإدارة',
+            'المنصب': data.settings.jobTitles[0] || 'موظف',
+            'الراتب الشهري': 750000,
+            'رقم الهاتف': '07701234567',
+            'رابط المستندات': 'https://example.com/docs.pdf'
+        }];
+
+        const worksheet = XLSX.utils.json_to_sheet(template);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'الموظفون');
+        XLSX.writeFile(workbook, `نموذج_الموظفين_${new Date().toISOString().split('T')[0]}.xlsx`);
+        showToast('تم تحميل نموذج Excel بنجاح!', 'success');
+    };
+
+    const handleEmployeeFileUpload = (event) => {
+        const file = event.target.files?.[0];
+        if (!file) {
+            return;
+        }
+        setSelectedFile(file);
+        showToast('تم اختيار الملف، اضغط على "استيراد البيانات" للمتابعة.', 'info');
+    };
+
+    const importEmployeesFromExcel = () => {
+        if (!selectedFile) {
+            showToast('يرجى اختيار ملف Excel أولاً', 'error');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                if (!e.target?.result) {
+                    showToast('تعذر قراءة ملف Excel', 'error');
+                    return;
+                }
+
+                const fileData = new Uint8Array(e.target.result as ArrayBuffer);
+                const workbook = XLSX.read(fileData, { type: 'array' });
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+                if (jsonData.length === 0) {
+                    showToast('الملف فارغ أو غير صالح', 'error');
+                    return;
+                }
+
+                let successCount = 0;
+                let errorCount = 0;
+
+                jsonData.forEach((row, index) => {
+                    try {
+                        const nameCell = row['اسم الموظف'] || row['الاسم'];
+                        if (!nameCell) {
+                            errorCount++;
+                            return;
+                        }
+
+                        const processedSalary = convertArabicToEnglish(row['الراتب الشهري'] || row['الراتب'] || '0');
+                        const employeeId = crypto.randomUUID();
+                        const dateOfBirth = row['تاريخ الميلاد (yyyy-mm-dd)'] || row['تاريخ الميلاد'] || '';
+
+                        const newEmployee = {
+                            id: employeeId,
+                            name: nameCell.toString().trim(),
+                            dateOfBirth: dateOfBirth ? dateOfBirth.toString().trim() : '',
+                            department: (row['القسم'] || data.settings.departments[0] || '').toString(),
+                            jobTitle: (row['المنصب'] || row['الوظيفة'] || data.settings.jobTitles[0] || '').toString(),
+                            salary: parseFloat(processedSalary || 0) || 0,
+                            phone: convertArabicToEnglish((row['رقم الهاتف'] || '').toString()),
+                            docUrl: row['رابط المستندات'] ? row['رابط المستندات'].toString() : '',
+                        };
+
+                        handleDataAction('employees', newEmployee, true);
+                        successCount++;
+                    } catch (error) {
+                        console.error(`فشل استيراد السطر ${index + 1}:`, error);
+                        errorCount++;
+                    }
+                });
+
+                showToast(`تم استيراد ${successCount} موظف${errorCount ? ` (أخطاء: ${errorCount})` : ''}`, successCount ? 'success' : 'error');
+                setIsImportModalOpen(false);
+                setSelectedFile(null);
+                if (typeof handleRefresh === 'function') {
+                    handleRefresh();
+                }
+            } catch (error) {
+                console.error('خطأ في قراءة ملف Excel:', error);
+                showToast('حدث خطأ في قراءة ملف Excel', 'error');
+            }
+        };
+
+        reader.onerror = () => {
+            showToast('تعذر قراءة ملف Excel', 'error');
+        };
+
+        reader.readAsArrayBuffer(selectedFile);
+    };
 
 
-    return (
+    return (
         <div className="p-6 space-y-6 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl">
             <h2 className="text-4xl font-extrabold text-gray-800 dark:text-gray-200 border-b-2 border-teal-500 pb-3">إدارة الموظفين </h2>
             
@@ -2594,11 +2794,14 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
                         </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
-                        {filteredList.length === 0 ? (
-                            <tr><td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">لا يوجد موظفين مسجلين.</td></tr>
-                        ) : (
-                            filteredList.map(emp => (
-                                <tr key={emp.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150">
+                        {filteredList.length === 0 ? (
+                            <tr><td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">لا يوجد موظفين مسجلين.</td></tr>
+                        ) : (
+                            filteredList.map(emp => (
+                                <tr
+                                    key={emp.id}
+                                    className={`hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150 ${isSearchActive ? 'bg-amber-50 dark:bg-amber-900/40 border-r-4 border-amber-400' : ''}`}
+                                >
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600 cursor-pointer" onClick={() => openDetailsModal(emp)}>{highlightText(emp.name, globalSearch)}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{highlightText(formatDOB(emp.dateOfBirth), globalSearch)}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{highlightText(emp.department, globalSearch)}</td>
@@ -2697,11 +2900,11 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
                 </Modal>
             )}
 
-            {isDetailsModalOpen && currentEmployee && (
-                <Modal title={`تفاصيل الموظف: ${currentEmployee.name}`} onClose={() => setIsDetailsModalOpen(false)} size="sm">
-                    <div className="space-y-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl">
-                        <h4 className="text-xl font-bold text-gray-800 dark:text-gray-200 border-b pb-2 mb-4">معلومات أساسية</h4>
-                        <p className="flex items-center text-lg dark:text-gray-200"><CalendarCheck className="w-5 h-5 ml-2 text-indigo-500" /> **تاريخ الميلاد:** {formatDOB(currentEmployee.dateOfBirth)}</p>
+            {isDetailsModalOpen && currentEmployee && (
+                <Modal title={`تفاصيل الموظف: ${currentEmployee.name}`} onClose={() => setIsDetailsModalOpen(false)} size="sm">
+                    <div className="space-y-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl">
+                        <h4 className="text-xl font-bold text-gray-800 dark:text-gray-200 border-b pb-2 mb-4">معلومات أساسية</h4>
+                        <p className="flex items-center text-lg dark:text-gray-200"><CalendarCheck className="w-5 h-5 ml-2 text-indigo-500" /> **تاريخ الميلاد:** {formatDOB(currentEmployee.dateOfBirth)}</p>
                         <p className="flex items-center text-lg dark:text-gray-200"><Briefcase className="w-5 h-5 ml-2 text-indigo-500" /> **القسم:** {currentEmployee.department}</p>
                         <p className="flex items-center text-lg dark:text-gray-200"><List className="w-5 h-5 ml-2 text-indigo-500" /> **المنصب:** {currentEmployee.jobTitle}</p>
                         <p className="flex items-center text-lg dark:text-gray-200"><Phone className="w-5 h-5 ml-2 text-indigo-500" /> **الهاتف:** {currentEmployee.phone || 'غير متوفر'}</p>
@@ -2715,10 +2918,58 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
 
                         
                     </div>
-                </Modal>
-            )}
-        </div>
-    );
+                </Modal>
+            )}
+
+            {isImportModalOpen && (
+                <Modal title="استيراد الموظفين من Excel" onClose={() => { setIsImportModalOpen(false); setSelectedFile(null); }}>
+                    <div className="space-y-6">
+                        <div className="p-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-xl">
+                            <h3 className="font-bold text-blue-800 dark:text-blue-200 mb-2 flex items-center gap-2">
+                                <Info className="w-5 h-5" />
+                                خطوات الاستيراد:
+                            </h3>
+                            <ol className="list-decimal list-inside space-y-1 text-sm text-blue-700 dark:text-blue-300">
+                                <li>قم بتحميل نموذج Excel الفارغ.</li>
+                                <li>أضف بيانات الموظفين مع الالتزام بالتنسيق.</li>
+                                <li>ارفع الملف ثم اضغط على "استيراد البيانات".</li>
+                            </ol>
+                        </div>
+
+                        <div className="flex flex-col gap-4">
+                            <button
+                                onClick={downloadEmployeeTemplate}
+                                className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-xl hover:from-blue-600 hover:to-cyan-600 shadow-lg transition duration-200"
+                            >
+                                <FileDown className="w-5 h-5" />
+                                تحميل نموذج Excel
+                            </button>
+
+                            <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-6">
+                                <label className="flex flex-col items-center justify-center cursor-pointer">
+                                    <Upload className="w-12 h-12 text-gray-400 dark:text-gray-500 mb-2" />
+                                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                        {selectedFile ? selectedFile.name : 'اضغط لاختيار ملف Excel'}
+                                    </span>
+                                    <span className="text-xs text-gray-500 dark:text-gray-400">(xlsx, xls)</span>
+                                    <input type="file" accept=".xlsx,.xls" onChange={handleEmployeeFileUpload} className="hidden" />
+                                </label>
+                            </div>
+
+                            <button
+                                onClick={importEmployeesFromExcel}
+                                disabled={!selectedFile}
+                                className={`flex items-center justify-center gap-2 px-6 py-3 rounded-xl shadow-lg transition duration-200 ${selectedFile ? 'bg-gradient-to-r from-green-500 to-teal-500 text-white hover:from-green-600 hover:to-teal-600' : 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'}`}
+                            >
+                                <Upload className="w-5 h-5" />
+                                استيراد البيانات
+                            </button>
+                        </div>
+                    </div>
+                </Modal>
+            )}
+        </div>
+    );
 });
 
 /**
@@ -3783,27 +4034,32 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
 /**
  * 3.5. InventoryEntryComponent (الادخال المخزني)
  */
-const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDelete, setCurrentPage, showToast, setInitialExpenseState, handleRefresh }) => {
+const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDelete, setCurrentPage, showToast, setInitialExpenseState, handleRefresh, currentUser }) => {
     const [isNewInvoiceModalOpen, setIsNewInvoiceModalOpen] = useState(false);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     const [isCancelModalOpen, setIsCancelModalOpen] = useState(false); 
     const [cancellationReason, setCancellationReason] = useState(''); 
     const [currentInvoice, setCurrentInvoice] = useState(null);
     const [globalSearch, setGlobalSearch] = useState(''); 
-    const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false); 
-    
-    // **جديد:** حالة فلترة الجدول حسب حالة الفاتورة (مصفوفة الآن لدعم الاختيار المتعدد)
-    const [statusFilter, setStatusFilter] = useState([]); 
-    
+    const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
+
+    // **جديد:** حالة فلترة الجدول حسب حالة الفاتورة (مصفوفة الآن لدعم الاختيار المتعدد)
+    const [statusFilter, setStatusFilter] = useState([]);
+
     // حالة الـ autocomplete للمواد
     const [suggestions, setSuggestions] = useState([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [editingItemId, setEditingItemId] = useState(null); // لتتبع المادة قيد التعديل
 
-    // دالة للحصول على حالة نموذج الفاتورة الافتراضية
-    const getDefaultInvoiceForm = useCallback(() => ({
-        vendor: data.settings.vendors[0] || '',
-        representative: data.settings.representatives.find(r => r.vendor === (data.settings.vendors[0] || ''))?.name || '',
+    const canAddInvoice = !!currentUser?.permissions?.inventoryEntry?.add;
+    const canEditInvoice = !!currentUser?.permissions?.inventoryEntry?.edit;
+    const canApproveInventory = !!currentUser?.permissions?.inventoryEntry?.approve;
+    const canCancelInventory = !!currentUser?.permissions?.inventoryEntry?.cancel;
+
+    // دالة للحصول على حالة نموذج الفاتورة الافتراضية
+    const getDefaultInvoiceForm = useCallback(() => ({
+        vendor: data.settings.vendors[0] || '',
+        representative: data.settings.representatives.find(r => r.vendor === (data.settings.vendors[0] || ''))?.name || '',
         invoiceNumber: '', // رقم فاتورة المورد
         invoiceImageUrl: '',
         expenseCategory: data.settings.expenseCategories.find(c => c.includes('مواد')) || data.settings.expenseCategories[0] || '',
@@ -3856,13 +4112,16 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                 } else {
                     newState.barcode = ''; // لا تولد تلقائيا
                 }
-            } else if (key === 'barcode') {
-                 const foundItem = inventory.find(i => i.barcode === value);
-                 if (foundItem) {
-                    newState.name = foundItem.name;
-                    newState.category = foundItem.category;
-                 }
-            }
+        } else if (key === 'barcode') {
+            const cleanBarcode = convertArabicToEnglish(value || '').trim();
+            newState.barcode = cleanBarcode;
+
+            const foundItem = inventory.find(i => i.barcode && convertArabicToEnglish(i.barcode).trim() === cleanBarcode);
+            if (foundItem) {
+                newState.name = foundItem.name;
+                newState.category = foundItem.category;
+            }
+        }
             // يجب أن يتم تصفية الأرقام
             if (key === 'price' || key === 'count') {
                 let cleanValue = convertArabicToEnglish(value);
@@ -3906,7 +4165,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
         setItemForm(prev => ({
             ...prev,
             name: item.name,
-            barcode: item.barcode || '',
+            barcode: item.barcode ? convertArabicToEnglish(item.barcode).trim() : '',
             price: lastPurchase ? lastPurchase.price.toString() : item.price.toString(),
             category: item.category
         }));
@@ -3932,6 +4191,11 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
     const handleAddItemToInvoice = (e) => {
         e.preventDefault();
         
+        if (!itemForm.barcode) {
+            showToast('يجب إدخال باركود المادة قبل الإضافة.', 'error');
+            return;
+        }
+
         if (!itemForm.name || !itemForm.price || !itemForm.count || itemForm.count <= 0 || !itemForm.category) {
             showToast('الرجاء ملء جميع حقول المادة بشكل صحيح (الاسم، السعر، الكمية، الفئة).', 'error');
             return;
@@ -3985,22 +4249,33 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
     };
 
     // حفظ الفاتورة كمسودة/معلقة
-    const handleCreateInvoice = (e) => {
-        e.preventDefault();
-        
-        if (invoiceForm.items.length === 0) {
-            showToast('يجب إضافة مواد إلى الفاتورة أولاً.', 'error');
-            return;
-        }
-        if (!invoiceForm.vendor || !invoiceForm.representative || !invoiceForm.invoiceNumber) {
-            showToast('الرجاء ملء تفاصيل الفاتورة (المورد، المندوب، رقم فاتورة المورد).', 'error');
-            return;
-        }
+    const handleCreateInvoice = (e) => {
+        e.preventDefault();
 
-        const invoiceToSave = {
-            ...invoiceForm,
-            id: invoiceForm.id || crypto.randomUUID(),
-            date: getDefaultDateTime(),
+        if (invoiceForm.items.length === 0) {
+            showToast('يجب إضافة مواد إلى الفاتورة أولاً.', 'error');
+            return;
+        }
+        if (!invoiceForm.vendor || !invoiceForm.representative || !invoiceForm.invoiceNumber) {
+            showToast('الرجاء ملء تفاصيل الفاتورة (المورد، المندوب، رقم فاتورة المورد).', 'error');
+            return;
+        }
+
+        const isEdit = !!invoiceForm.id;
+        if (isEdit && !canEditInvoice) {
+            showToast('ليس لديك صلاحية تعديل فواتير الإدخال المخزني.', 'error');
+            return;
+        }
+
+        if (!isEdit && !canAddInvoice) {
+            showToast('ليس لديك صلاحية إضافة فواتير الإدخال المخزني.', 'error');
+            return;
+        }
+
+        const invoiceToSave = {
+            ...invoiceForm,
+            id: invoiceForm.id || crypto.randomUUID(),
+            date: getDefaultDateTime(),
             totalAmount: calculateTotal(),
             status: 'Pending',
         };
@@ -4050,12 +4325,17 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
     }, [data.pendingInvoices, globalSearch, statusFilter]); // الاعتماد على statusFilter
 
     // الإجراء النهائي: الموافقة على الفاتورة (تسجيلها كمصروف وتحديث المخزون)
-    const handleApproveInvoice = (invoice, isCreditApproval = false) => {
-        // 1. تحديث المخزون
-        let updatedInventory = [...data.inventory];
+    const handleApproveInvoice = (invoice, isCreditApproval = false) => {
+        if (!canApproveInventory) {
+            showToast('ليس لديك صلاحية اعتماد الإدخال المخزني.', 'error');
+            return;
+        }
 
-        invoice.items.forEach(item => {
-            const existingItemIndex = updatedInventory.findIndex(i => i.name === item.name);
+        // 1. تحديث المخزون
+        let updatedInventory = [...data.inventory];
+
+        invoice.items.forEach(item => {
+            const existingItemIndex = updatedInventory.findIndex(i => i.name === item.name);
             
             // بيانات سجل الشراء الجديد
             const purchaseRecord = {
@@ -4102,23 +4382,25 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
         }
         
         // 3. تسجيلها كمصروف وتغيير حالتها إلى "مصروفة" (كاش أو صرف الآجل)
-        const expenseRecord = {
-            id: crypto.randomUUID(),
-            date: invoice.date,
-            invoiceNumber: invoice.invoiceNumber, // رقم فاتورة المورد
-            amount: invoice.totalAmount,
-            category: invoice.expenseCategory,
-            description: `فاتورة شراء مواد من ${invoice.vendor} (المواد: ${invoice.items.map(i => i.name).join(', ')})`,
-            vendor: invoice.vendor,
-            representative: invoice.representative,
-            notes: invoice.notes || '',
-            invoiceImageUrl: invoice.invoiceImageUrl || '',
-            inventoryItems: invoice.items,
-        };
-        
-        // 4. إرسال بيانات المصروف إلى صفحة المصروفات وفتح المودال هناك
-        setInitialExpenseState(expenseRecord);
-        setCurrentPage('expenses'); // توجيه المستخدم لصفحة المصروفات
+        const expenseRecord = {
+            id: crypto.randomUUID(),
+            type: 'expense',
+            status: 'pending',
+            date: invoice.date,
+            invoiceNumber: invoice.invoiceNumber, // رقم فاتورة المورد
+            amount: invoice.totalAmount,
+            category: invoice.expenseCategory,
+            description: `فاتورة شراء مواد من ${invoice.vendor} (المواد: ${invoice.items.map(i => i.name).join(', ')})`,
+            vendor: invoice.vendor,
+            representative: invoice.representative,
+            notes: invoice.notes || '',
+            invoiceImageUrl: invoice.invoiceImageUrl || '',
+            inventoryItems: invoice.items,
+        };
+
+        // 4. إرسال بيانات المصروف إلى صفحة المصروفات وفتح المودال هناك
+        setInitialExpenseState(expenseRecord);
+        setCurrentPage('pendingExpenses'); // توجيه المستخدم لصفحة الصرفيات المعلقة
 
         // 5. تغيير حالة الفاتورة في pendingInvoices إلى "مصروفة"
         updatedInvoice = { ...invoice, status: 'Dispatched' };
@@ -4138,12 +4420,17 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
     };
     
     // إلغاء الفاتورة المعلقة
-    const handleCancelInvoice = (invoice) => {
-        if (!cancellationReason.trim()) {
-            showToast('الرجاء كتابة سبب إلغاء الفاتورة.', 'error');
-            return;
-        }
-        
+    const handleCancelInvoice = (invoice) => {
+        if (!canCancelInventory) {
+            showToast('ليس لديك صلاحية إلغاء فواتير الإدخال.', 'error');
+            return;
+        }
+
+        if (!cancellationReason.trim()) {
+            showToast('الرجاء كتابة سبب إلغاء الفاتورة.', 'error');
+            return;
+        }
+
         // تغيير حالة الفاتورة في pendingInvoices إلى "ملغاة" (بدلاً من الحذف الكامل)
         const cancelledInvoice = {
              ...invoice,
@@ -4288,7 +4575,8 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
             <div className="flex flex-wrap items-center justify-between gap-4">
                 <button
                     onClick={() => setIsNewInvoiceModalOpen(true)}
-                    className="flex items-center px-6 py-3 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-xl hover:from-green-600 hover:to-teal-600 shadow-lg transition duration-200"
+                    disabled={!canAddInvoice}
+                    className={`flex items-center px-6 py-3 rounded-xl shadow-lg transition duration-200 ${canAddInvoice ? 'bg-gradient-to-r from-green-500 to-teal-500 text-white hover:from-green-600 hover:to-teal-600' : 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-300 cursor-not-allowed'}`}
                     data-testid="button-add-invoice"
                 >
                     <ClipboardCheck className="w-5 h-5 ml-2" />
@@ -4348,8 +4636,8 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
             </div>
 
             {/* مودال إدخال فاتورة جديدة */}
-            {isNewInvoiceModalOpen && (
-                <Modal title="إدخال فاتورة مشتريات جديدة" onClose={() => setIsNewInvoiceModalOpen(false)} size="xl">
+            {isNewInvoiceModalOpen && (
+                <Modal title="إدخال فاتورة مشتريات جديدة" onClose={() => setIsNewInvoiceModalOpen(false)} size="lg">
                     <form onSubmit={handleCreateInvoice} className="space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 p-4 rounded-xl bg-gray-50 dark:bg-gray-700">
                             <h4 className="md:col-span-2 text-lg font-bold text-gray-700 dark:text-gray-300 border-b pb-2 mb-2">معلومات الفاتورة الأساسية</h4>
@@ -4588,11 +4876,12 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                                 ))}
                             </select>
                         </div>
-                        <InputField 
-                            label="باركود المادة" 
-                            value={itemForm.barcode} 
-                            onChange={(e) => handleItemFormChange('barcode', e.target.value)} 
+                        <InputField
+                            label="باركود المادة"
+                            value={itemForm.barcode}
+                            onChange={(e) => handleItemFormChange('barcode', e.target.value)}
                             placeholder="اضغط على توليد باركود أو أدخله يدوياً"
+                            required
                         >
                             <button type="button" onClick={() => setItemForm(prev => ({ ...prev, barcode: generateBarcode() }))} className="absolute left-1 top-1/2 transform -translate-y-1/2 px-3 py-1.5 text-xs bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg text-gray-800 dark:text-gray-200 font-semibold">
                                 توليد باركود
@@ -4668,51 +4957,61 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                         
                         <div className="flex flex-col gap-4 pt-4">
                             {/* حالة معلقة - تظهر أزرار الاعتماد والإلغاء */}
-                            {currentInvoice.status === 'Pending' && (
-                                <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
-                                    <ActionButton 
-                                        onClick={() => handleApproveInvoice(currentInvoice, true)} 
-                                        className="bg-blue-600 hover:bg-blue-700"
-                                    >
-                                        <Package className="w-5 h-5 ml-2" />
-                                        اعتماد المخزون (آجل)
-                                    </ActionButton>
-                                    <ActionButton 
-                                        onClick={() => handleApproveInvoice(currentInvoice, false)} 
-                                        className="bg-green-600 hover:bg-green-700"
-                                    >
-                                        <CheckCircle className="w-5 h-5 ml-2" />
-                                        اعتماد المخزون (كاش)
-                                    </ActionButton>
-                                    <ActionButton 
-                                        onClick={() => { setIsDetailsModalOpen(false); setCurrentInvoice(currentInvoice); setIsCancelModalOpen(true); }} 
-                                        className="bg-red-600 hover:bg-red-700"
-                                    >
-                                        <X className="w-5 h-5 ml-2" />
-                                        إلغاء الفاتورة
-                                    </ActionButton>
-                                </div>
-                            )}
+                    {currentInvoice.status === 'Pending' && (canApproveInventory || canCancelInventory) && (
+                        <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
+                            {canApproveInventory && (
+                                <ActionButton
+                                    onClick={() => handleApproveInvoice(currentInvoice, true)}
+                                    className="bg-blue-600 hover:bg-blue-700"
+                                >
+                                    <Package className="w-5 h-5 ml-2" />
+                                    اعتماد المخزون (آجل)
+                                </ActionButton>
+                            )}
+                            {canApproveInventory && (
+                                <ActionButton
+                                    onClick={() => handleApproveInvoice(currentInvoice, false)}
+                                    className="bg-green-600 hover:bg-green-700"
+                                >
+                                    <CheckCircle className="w-5 h-5 ml-2" />
+                                    اعتماد المخزون (كاش)
+                                </ActionButton>
+                            )}
+                            {canCancelInventory && (
+                                <ActionButton
+                                    onClick={() => { setIsDetailsModalOpen(false); setCurrentInvoice(currentInvoice); setIsCancelModalOpen(true); }}
+                                    className="bg-red-600 hover:bg-red-700"
+                                >
+                                    <X className="w-5 h-5 ml-2" />
+                                    إلغاء الفاتورة
+                                </ActionButton>
+                            )}
+                        </div>
+                    )}
                             
                             {/* حالة آجل - يظهر زر الصرف */}
-                            {currentInvoice.status === 'CreditApproved' && (
-                                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-                                    <ActionButton 
-                                        onClick={() => handleApproveInvoice(currentInvoice, false)} 
-                                        className="w-full bg-yellow-600 hover:bg-yellow-700"
-                                    >
-                                        <DollarSign className="w-5 h-5 ml-2" />
-                                        صرف الفاتورة (تسجيل مصروف)
-                                    </ActionButton>
-                                    <ActionButton 
-                                        onClick={() => { setIsDetailsModalOpen(false); setCurrentInvoice(currentInvoice); setIsCancelModalOpen(true); }} 
-                                        className="w-full bg-red-600 hover:bg-red-700"
-                                    >
-                                        <X className="w-5 h-5 ml-2" />
-                                        إلغاء الفاتورة
-                                    </ActionButton>
-                                </div>
-                            )}
+                    {currentInvoice.status === 'CreditApproved' && (canApproveInventory || canCancelInventory) && (
+                        <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                            {canApproveInventory && (
+                                <ActionButton
+                                    onClick={() => handleApproveInvoice(currentInvoice, false)}
+                                    className="w-full bg-yellow-600 hover:bg-yellow-700"
+                                >
+                                    <DollarSign className="w-5 h-5 ml-2" />
+                                    صرف الفاتورة (تسجيل مصروف)
+                                </ActionButton>
+                            )}
+                            {canCancelInventory && (
+                                <ActionButton
+                                    onClick={() => { setIsDetailsModalOpen(false); setCurrentInvoice(currentInvoice); setIsCancelModalOpen(true); }}
+                                    className="w-full bg-red-600 hover:bg-red-700"
+                                >
+                                    <X className="w-5 h-5 ml-2" />
+                                    إلغاء الفاتورة
+                                </ActionButton>
+                            )}
+                        </div>
+                    )}
                             
                             {/* حالة مصروفة وملغاة */}
                             {currentInvoice.status === 'Dispatched' && (
@@ -5765,6 +6064,31 @@ const AdminPage = React.memo(({ data, handleDataAction, showToast }) => {
                 لوحة الإدارة
             </h2>
 
+            <div className="flex flex-col md:flex-row items-center md:items-stretch gap-4 p-4 bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/30 dark:to-indigo-900/30 rounded-2xl border border-purple-200 dark:border-purple-700">
+                <div className="flex items-center gap-4 w-full md:w-auto">
+                    {data.settings.companyLogoUrl ? (
+                        <img
+                            src={data.settings.companyLogoUrl}
+                            alt="شعار الشركة"
+                            className="h-20 w-20 object-contain rounded-xl border border-purple-200 dark:border-purple-600 bg-white dark:bg-gray-900 p-2"
+                            onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                            }}
+                        />
+                    ) : (
+                        <div className="h-20 w-20 flex items-center justify-center rounded-xl border border-dashed border-purple-300 text-purple-400 text-sm">
+                            لا يوجد شعار
+                        </div>
+                    )}
+                    <div className="text-right">
+                        <p className="text-sm font-semibold text-purple-700 dark:text-purple-300">اسم الشركة المسجل في الإعدادات</p>
+                        <h3 className="text-2xl font-extrabold text-purple-900 dark:text-purple-100">
+                            {data.settings.companyName || 'غير محدد'}
+                        </h3>
+                    </div>
+                </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div className="p-6 rounded-xl shadow-lg bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 border-r-4 border-blue-600" data-testid="card-system-version">
                     <div className="flex items-center gap-3 mb-3">
@@ -6213,7 +6537,7 @@ const InventoryDispatchComponent = React.memo(({ data, handleDataAction, showToa
 /**
  * 3.8. InventoryWithdrawalComponent (الاستخراج المخزني) - نسخة محدّثة ومبسطة
  */
-const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, showToast, handleRefresh }) => {
+const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, showToast, handleRefresh, currentUser }) => {
     const { t } = useLanguage();
     const [isNewWithdrawalModalOpen, setIsNewWithdrawalModalOpen] = useState(false);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
@@ -6237,25 +6561,39 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
         notes: '',
         id: null
     }), []);
-    
+
     // دالة للحصول على حالة نموذج المادة الافتراضية
-    const getDefaultItemForm = useCallback(() => ({ 
-        name: '', 
-        barcode: '', 
-        count: 1, 
-        category: data.settings.expenseCategories.find(c => c.includes('مواد')) || data.settings.expenseCategories[0] || '' 
-    }), [data.settings.expenseCategories]);
+    const getDefaultItemForm = useCallback(() => ({
+        name: '',
+        barcode: '',
+        count: '1',
+        category: ''
+    }), []);
 
     const [withdrawalForm, setWithdrawalForm] = useState(getDefaultWithdrawalForm);
     const [itemForm, setItemForm] = useState(getDefaultItemForm);
 
+    const canAddWithdrawal = !!currentUser?.permissions?.inventoryWithdrawal?.add;
+    const canEditWithdrawal = !!currentUser?.permissions?.inventoryWithdrawal?.edit;
+    const canDeleteWithdrawal = !!currentUser?.permissions?.inventoryWithdrawal?.delete;
+    const canModifyCurrentWithdrawal = withdrawalForm?.id ? canEditWithdrawal : canAddWithdrawal;
+
     // دالة البحث الذكي في المخزون عند الكتابة في حقل الاسم
     const handleItemNameChange = useCallback((value) => {
-        setItemForm(prev => ({ ...prev, name: value }));
-        
+        const normalized = normalizeTextForSearch(value);
+        setItemForm(prev => {
+            const match = data.inventory.find(item => normalizeTextForSearch(item.name) === normalized);
+            return {
+                ...prev,
+                name: value,
+                category: match?.category || '',
+                barcode: match?.barcode || ''
+            };
+        });
+
         if (value.length >= 2) {
             const searchNormalized = normalizeTextForSearch(value);
-            
+
             const filtered = data.inventory.filter(item => {
                 const itemNameNorm = normalizeTextForSearch(item.name);
                 const itemBarcodeNorm = item.barcode ? normalizeTextForSearch(item.barcode) : '';
@@ -6270,12 +6608,39 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
         }
     }, [data.inventory]);
 
+    const handleBarcodeChange = useCallback((value) => {
+        const normalizedBarcode = convertArabicToEnglish(value || '').trim();
+
+        setItemForm(prev => {
+            const match = data.inventory.find(item => {
+                if (!item.barcode) return false;
+                return convertArabicToEnglish(item.barcode).trim() === normalizedBarcode;
+            });
+
+            if (match) {
+                return {
+                    ...prev,
+                    barcode: normalizedBarcode,
+                    name: match.name,
+                    category: match.category
+                };
+            }
+
+            return {
+                ...prev,
+                barcode: normalizedBarcode,
+                name: '',
+                category: ''
+            };
+        });
+    }, [data.inventory]);
+
     // دالة اختيار اقتراح من القائمة
     const selectItemSuggestion = useCallback((item) => {
         setItemForm(prev => ({
             ...prev,
             name: item.name,
-            barcode: item.barcode || '',
+            barcode: item.barcode ? convertArabicToEnglish(item.barcode).trim() : '',
             category: item.category
         }));
         setShowItemSuggestions(false);
@@ -6313,75 +6678,113 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
     }, []);
 
     // دالة فتح المودال لتعديل مادة موجودة
-    const handleEditItem = useCallback((item) => {
+    const handleEditItem = (item) => {
+        if (withdrawalForm?.id && !canEditWithdrawal) {
+            showToast('لا تملك صلاحية تعديل هذا الاستخراج.', 'error');
+            return;
+        }
+
+        if (!withdrawalForm?.id && !canAddWithdrawal) {
+            showToast('لا تملك صلاحية تعديل مواد الاستخراج.', 'error');
+            return;
+        }
+
         setItemForm({
             name: item.name,
-            barcode: item.barcode,
-            count: item.count,
-            category: item.category
+            barcode: item.barcode || '',
+            count: item.count != null ? String(item.count) : '1',
+            category: item.category || ''
         });
         setEditingItemId(item.id);
         setIsAddItemModalOpen(true);
-    }, []);
+    };
 
     const handleAddItemToWithdrawal = (e) => {
         e.preventDefault();
-        
-        if (!itemForm.name || !itemForm.count || itemForm.count <= 0 || !itemForm.category) {
-            showToast('الرجاء ملء جميع حقول المادة بشكل صحيح (الاسم، الكمية، الفئة).', 'error');
+
+        if (withdrawalForm.id && !canEditWithdrawal) {
+            showToast('لا تملك صلاحية تعديل هذا الاستخراج.', 'error');
             return;
         }
-        
-        // التحقق من توفر الكمية في المخزون
-        const inventoryItem = data.inventory.find(i => i.name === itemForm.name);
+
+        if (!withdrawalForm.id && !canAddWithdrawal) {
+            showToast('لا تملك صلاحية إضافة استخراج مخزني.', 'error');
+            return;
+        }
+
+        const parsedCount = parseInt(itemForm.count, 10);
+
+        if (!itemForm.name || Number.isNaN(parsedCount) || parsedCount <= 0) {
+            showToast('الرجاء إدخال اسم مادة صحيح وتحديد كمية أكبر من صفر.', 'error');
+            return;
+        }
+
+        const normalizedName = normalizeTextForSearch(itemForm.name);
+        const sanitizedBarcode = convertArabicToEnglish(itemForm.barcode || '').trim();
+        const inventoryItem = data.inventory.find(i => {
+            const matchesName = normalizeTextForSearch(i.name) === normalizedName;
+            const matchesBarcode = sanitizedBarcode && i.barcode && convertArabicToEnglish(i.barcode).trim() === sanitizedBarcode;
+            return matchesName || matchesBarcode;
+        });
+
         if (!inventoryItem) {
-            showToast('المادة غير موجودة في المخزون.', 'error');
+            showToast('المادة غير موجودة في المخزون أو نفدت بالكامل.', 'error');
             return;
         }
-        
-        // حساب إجمالي الكمية المطلوبة (مع المواد الموجودة في الاستخراج)
-        const currentItemInWithdrawal = withdrawalForm.items.find(i => i.name === itemForm.name && i.id !== editingItemId);
-        const totalRequestedCount = parseInt(itemForm.count) + (currentItemInWithdrawal ? currentItemInWithdrawal.count : 0);
-        
-        if (totalRequestedCount > inventoryItem.count) {
-            showToast(`الكمية المتوفرة في المخزون: ${inventoryItem.count}. لا يمكن استخراج ${totalRequestedCount}.`, 'error');
+
+        const existingEditedItem = editingItemId ? withdrawalForm.items.find(i => i.id === editingItemId) : null;
+        const otherItemsWithSameName = withdrawalForm.items.filter(i => i.name === inventoryItem.name && i.id !== editingItemId);
+        const otherItemsCount = otherItemsWithSameName.reduce((sum, item) => sum + item.count, 0);
+        const availableForCurrentRow = inventoryItem.count + (existingEditedItem ? existingEditedItem.count : 0);
+
+        if (parsedCount + otherItemsCount > availableForCurrentRow) {
+            const remaining = Math.max(availableForCurrentRow - otherItemsCount, 0);
+            showToast(`الكمية المتوفرة في المخزون: ${remaining}. لا يمكن استخراج ${parsedCount}.`, 'error');
             return;
         }
+
+        const itemPayload = {
+            id: editingItemId || crypto.randomUUID(),
+            name: inventoryItem.name,
+            barcode: inventoryItem.barcode ? convertArabicToEnglish(inventoryItem.barcode).trim() : sanitizedBarcode,
+            category: inventoryItem.category || existingEditedItem?.category || '',
+            count: parsedCount
+        };
 
         if (editingItemId) {
-            const updatedItem = {
-                ...itemForm,
-                id: editingItemId,
-                count: parseInt(itemForm.count),
-            };
-            
             setWithdrawalForm(prev => ({
                 ...prev,
-                items: prev.items.map(item => item.id === editingItemId ? updatedItem : item)
+                items: prev.items.map(item => item.id === editingItemId ? itemPayload : item)
             }));
-            
-            showToast(`تم تعديل المادة "${updatedItem.name}" بنجاح.`, 'success');
-        } else {
-            const newItem = {
-                ...itemForm,
-                id: crypto.randomUUID(),
-                count: parseInt(itemForm.count),
-            };
 
+            showToast(`تم تعديل المادة "${itemPayload.name}" بنجاح.`, 'success');
+        } else {
             setWithdrawalForm(prev => ({
                 ...prev,
-                items: [...prev.items, newItem]
+                items: [...prev.items, itemPayload]
             }));
-            
-            showToast(`تمت إضافة المادة "${newItem.name}" بنجاح.`, 'success');
+
+            showToast(`تمت إضافة المادة "${itemPayload.name}" بنجاح.`, 'success');
         }
-        
-        setItemForm(prev => ({ ...getDefaultItemForm(), category: prev.category }));
+
+        setShowItemSuggestions(false);
+        setItemSuggestions([]);
+        setItemForm(getDefaultItemForm());
         setEditingItemId(null);
         setIsAddItemModalOpen(false);
     };
 
     const handleRemoveItemFromWithdrawal = (id) => {
+        if (withdrawalForm.id && !canEditWithdrawal) {
+            showToast('لا تملك صلاحية تعديل هذا الاستخراج.', 'error');
+            return;
+        }
+
+        if (!withdrawalForm.id && !canAddWithdrawal) {
+            showToast('لا تملك صلاحية تعديل العناصر في استخراج جديد.', 'error');
+            return;
+        }
+
         setWithdrawalForm(prev => ({
             ...prev,
             items: prev.items.filter(item => item.id !== id)
@@ -6392,13 +6795,31 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
     // إتمام الاستخراج (خصم من المخزون)
     const handleCompleteWithdrawal = (e) => {
         e.preventDefault();
-        
+
+        if (withdrawalForm.id && !canEditWithdrawal) {
+            showToast('لا تملك صلاحية تعديل هذا الاستخراج.', 'error');
+            return;
+        }
+
+        if (!withdrawalForm.id && !canAddWithdrawal) {
+            showToast('لا تملك صلاحية إضافة استخراج مخزني.', 'error');
+            return;
+        }
+
         if (withdrawalForm.items.length === 0) {
             showToast('يجب إضافة مواد إلى الاستخراج أولاً.', 'error');
             return;
         }
         if (!withdrawalForm.employeeName) {
             showToast('الرجاء إدخال اسم الموظف المستلم.', 'error');
+            return;
+        }
+
+        const normalizedEmployeeName = normalizeTextForSearch(withdrawalForm.employeeName);
+        const matchedEmployee = data.employees.find(emp => normalizeTextForSearch(emp.name) === normalizedEmployeeName);
+
+        if (!matchedEmployee) {
+            showToast('الرجاء اختيار موظف موجود في قائمة الموظفين.', 'error');
             return;
         }
 
@@ -6445,6 +6866,7 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
             ...withdrawalForm,
             id: withdrawalForm.id || crypto.randomUUID(),
             date: getDefaultDateTime(),
+            employeeName: matchedEmployee.name,
         };
 
         // **تحديث شامل لكلا المجموعتين في عملية واحدة**
@@ -6481,16 +6903,26 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
     
     // فتح نموذج التعديل
     const openEditModal = (withdrawal) => {
+        if (!canEditWithdrawal) {
+            showToast('لا تملك صلاحية تعديل الاستخراج.', 'error');
+            return;
+        }
+
         setWithdrawalForm(withdrawal);
         setIsNewWithdrawalModalOpen(true);
     };
     
     // حذف استخراج (إعادة المواد للمخزون)
     const handleDeleteWithdrawal = (withdrawal) => {
+        if (!canDeleteWithdrawal) {
+            showToast('لا تملك صلاحية حذف هذا الاستخراج.', 'error');
+            return;
+        }
+
         if (!confirm(`هل أنت متأكد من حذف الاستخراج #${withdrawal.withdrawalNumber}؟`)) {
             return;
         }
-        
+
         let updatedInventory = [...data.inventory];
         
         // إعادة المواد للمخزون
@@ -6555,11 +6987,16 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
             <div className="flex flex-wrap items-center justify-between gap-4">
                 <button
                     onClick={() => {
+                        if (!canAddWithdrawal) {
+                            showToast('لا تملك صلاحية إضافة استخراج مخزني.', 'error');
+                            return;
+                        }
                         setWithdrawalForm(getDefaultWithdrawalForm());
                         setIsNewWithdrawalModalOpen(true);
                     }}
                     data-testid="button-add-withdrawal"
-                    className="flex items-center px-6 py-3 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-xl hover:from-green-600 hover:to-teal-600 shadow-lg transition duration-200"
+                    disabled={!canAddWithdrawal}
+                    className={`flex items-center px-6 py-3 rounded-xl shadow-lg transition duration-200 bg-gradient-to-r from-green-500 to-teal-500 text-white hover:from-green-600 hover:to-teal-600 ${!canAddWithdrawal ? 'opacity-60 cursor-not-allowed hover:from-green-500 hover:to-teal-500' : ''}`}
                 >
                     <Plus className="w-5 h-5 ml-2" />
                     {t('addWithdrawal')}
@@ -6620,12 +7057,16 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
                                         <button onClick={() => openDetailsModal(withdrawal)} className="text-blue-600 hover:text-blue-900" data-testid={`button-view-withdrawal-${withdrawal.id}`}>
                                             <Eye className="w-5 h-5" />
                                         </button>
-                                        <button onClick={() => openEditModal(withdrawal)} className="text-yellow-600 hover:text-yellow-900" data-testid={`button-edit-withdrawal-${withdrawal.id}`}>
-                                            <Edit className="w-5 h-5" />
-                                        </button>
-                                        <button onClick={() => handleDeleteWithdrawal(withdrawal)} className="text-red-600 hover:text-red-900" data-testid={`button-delete-withdrawal-${withdrawal.id}`}>
-                                            <Trash2 className="w-5 h-5" />
-                                        </button>
+                                        {canEditWithdrawal && (
+                                            <button onClick={() => openEditModal(withdrawal)} className="text-yellow-600 hover:text-yellow-900" data-testid={`button-edit-withdrawal-${withdrawal.id}`}>
+                                                <Edit className="w-5 h-5" />
+                                            </button>
+                                        )}
+                                        {canDeleteWithdrawal && (
+                                            <button onClick={() => handleDeleteWithdrawal(withdrawal)} className="text-red-600 hover:text-red-900" data-testid={`button-delete-withdrawal-${withdrawal.id}`}>
+                                                <Trash2 className="w-5 h-5" />
+                                            </button>
+                                        )}
                                     </td>
                                 </tr>
                             ))
@@ -6694,11 +7135,16 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
                                 <button
                                     type="button"
                                     onClick={() => {
+                                        if (!canModifyCurrentWithdrawal) {
+                                            showToast('لا تملك صلاحية تعديل مواد الاستخراج.', 'error');
+                                            return;
+                                        }
                                         setItemForm(getDefaultItemForm());
                                         setEditingItemId(null);
                                         setIsAddItemModalOpen(true);
                                     }}
-                                    className="flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                                    disabled={!canModifyCurrentWithdrawal}
+                                    className={`flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 ${!canModifyCurrentWithdrawal ? 'opacity-60 cursor-not-allowed hover:bg-blue-500' : ''}`}
                                     data-testid="button-add-item-to-withdrawal"
                                 >
                                     <Plus className="w-4 h-4 ml-1" />
@@ -6716,14 +7162,16 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
                                                 <span className="font-semibold text-gray-800 dark:text-gray-200">{item.name}</span>
                                                 <span className="text-sm text-gray-500 dark:text-gray-400 mr-2">الكمية: {item.count}</span>
                                             </div>
-                                            <div className="flex gap-2">
-                                                <button type="button" onClick={() => handleEditItem(item)} className="text-yellow-600 hover:text-yellow-900">
-                                                    <Edit className="w-4 h-4" />
-                                                </button>
-                                                <button type="button" onClick={() => handleRemoveItemFromWithdrawal(item.id)} className="text-red-600 hover:text-red-900">
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            </div>
+                                            {canModifyCurrentWithdrawal && (
+                                                <div className="flex gap-2">
+                                                    <button type="button" onClick={() => handleEditItem(item)} className="text-yellow-600 hover:text-yellow-900">
+                                                        <Edit className="w-4 h-4" />
+                                                    </button>
+                                                    <button type="button" onClick={() => handleRemoveItemFromWithdrawal(item.id)} className="text-red-600 hover:text-red-900">
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
                                     ))}
                                 </div>
@@ -6732,7 +7180,8 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
 
                         <button
                             type="submit"
-                            className="w-full bg-gradient-to-r from-green-500 to-teal-500 text-white py-3 rounded-xl hover:from-green-600 hover:to-teal-600 font-bold shadow-lg"
+                            disabled={withdrawalForm.id ? !canEditWithdrawal : !canAddWithdrawal}
+                            className={`w-full bg-gradient-to-r from-green-500 to-teal-500 text-white py-3 rounded-xl font-bold shadow-lg ${withdrawalForm.id ? (canEditWithdrawal ? 'hover:from-green-600 hover:to-teal-600' : 'opacity-60 cursor-not-allowed') : (canAddWithdrawal ? 'hover:from-green-600 hover:to-teal-600' : 'opacity-60 cursor-not-allowed')}`}
                             data-testid="button-complete-withdrawal"
                         >
                             <Save className="w-5 h-5 inline ml-2" />
@@ -6776,38 +7225,24 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
                             <input
                                 type="text"
                                 value={itemForm.barcode}
-                                onChange={(e) => setItemForm(prev => ({ ...prev, barcode: e.target.value }))}
+                                onChange={(e) => handleBarcodeChange(e.target.value)}
                                 className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                                required
                                 data-testid="input-item-barcode"
                             />
                         </div>
-                        
+
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">{t('quantity')}</label>
                             <input
                                 type="number"
                                 value={itemForm.count}
-                                onChange={(e) => setItemForm(prev => ({ ...prev, count: parseInt(e.target.value) || 1 }))}
+                                onChange={(e) => setItemForm(prev => ({ ...prev, count: e.target.value }))}
                                 min="1"
                                 className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
                                 required
                                 data-testid="input-item-count"
                             />
-                        </div>
-                        
-                        <div>
-                            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">{t('materialCategory')}</label>
-                            <select
-                                value={itemForm.category}
-                                onChange={(e) => setItemForm(prev => ({ ...prev, category: e.target.value }))}
-                                className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
-                                required
-                                data-testid="select-item-category"
-                            >
-                                {data.settings.expenseCategories.map(cat => (
-                                    <option key={cat} value={cat}>{cat}</option>
-                                ))}
-                            </select>
                         </div>
 
                         <button
