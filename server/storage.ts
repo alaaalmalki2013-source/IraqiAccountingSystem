@@ -412,7 +412,7 @@ export class DatabaseStorage implements IStorage {
 
   async createActivityLog(insertLog: InsertActivityLog): Promise<ActivityLog> {
     const [log] = await db.insert(activityLogs).values(insertLog).returning();
-    
+
     // حذف السجلات القديمة (الاحتفاظ بآخر 500 فقط)
     const allLogs = await db.select().from(activityLogs).orderBy(desc(activityLogs.timestamp));
     if (allLogs.length > 500) {
@@ -421,14 +421,46 @@ export class DatabaseStorage implements IStorage {
         await db.delete(activityLogs).where(eq(activityLogs.id, oldLog.id));
       }
     }
-    
+
     return log;
+  }
+
+  // ===== المستندات =====
+  async getAllEmployeeDocuments(): Promise<EmployeeDocument[]> {
+    return await db.select().from(employeeDocuments).orderBy(desc(employeeDocuments.createdAt));
+  }
+
+  async getEmployeeDocument(id: string): Promise<EmployeeDocument | undefined> {
+    const [document] = await db.select().from(employeeDocuments).where(eq(employeeDocuments.id, id));
+    return document || undefined;
+  }
+
+  async getEmployeeDocumentsByEmployee(employeeId: string): Promise<EmployeeDocument[]> {
+    return await db.select()
+      .from(employeeDocuments)
+      .where(eq(employeeDocuments.employeeId, employeeId))
+      .orderBy(desc(employeeDocuments.createdAt));
+  }
+
+  async createEmployeeDocument(insertDocument: InsertEmployeeDocument): Promise<EmployeeDocument> {
+    const [document] = await db.insert(employeeDocuments).values(insertDocument).returning();
+    return document;
+  }
+
+  async updateEmployeeDocument(id: string, updateData: Partial<InsertEmployeeDocument>): Promise<EmployeeDocument | undefined> {
+    const [document] = await db.update(employeeDocuments).set(updateData).where(eq(employeeDocuments.id, id)).returning();
+    return document || undefined;
+  }
+
+  async deleteEmployeeDocument(id: string): Promise<boolean> {
+    const result = await db.delete(employeeDocuments).where(eq(employeeDocuments.id, id));
+    return result.rowCount ? result.rowCount > 0 : false;
   }
 
   // ===== الإعدادات =====
   async getSettings(): Promise<Settings | undefined> {
     const [setting] = await db.select().from(settings).where(eq(settings.id, 'main_settings'));
-    
+
     // إنشاء إعدادات افتراضية إذا لم تكن موجودة
     if (!setting) {
       const [newSettings] = await db.insert(settings).values({

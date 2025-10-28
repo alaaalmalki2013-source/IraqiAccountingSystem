@@ -279,12 +279,17 @@ export const translations = {
     expenses: 'Expenses',
     advances: 'Advances',
     suspended: 'Suspended Payments',
+    pendingExpenses: 'Pending Expenses',
     employees: 'Employees',
     payroll: 'Payroll',
     inventoryEntry: 'Inventory Entry',
     inventoryWithdrawal: 'Inventory Withdrawal',
     inventory: 'Inventory & Materials',
     settings: 'Settings',
+    aboutSystem: 'About the System',
+    darkMode: 'Dark Mode',
+    lightMode: 'Light Mode',
+    languageSwitch: 'Switch Language',
     
     // Dashboard
     totalRevenues: 'Total Revenues',
