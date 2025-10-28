@@ -1536,9 +1536,9 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
     });
     const [selectedVendor, setSelectedVendor] = useState('');
     const [globalSearch, setGlobalSearch] = useState('');
+    const isSearchActive = useMemo(() => globalSearch.trim().length > 0, [globalSearch]);
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [selectedFile, setSelectedFile] = useState(null);
-    const isSearchActive = useMemo(() => globalSearch.trim().length > 0, [globalSearch]);
     const [filterTypes, setFilterTypes] = useState([]); // مصفوفة للسماح باختيار متعدد: ['expense', 'advance']
     const [filterStatuses, setFilterStatuses] = useState([]); // مصفوفة للسماح باختيار متعدد: ['pending', 'cancelled', 'paid']
     const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
@@ -2532,6 +2532,7 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
     const [globalSearch, setGlobalSearch] = useState('');
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const isSearchActive = useMemo(() => globalSearch.trim().length > 0, [globalSearch]);
 
     
     const formatDOB = (dateString) => {
