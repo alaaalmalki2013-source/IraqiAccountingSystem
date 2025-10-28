@@ -746,30 +746,35 @@ const DataPageComponent = React.memo(({ 
     }, [fields.length, collectionName]);
     
     // دالة تهيئة النماذج لتبسيط useEffect
-    const getInitialFormState = useCallback((item = null, initialDispatch = null) => {
-        const defaultForm = fields.reduce((acc, field) => ({ ...acc, [field.key]: field.defaultValue || '' }), {});
-        
-        let baseState = item ? item : {
-            ...defaultForm,
-            date: getDefaultDateTime(),
-            employeeId: collectionName === 'advances' ? data.employees[0]?.id || '' : ''
-        };
+    const getInitialFormState = useCallback((item = null, initialDispatch = null) => {
+        const defaultForm = fields.reduce((acc, field) => ({ ...acc, [field.key]: field.defaultValue || '' }), {});
 
-        if (initialDispatch && collectionName === 'expenses' && !item) {
-            baseState = {
-                ...baseState,
-                amount: initialDispatch.amount.toString(),
-                category: initialDispatch.category, 
-                description: initialDispatch.description,
-                vendor: initialDispatch.vendor,
-                representative: initialDispatch.representative,
-                invoiceImageUrl: initialDispatch.invoiceImageUrl,
-                inventoryItems: initialDispatch.inventoryItems, 
-            };
-        }
+        let baseState = item ? item : {
+            ...defaultForm,
+            date: getDefaultDateTime(),
+            employeeId: collectionName === 'advances' ? data.employees[0]?.id || '' : '',
+        };
 
-        return baseState;
-    }, [fields, collectionName, data.employees]);
+        if (initialDispatch && collectionName === 'expenses' && !item) {
+            baseState = {
+                ...baseState,
+                amount: initialDispatch.amount.toString(),
+                category: initialDispatch.category,
+                description: initialDispatch.description,
+                vendor: initialDispatch.vendor,
+                representative: initialDispatch.representative,
+                invoiceImageUrl: initialDispatch.invoiceImageUrl,
+                inventoryItems: initialDispatch.inventoryItems,
+            };
+        }
+
+        const baseId = item?.id || initialDispatch?.id || baseState?.id || null;
+
+        return {
+            ...baseState,
+            id: baseId,
+        };
+    }, [fields, collectionName, data.employees]);
 
     const [formState, setFormState] = useState(() => getInitialFormState(currentItem, initialExpenseState));
     const [selectedVendor, setSelectedVendor] = useState(collectionName === 'expenses' && formState.vendor ? formState.vendor : '');
@@ -1592,6 +1597,7 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
     const [currentItem, setCurrentItem] = useState(null);
     const [viewItem, setViewItem] = useState(null);
     const [formState, setFormState] = useState({
+        id: null,
         type: 'expense',
         date: getDefaultDateTime(),
         amount: '',
@@ -1602,7 +1608,11 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
         employeeId: '',
         notes: '',
         status: 'pending',
-        invoiceImageUrl: ''
+        invoiceImageUrl: '',
+        inventoryItems: [],
+        linkedInvoiceId: null,
+        fromInventoryEntry: false,
+        invoiceNumber: ''
     });
     const [selectedVendor, setSelectedVendor] = useState('');
     const [globalSearch, setGlobalSearch] = useState('');
@@ -1612,7 +1622,6 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
     const [filterTypes, setFilterTypes] = useState([]); // مصفوفة للسماح باختيار متعدد: ['expense', 'advance']
     const [filterStatuses, setFilterStatuses] = useState([]); // مصفوفة للسماح باختيار متعدد: ['pending', 'cancelled', 'paid']
     const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
-    const [pendingAutoApprove, setPendingAutoApprove] = useState(false);
 
     const canAddPending = !!currentUser?.permissions?.pendingExpenses?.add;
     const canEditPending = !!currentUser?.permissions?.pendingExpenses?.edit;
@@ -1631,6 +1640,7 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
             }
         } else {
             setFormState({
+                id: currentItem?.id || null,
                 type: 'expense',
                 date: getDefaultDateTime(),
                 amount: '',
@@ -1641,7 +1651,11 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                 employeeId: data.employees[0]?.id || '',
                 notes: '',
                 status: 'pending',
-                invoiceImageUrl: ''
+                invoiceImageUrl: '',
+                inventoryItems: [],
+                linkedInvoiceId: null,
+                fromInventoryEntry: false,
+                invoiceNumber: ''
             });
             setSelectedVendor('');
         }
@@ -1651,6 +1665,7 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
         if (initialExpenseState) {
             const normalizedAmount = convertArabicToEnglish((initialExpenseState.amount ?? '').toString());
             setFormState({
+                id: initialExpenseState.id || null,
                 type: 'expense',
                 date: initialExpenseState.date || getDefaultDateTime(),
                 amount: normalizedAmount || initialExpenseState.amount?.toString() || '',
@@ -1661,11 +1676,14 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                 employeeId: data.employees[0]?.id || '',
                 notes: initialExpenseState.notes || '',
                 status: 'pending',
-                invoiceImageUrl: initialExpenseState.invoiceImageUrl || ''
+                invoiceImageUrl: initialExpenseState.invoiceImageUrl || '',
+                inventoryItems: initialExpenseState.inventoryItems || [],
+                linkedInvoiceId: initialExpenseState.linkedInvoiceId || null,
+                fromInventoryEntry: initialExpenseState.fromInventoryEntry || false,
+                invoiceNumber: initialExpenseState.invoiceNumber || ''
             });
             setSelectedVendor(initialExpenseState.vendor || '');
             setCurrentItem(null);
-            setPendingAutoApprove(true);
             setIsModalOpen(true);
             setInitialExpenseState(null);
         }
@@ -1784,24 +1802,24 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
             return;
         }
 
-        const pendingId = currentItem?.id || crypto.randomUUID();
+        const effectiveId = currentItem?.id || formState.id || crypto.randomUUID();
         const parsedAmount = parseFloat(convertArabicToEnglish(itemToSave.amount || '0')) || 0;
 
         const pendingItem = {
             ...itemToSave,
-            id: pendingId,
+            id: effectiveId,
             amount: parsedAmount,
-            status: currentItem?.status || 'pending'
+            status: currentItem?.status || 'pending',
+            inventoryItems: itemToSave.inventoryItems || [],
+            linkedInvoiceId: itemToSave.linkedInvoiceId || null,
+            fromInventoryEntry: itemToSave.fromInventoryEntry || false,
+            invoiceNumber: itemToSave.invoiceNumber || ''
         };
 
         handleDataAction('pendingExpenses', pendingItem, isNew);
-        if (isNew && pendingAutoApprove && canApprovePending) {
-            handleApprove(pendingItem, { bypassPermissionCheck: true, silent: true });
-        }
 
         setIsModalOpen(false);
         setCurrentItem(null);
-        setPendingAutoApprove(false);
         setSelectedVendor('');
     };
 
@@ -4156,7 +4174,7 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
 /**
  * 3.5. InventoryEntryComponent (الادخال المخزني)
  */
-const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDelete, setCurrentPage, showToast, setInitialExpenseState, handleRefresh, currentUser }) => {
+const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDelete, setCurrentPage, showToast, setInitialExpenseState, handleRefresh, currentUser, setPendingInventoryAction }) => {
     const [isNewInvoiceModalOpen, setIsNewInvoiceModalOpen] = useState(false);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     const [isCancelModalOpen, setIsCancelModalOpen] = useState(false); 
@@ -4185,12 +4203,15 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
         invoiceNumber: '', // رقم فاتورة المورد
         invoiceImageUrl: '',
         expenseCategory: data.settings.expenseCategories.find(c => c.includes('مواد')) || data.settings.expenseCategories[0] || '',
-        items: [], // المواد المضافة للفاتورة
-        status: 'Pending', 
-        totalAmount: 0,
-        date: getDefaultDateTime(),
-        id: null
-    }), [data.settings.vendors, data.settings.representatives, data.settings.expenseCategories]);
+        items: [], // المواد المضافة للفاتورة
+        status: 'Pending',
+        totalAmount: 0,
+        date: getDefaultDateTime(),
+        id: null,
+        inventoryApplied: false,
+        linkedCollection: null,
+        linkedRecordId: null
+    }), [data.settings.vendors, data.settings.representatives, data.settings.expenseCategories]);
     
     // دالة للحصول على حالة نموذج المادة الافتراضية
     const getDefaultItemForm = useCallback(() => ({ 
@@ -4398,9 +4419,12 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
             ...invoiceForm,
             id: invoiceForm.id || crypto.randomUUID(),
             date: getDefaultDateTime(),
-            totalAmount: calculateTotal(),
-            status: 'Pending',
-        };
+            totalAmount: calculateTotal(),
+            status: 'Pending',
+            inventoryApplied: invoiceForm.inventoryApplied || false,
+            linkedCollection: invoiceForm.linkedCollection || null,
+            linkedRecordId: invoiceForm.linkedRecordId || null,
+        };
 
         handleDataAction('pendingInvoices', invoiceToSave, !invoiceForm.id);
         
@@ -4461,6 +4485,51 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
             return;
         }
 
+        if (!isCreditApproval) {
+            const canDirectExpense = !!currentUser?.permissions?.expenses?.add && !!currentUser?.permissions?.expenses?.view;
+            const targetCollection = canDirectExpense ? 'expenses' : 'pendingExpenses';
+            const recordId = crypto.randomUUID();
+            const shouldApplyInventory = !invoice.inventoryApplied && invoice.status !== 'CreditApproved';
+
+            const expenseRecord = {
+                id: recordId,
+                type: 'expense',
+                status: 'pending',
+                date: invoice.date,
+                amount: invoice.totalAmount,
+                category: invoice.expenseCategory,
+                description: `فاتورة شراء مواد من ${invoice.vendor} (المواد: ${invoice.items.map(i => i.name).join(', ')})`,
+                vendor: invoice.vendor,
+                representative: invoice.representative,
+                notes: invoice.notes || '',
+                invoiceImageUrl: invoice.invoiceImageUrl || '',
+                inventoryItems: invoice.items,
+                invoiceNumber: invoice.invoiceNumber,
+                linkedInvoiceId: invoice.id,
+                fromInventoryEntry: true,
+            };
+
+            setPendingInventoryAction({
+                invoiceId: invoice.id,
+                recordId,
+                targetCollection,
+                applyInventory: shouldApplyInventory,
+                nextStatus: 'Dispatched',
+            });
+
+            setInitialExpenseState(expenseRecord);
+            setCurrentPage(targetCollection);
+            setIsDetailsModalOpen(false);
+            setCurrentInvoice(null);
+            showToast(
+                canDirectExpense
+                    ? 'تم تجهيز بيانات المصروف. يرجى الضغط على زر "إضافة" في صفحة الصرفيات لإكمال العملية.'
+                    : 'تم تجهيز طلب الصرف المعلق. يرجى الضغط على زر "إضافة" في صفحة الصرفيات المعلقة لاعتماد العملية.',
+                'info'
+            );
+            return;
+        }
+
         // 1. تحديث المخزون
         let updatedInventory = [...data.inventory];
 
@@ -4500,14 +4569,14 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
         
         // 2. تحديث حالة الفاتورة
         let updatedInvoice;
-        if (isCreditApproval) {
-            // اعتماد آجل (تحديث المخزون فقط، تغيير الحالة لـ CreditApproved)
-            updatedInvoice = { ...invoice, status: 'CreditApproved' };
-            handleDataAction('pendingInvoices', updatedInvoice, false); 
-            handleDataAction('inventory', updatedInventory, true, true);
-            setIsDetailsModalOpen(false);
-            setStatusFilter(prev => Array.isArray(prev) ? [...prev.filter(s => s !== 'Pending'), 'CreditApproved'] : ['CreditApproved']); // تحديث الفلتر فورا
-            showToast(`تم اعتماد الفاتورة #${invoice.invoiceNumber} كـ **آجل** وإضافة المواد للمخزون.`, 'success');
+        if (isCreditApproval) {
+            // اعتماد آجل (تحديث المخزون فقط، تغيير الحالة لـ CreditApproved)
+            updatedInvoice = { ...invoice, status: 'CreditApproved', inventoryApplied: true };
+            handleDataAction('pendingInvoices', updatedInvoice, false);
+            handleDataAction('inventory', updatedInventory, true, true);
+            setIsDetailsModalOpen(false);
+            setStatusFilter(prev => Array.isArray(prev) ? [...prev.filter(s => s !== 'Pending'), 'CreditApproved'] : ['CreditApproved']); // تحديث الفلتر فورا
+            showToast(`تم اعتماد الفاتورة #${invoice.invoiceNumber} كـ **آجل** وإضافة المواد للمخزون.`, 'success');
             return;
         }
         
@@ -4562,27 +4631,32 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
         }
 
         // تغيير حالة الفاتورة في pendingInvoices إلى "ملغاة" (بدلاً من الحذف الكامل)
-        const cancelledInvoice = {
-             ...invoice,
-             status: 'Cancelled',
-             cancellationDate: getDefaultDateTime(),
-             cancellationReason: cancellationReason,
-        };
-        
-        // إذا كانت الفاتورة معتمدة آجل، يجب خصم المواد من المخزون
-        if (invoice.status === 'CreditApproved') {
-            let updatedInventory = [...data.inventory];
-            invoice.items.forEach(item => {
-                 const existingItemIndex = updatedInventory.findIndex(i => i.name === item.name);
-                 if (existingItemIndex !== -1) {
-                    updatedInventory[existingItemIndex] = {
-                        ...updatedInventory[existingItemIndex],
-                        count: updatedInventory[existingItemIndex].count - item.count,
-                    };
-                }
-            });
-            handleDataAction('inventory', updatedInventory, true, true);
-        }
+        const cancelledInvoice = {
+            ...invoice,
+            status: 'Cancelled',
+            cancellationDate: getDefaultDateTime(),
+            cancellationReason: cancellationReason,
+            inventoryApplied: invoice.status === 'CreditApproved' ? false : invoice.inventoryApplied,
+            linkedCollection: invoice.linkedCollection || null,
+            linkedRecordId: invoice.linkedRecordId || null,
+        };
+
+        // إذا كانت الفاتورة معتمدة آجل، يجب خصم المواد من المخزون
+        if (invoice.status === 'CreditApproved') {
+            let updatedInventory = [...data.inventory];
+            invoice.items.forEach(item => {
+                const existingItemIndex = updatedInventory.findIndex(i => i.name === item.name);
+                if (existingItemIndex !== -1) {
+                    updatedInventory[existingItemIndex] = {
+                        ...updatedInventory[existingItemIndex],
+                        count: Math.max((parseFloat(convertArabicToEnglish(updatedInventory[existingItemIndex].count || '0')) || 0) - (parseFloat(convertArabicToEnglish(item.count || '0')) || 0), 0),
+                    };
+                }
+            });
+            handleDataAction('inventory', updatedInventory, true, true);
+            cancelledInvoice.linkedCollection = null;
+            cancelledInvoice.linkedRecordId = null;
+        }
 
         handleDataAction('pendingInvoices', cancelledInvoice, false); // تعديل السجل بدلاً من حذفه
         setIsCancelModalOpen(false);
@@ -7551,6 +7625,39 @@ const LoginPage = ({ users, onLogin, showToast, systemExpiryDate, companyName, m
     const [welcomeUser, setWelcomeUser] = useState(null);
     const [loginError, setLoginError] = useState('');
 
+    const expiryInfo = useMemo(() => {
+        if (!systemExpiryDate) return null;
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const expiryDate = new Date(systemExpiryDate);
+        expiryDate.setHours(0, 0, 0, 0);
+
+        const diffMs = expiryDate.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+        if (diffDays < 0) {
+            return {
+                type: 'expired',
+                message: '⚠️ انتهت صلاحية النظام. يرجى التواصل مع الإدارة لتجديد الاشتراك.',
+            };
+        }
+
+        if (diffDays <= 3) {
+            const dayLabel = diffDays === 0
+                ? 'اليوم هو آخر يوم للاشتراك.'
+                : `متبقي ${diffDays} ${diffDays === 1 ? 'يوم' : 'أيام'} على انتهاء صلاحية النظام.`;
+
+            return {
+                type: 'warning',
+                message: `تنبيه: ${dayLabel}`,
+            };
+        }
+
+        return null;
+    }, [systemExpiryDate]);
+
     const handleSubmit = (e) => {
         e.preventDefault();
 
@@ -7586,16 +7693,10 @@ const LoginPage = ({ users, onLogin, showToast, systemExpiryDate, companyName, m
 
         // التحقق من صلاحية النظام
         // الأدمن والماستر كي يمكنهم الدخول دائماً
-        if (user.role !== USER_ROLES.ADMIN && !user.isMasterKeyLogin && systemExpiryDate) {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const expiryDate = new Date(systemExpiryDate);
-            expiryDate.setHours(0, 0, 0, 0);
-            
-            if (today > expiryDate) {
-                showToast('⚠️ انتهى الاشتراك! يرجى التواصل مع إدارة النظام لتجديد الاشتراك', 'error');
-                return;
-            }
+        if (user.role !== USER_ROLES.ADMIN && !user.isMasterKeyLogin && expiryInfo?.type === 'expired') {
+            setLoginError('⚠️ انتهت صلاحية النظام. يرجى التواصل مع إدارة النظام لتجديد الاشتراك.');
+            setPassword('');
+            return;
         }
 
         // عرض رسالة الترحيب المؤقتة والدخول تلقائياً بعد ثانيتين
@@ -7626,6 +7727,18 @@ const LoginPage = ({ users, onLogin, showToast, systemExpiryDate, companyName, m
                     <p className="text-gray-600 dark:text-gray-300 text-sm md:text-base">V3.0</p>
                     <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400">قم بتسجيل الدخول للمتابعة</p>
                 </div>
+
+                {expiryInfo && (
+                    <div
+                        className={`p-3 rounded-xl border text-sm font-semibold text-right ${
+                            expiryInfo.type === 'expired'
+                                ? 'bg-red-50 border-red-300 text-red-700 dark:bg-red-900/30 dark:border-red-700 dark:text-red-200'
+                                : 'bg-amber-50 border-amber-300 text-amber-700 dark:bg-amber-900/30 dark:border-amber-700 dark:text-amber-200'
+                        }`}
+                    >
+                        {expiryInfo.message}
+                    </div>
+                )}
 
                 <form onSubmit={handleSubmit} className="space-y-4 md:space-y-5">
                     <div className="space-y-2">
@@ -7699,11 +7812,12 @@ const AccountingApp = () => {
     const [printReportData, setPrintReportData] = useState([]);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false); 
     const [refreshKey, setRefreshKey] = useState(0); 
-    const [initialExpenseState, setInitialExpenseState] = useState(null);
+    const [initialExpenseState, setInitialExpenseState] = useState(null);
     const [isDarkMode, setIsDarkMode] = useState(false);
-    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); 
-    
-    const [currentUser, setCurrentUser] = useState(null); // المستخدم المسجل حالياً
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+    const [currentUser, setCurrentUser] = useState(null); // المستخدم المسجل حالياً
+    const [pendingInventoryAction, setPendingInventoryAction] = useState(null);
     
     
     
@@ -7748,6 +7862,7 @@ const AccountingApp = () => {
         setCurrentUser(null);
         setCurrentPage('dashboard');
         setIsSidebarOpen(false);
+        setPendingInventoryAction(null);
         // مسح بيانات الجلسة
         localStorage.removeItem('lastLoginTime');
         localStorage.removeItem('lastLoginDate');
@@ -7861,6 +7976,75 @@ const AccountingApp = () => {
     }, [showToast]);
 
     // 3. CRUD Logic
+    const mergeInventoryWithInvoiceItems = (baseInventory, invoiceItems, invoiceMeta) => {
+        const updatedInventory = [...(baseInventory || [])];
+
+        (invoiceItems || []).forEach(invoiceItem => {
+            const countToAdd = parseFloat(convertArabicToEnglish(invoiceItem.count || '0')) || 0;
+            const priceValue = parseFloat(convertArabicToEnglish(invoiceItem.price || '0')) || 0;
+            const existingIndex = updatedInventory.findIndex(invItem => invItem.name === invoiceItem.name);
+
+            const purchaseRecord = {
+                date: invoiceMeta.date,
+                price: priceValue,
+                count: countToAdd,
+                vendor: invoiceMeta.vendor
+            };
+
+            if (existingIndex !== -1) {
+                const existingItem = updatedInventory[existingIndex];
+                updatedInventory[existingIndex] = {
+                    ...existingItem,
+                    count: (parseFloat(existingItem.count || 0) || 0) + countToAdd,
+                    price: priceValue,
+                    purchaseHistory: [purchaseRecord, ...(existingItem.purchaseHistory || [])],
+                };
+            } else {
+                updatedInventory.push({
+                    id: crypto.randomUUID(),
+                    name: invoiceItem.name,
+                    barcode: invoiceItem.barcode || generateBarcode(),
+                    price: priceValue,
+                    count: countToAdd,
+                    category: invoiceItem.category,
+                    purchaseHistory: [purchaseRecord],
+                    invoiceImageUrl: invoiceMeta.invoiceImageUrl,
+                });
+            }
+        });
+
+        return updatedInventory;
+    };
+
+    const finalizeInventoryEntryApproval = (draftData, action) => {
+        if (!action) return draftData;
+
+        const invoiceIndex = draftData.pendingInvoices.findIndex(inv => inv.id === action.invoiceId);
+        if (invoiceIndex === -1) {
+            return draftData;
+        }
+
+        const invoice = draftData.pendingInvoices[invoiceIndex];
+        const updatedInvoice = {
+            ...invoice,
+            status: action.nextStatus || invoice.status,
+            inventoryApplied: action.applyInventory ? true : invoice.inventoryApplied,
+            linkedCollection: action.targetCollection,
+            linkedRecordId: action.recordId,
+            dispatchedAt: getDefaultDateTime(),
+        };
+
+        const updatedInvoices = [...draftData.pendingInvoices];
+        updatedInvoices[invoiceIndex] = updatedInvoice;
+        draftData.pendingInvoices = updatedInvoices;
+
+        if (action.applyInventory) {
+            draftData.inventory = mergeInventoryWithInvoiceItems(draftData.inventory, invoice.items, invoice);
+        }
+
+        return draftData;
+    };
+
     const handleDataAction = (collectionName, item, isNew, overwrite = false) => {
         // **دعم التحديث الشامل للبيانات**
         if (collectionName === '___FULL_DATA_UPDATE___') {
@@ -7878,11 +8062,12 @@ const AccountingApp = () => {
             return;
         }
 
-        const newData = { ...data };
+        let newData = { ...data };
         let collection = [...(newData[collectionName] || [])];
+        let newItemRef = null;
 
         if (overwrite) {
-             newData[collectionName] = item;
+            newData[collectionName] = item;
         } else if (isNew) {
             // إضافة سجل جديد
             const newItem = {
@@ -7892,18 +8077,18 @@ const AccountingApp = () => {
             };
             collection.push(newItem);
             newData[collectionName] = collection;
-            
+            newItemRef = newItem;
+
             if (collectionName !== 'inventory') {
                 showToast(`تم إضافة السجل بنجاح!`, 'success');
-            
-            // تسجيل النشاط
-            const moduleName = navItems.find(i => i.key === collectionName)?.label || collectionName;
-            logActivity("إضافة", moduleName, `${item.description || item.amount || item.name || "سجل جديد"}`);
 
+                // تسجيل النشاط
+                const moduleName = navItems.find(i => i.key === collectionName)?.label || collectionName;
+                logActivity("إضافة", moduleName, `${item.description || item.amount || item.name || "سجل جديد"}`);
             }
-            
+
             if (collectionName === 'inventory' && !newItem.purchaseHistory) {
-                 newItem.purchaseHistory = [];
+                newItem.purchaseHistory = [];
             }
             setInitialExpenseState(null);
         } else {
@@ -7924,11 +8109,22 @@ const AccountingApp = () => {
                       collection[existingIndex] = item;
                  } else {
                       collection.push(item);
-                 }
-                 newData[collectionName] = collection;
+                }
+                newData[collectionName] = collection;
             }
         }
-        
+
+        if (pendingInventoryAction && collectionName === pendingInventoryAction.targetCollection) {
+            const addedItemId = (isNew ? (newItemRef?.id || item.id) : item.id) || null;
+            const matchesPending = addedItemId === pendingInventoryAction.recordId
+                || (item.linkedInvoiceId && item.linkedInvoiceId === pendingInventoryAction.invoiceId);
+
+            if (matchesPending) {
+                newData = finalizeInventoryEntryApproval(newData, pendingInventoryAction);
+                setPendingInventoryAction(null);
+            }
+        }
+
         saveData(newData);
         setRefreshKey(prev => prev + 1);
     };
@@ -7948,30 +8144,62 @@ const AccountingApp = () => {
         if (!bypassPermissions && permissionKey && !currentUser?.permissions[permissionKey]?.delete && collectionName !== 'inventoryDispatches') {
             showToast(`ليس لديك صلاحية حذف سجلات في قسم ${navItems.find(i => i.key === collectionName)?.label}.`, 'error');
             return;
-        }
-        
-        let newData = { ...data };
-        
-        // **مهم:** إذا تم حذف سجل صرف مخزني، يجب إعادة المواد للمخزون
-        if (collectionName === 'inventoryDispatches') {
-            const dispatchToDelete = data.inventoryDispatches.find(d => d.id === id);
-            if (dispatchToDelete) {
-                let updatedInventory = [...newData.inventory];
-                dispatchToDelete.items.forEach(dItem => {
-                    const index = updatedInventory.findIndex(i => i.id === dItem.itemId);
-                    if (index !== -1) {
-                        updatedInventory[index] = {
-                            ...updatedInventory[index],
-                            count: updatedInventory[index].count + dItem.count,
-                        };
-                    }
-                });
-                // تحديث المخزون بالكامل
-                newData.inventory = updatedInventory; 
-            }
-        }
-        
-        newData[collectionName] = newData[collectionName].filter(item => item.id !== id);
+        }
+
+        let newData = { ...data };
+
+        // **مهم:** إذا تم حذف سجل صرف مخزني، يجب إعادة المواد للمخزون
+        if (collectionName === 'inventoryDispatches') {
+            const dispatchToDelete = data.inventoryDispatches.find(d => d.id === id);
+            if (dispatchToDelete) {
+                let updatedInventory = [...newData.inventory];
+                dispatchToDelete.items.forEach(dItem => {
+                    const index = updatedInventory.findIndex(i => i.id === dItem.itemId);
+                    if (index !== -1) {
+                        updatedInventory[index] = {
+                            ...updatedInventory[index],
+                            count: updatedInventory[index].count + dItem.count,
+                        };
+                    }
+                });
+                // تحديث المخزون بالكامل
+                newData.inventory = updatedInventory;
+            }
+        }
+
+        if (collectionName === 'pendingInvoices') {
+            const invoiceToDelete = data.pendingInvoices.find(item => item.id === id);
+            if (invoiceToDelete) {
+                if (invoiceToDelete.inventoryApplied) {
+                    let updatedInventory = [...(newData.inventory || [])];
+                    (invoiceToDelete.items || []).forEach(invItem => {
+                        const index = updatedInventory.findIndex(i => i.name === invItem.name);
+                        if (index !== -1) {
+                            const currentCount = parseFloat(convertArabicToEnglish(updatedInventory[index].count || '0')) || 0;
+                            const decrement = parseFloat(convertArabicToEnglish(invItem.count || '0')) || 0;
+                            updatedInventory[index] = {
+                                ...updatedInventory[index],
+                                count: Math.max(currentCount - decrement, 0),
+                            };
+                        }
+                    });
+                    newData.inventory = updatedInventory;
+                }
+
+                if (invoiceToDelete.linkedCollection && invoiceToDelete.linkedRecordId) {
+                    const linkedCollection = invoiceToDelete.linkedCollection;
+                    if (newData[linkedCollection]) {
+                        newData[linkedCollection] = newData[linkedCollection].filter(record => record.id !== invoiceToDelete.linkedRecordId);
+                    }
+                }
+            }
+
+            if (pendingInventoryAction?.invoiceId === id) {
+                setPendingInventoryAction(null);
+            }
+        }
+
+        newData[collectionName] = newData[collectionName].filter(item => item.id !== id);
         
         // تسجيل النشاط
         const moduleName = navItems.find(i => i.key === collectionName)?.label || collectionName;
@@ -8154,17 +8382,23 @@ const AccountingApp = () => {
              return;
         }
 
-        setCurrentPage(key);
-        setInitialExpenseState(null); 
-        setIsSidebarOpen(false); // إغلاق الشريط الجانبي بعد التنقل في وضع الجوال
-    }
-    
-    // **دالة تنقل خاصة تستخدمها SettingsPage فقط بعد تأكيد الحفظ/الإلغاء**
-    const handleSettingsNavigation = (key) => {
-         setCurrentPage(key);
-         setInitialExpenseState(null); 
-         setIsSidebarOpen(false);
-    }
+        setCurrentPage(key);
+        setInitialExpenseState(null);
+        if (pendingInventoryAction) {
+            setPendingInventoryAction(null);
+        }
+        setIsSidebarOpen(false); // إغلاق الشريط الجانبي بعد التنقل في وضع الجوال
+    }
+
+    // **دالة تنقل خاصة تستخدمها SettingsPage فقط بعد تأكيد الحفظ/الإلغاء**
+    const handleSettingsNavigation = (key) => {
+        setCurrentPage(key);
+        setInitialExpenseState(null);
+        if (pendingInventoryAction) {
+            setPendingInventoryAction(null);
+        }
+        setIsSidebarOpen(false);
+    }
 
 
 
@@ -8302,11 +8536,11 @@ const AccountingApp = () => {
 
                 <div className="max-w-full mx-auto"> {/* تم تغيير max-w-7xl إلى max-w-full لزيادة التجاوب */}
                     {PageComponent && (
-                        <PageComponent
-                            key={currentPage + refreshKey} // استخدام refreshKey لإجبار المكون على إعادة الرسم
-                            data={data}
-                            handleDataAction={handleDataAction}
-                            handleDelete={handleDelete}
+                            <PageComponent
+                                key={currentPage + refreshKey} // استخدام refreshKey لإجبار المكون على إعادة الرسم
+                                data={data}
+                                handleDataAction={handleDataAction}
+                                handleDelete={handleDelete}
                             handleSettingsUpdate={handleSettingsUpdate}
                             showToast={showToast}
                             setCurrentPage={setCurrentPage}
@@ -8317,10 +8551,12 @@ const AccountingApp = () => {
                             initialExpenseState={initialExpenseState} // تمرير حالة المصروف التلقائي
                             setInitialExpenseState={setInitialExpenseState} // تمرير دالة المسح
                             handleRefresh={handleRefresh}
-                            currentUser={currentUser} // تمرير صلاحيات المستخدم الافتراضي
-                            onNavigateAttempt={handleSettingsNavigation} // تمرير دالة التنقل الخاصة بـ SettingsPage
-                            {...pageProps}
-                        />
+                                currentUser={currentUser} // تمرير صلاحيات المستخدم الافتراضي
+                                onNavigateAttempt={handleSettingsNavigation} // تمرير دالة التنقل الخاصة بـ SettingsPage
+                                pendingInventoryAction={pendingInventoryAction}
+                                setPendingInventoryAction={setPendingInventoryAction}
+                                {...pageProps}
+                            />
                     )}
                 </div>
             </main>
