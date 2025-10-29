@@ -803,17 +803,16 @@ const DataPageComponent = React.memo(({ 
 
         const sourceList = Array.isArray(data[collectionName]) ? data[collectionName] : [];
 
-        // في حال لم يتم اختيار أي تاريخ، لا يتم عرض البطاقات أو احتساب المجاميع
-        if (!filterDateFrom && !filterDateTo) {
-            return [];
-        }
-
         return sourceList.filter(item => {
             if (!item?.date) {
-                return false;
+                // في حال عدم توفر تاريخ للسجل، يتم تضمينه فقط عندما لا يكون هناك فلتر تاريخ محدد
+                return !filterDateFrom && !filterDateTo;
             }
 
-            const itemDate = item.date.slice(0, 10);
+            const rawDate = typeof item.date === 'string'
+                ? item.date
+                : new Date(item.date).toISOString();
+            const itemDate = rawDate.slice(0, 10);
 
             if (filterDateFrom && itemDate < filterDateFrom) {
                 return false;
