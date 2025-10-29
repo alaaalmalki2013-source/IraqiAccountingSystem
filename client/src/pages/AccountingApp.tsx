@@ -2,7 +2,7 @@
 import { AboutPage } from "./about-content";
 import { Sidebar } from '../components/Sidebar';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import {
     Home,
@@ -5141,6 +5141,10 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                 fromInventoryEntry: true,
             };
 
+            if (!ensureSettingsCanLeave(targetCollection)) {
+                return;
+            }
+
             setPendingInventoryAction({
                 invoiceId: invoice.id,
                 recordId,
@@ -5150,7 +5154,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
             });
 
             setInitialExpenseState(expenseRecord);
-            setCurrentPage(targetCollection);
+            performNavigation(targetCollection, { preserveInitialExpenseState: true });
             setIsDetailsModalOpen(false);
             setCurrentInvoice(null);
             showToast(
@@ -5230,8 +5234,11 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
         };
 
         // 4. إرسال بيانات المصروف إلى صفحة المصروفات وفتح المودال هناك
+        if (!ensureSettingsCanLeave('pendingExpenses')) {
+            return;
+        }
         setInitialExpenseState(expenseRecord);
-        setCurrentPage('pendingExpenses'); // توجيه المستخدم لصفحة الصرفيات المعلقة
+        performNavigation('pendingExpenses', { preserveInitialExpenseState: true }); // توجيه المستخدم لصفحة الصرفيات المعلقة
 
         // 5. تغيير حالة الفاتورة في pendingInvoices إلى "مصروفة"
         updatedInvoice = { ...invoice, status: 'Dispatched' };
@@ -5896,7 +5903,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
 /**
  * 3.6. SettingsPage Component
  */
-const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavigateAttempt }) => {
+const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavigateAttempt, currentUser, registerLeaveGuard }) => {
     const [settings, setSettings] = useState(data.settings);
     const [originalSettings, setOriginalSettings] = useState(data.settings); // لحفظ الحالة الأصلية
     const [isDirty, setIsDirty] = useState(false); // لتتبع التغييرات
@@ -5904,13 +5911,27 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
     // حالة المودال لإدارة الخروج بدون حفظ
     const [exitIntent, setExitIntent] = useState<{ open: boolean; targetPageKey: string | null }>({ open: false, targetPageKey: null });
     
-    const [newItem, setNewItem] = useState('');
-    const [currentList, setCurrentList] = useState('expenseCategories');
-    const [newRep, setNewRep] = useState({ name: '', vendor: settings.vendors[0] || '' });
+    const [newItem, setNewItem] = useState('');
+    const [currentList, setCurrentList] = useState('expenseCategories');
+    const [newVendor, setNewVendor] = useState('');
+    const [newRep, setNewRep] = useState({ name: '', vendor: settings.vendors[0] || '' });
+
+    const settingsPermissions = currentUser?.permissions?.settings || {};
+    const canManageCategories = (settingsPermissions.manageCategories ?? settingsPermissions.view) || false;
+    const canManageVendors = (settingsPermissions.manageVendors ?? settingsPermissions.view) || false;
+    const canManageRepresentatives = (settingsPermissions.manageRepresentatives ?? settingsPermissions.view) || false;
+    const categoryLists = ['expenseCategories', 'revenueCategories', 'advanceCategories', 'departments', 'jobTitles'];
+    const categoryLabels = {
+        expenseCategories: 'فئة مصروف',
+        revenueCategories: 'فئة إيراد',
+        advanceCategories: 'فئة سلفة',
+        departments: 'قسم',
+        jobTitles: 'مسمى وظيفي'
+    };
     
     // حالة نموذج المستخدم الجديد/المعدل
-    const [isUserModalOpen, setIsUserModalOpen] = useState(false);
-    const [currentUser, setCurrentUser] = useState(null);
+    const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+    const [editingSettingsUser, setEditingSettingsUser] = useState(null);
     const [userForm, setUserForm] = useState({
         username: "",
         id: "",
@@ -5968,13 +5989,17 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
     
     // دوال إدارة القوائم (الفئات والموردين)
     
-    const handleAddItem = (e) => {
-        e.preventDefault();
-        const value = newItem.trim();
-        if (!value) return;
+    const handleAddItem = (e) => {
+        e.preventDefault();
+        if (!canManageCategories) {
+            showToast('لا تملك صلاحية إضافة الفئات.', 'error');
+            return;
+        }
+        const value = newItem.trim();
+        if (!value) return;
 
-        if (settings[currentList].includes(value)) {
-            showToast('هذا العنصر موجود بالفعل.', 'error');
+        if (settings[currentList].includes(value)) {
+            showToast('هذا العنصر موجود بالفعل.', 'error');
             return;
         }
 
@@ -5984,32 +6009,70 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
         }));
         setNewItem('');
         showToast(`تم إضافة ${value} بنجاح.`, 'success');
-    };
+    };
 
-    const handleDeleteItem = (itemToDelete) => {
-        handleSettingChange(prev => ({
-            ...prev,
-            [currentList]: prev[currentList].filter(item => item !== itemToDelete)
-        }));
-        
-        if (currentList === 'vendors') {
-             handleSettingChange(prev => ({
-                ...prev,
-                representatives: prev.representatives.filter(rep => rep.vendor !== itemToDelete)
-            }));
-        }
+    const handleDeleteItem = (itemToDelete) => {
+        if (!canManageCategories) {
+            showToast('لا تملك صلاحية حذف الفئات.', 'error');
+            return;
+        }
+        handleSettingChange(prev => ({
+            ...prev,
+            [currentList]: prev[currentList].filter(item => item !== itemToDelete)
+        }));
 
-        showToast(`تم حذف العنصر بنجاح.`, 'warning');
-    };
+        showToast(`تم حذف العنصر بنجاح.`, 'warning');
+    };
 
-    // إدارة المندوبين
-    const handleAddRep = (e) => {
-        e.preventDefault();
-        if (!newRep.name.trim() || !newRep.vendor) return;
+    const handleAddVendor = (e) => {
+        e.preventDefault();
+        if (!canManageVendors) {
+            showToast('لا تملك صلاحية إضافة الموردين.', 'error');
+            return;
+        }
 
-        if (settings.representatives.some(r => r.name === newRep.name)) {
-            showToast('هذا المندوب موجود بالفعل.', 'error');
-            return;
+        const value = newVendor.trim();
+        if (!value) return;
+
+        if (settings.vendors.includes(value)) {
+            showToast('هذا المورد موجود بالفعل.', 'error');
+            return;
+        }
+
+        handleSettingChange(prev => ({
+            ...prev,
+            vendors: [...prev.vendors, value]
+        }));
+        setNewVendor('');
+        showToast(`تم إضافة المورد ${value} بنجاح.`, 'success');
+    };
+
+    const handleDeleteVendor = (vendorToDelete) => {
+        if (!canManageVendors) {
+            showToast('لا تملك صلاحية حذف الموردين.', 'error');
+            return;
+        }
+
+        handleSettingChange(prev => ({
+            ...prev,
+            vendors: prev.vendors.filter(vendor => vendor !== vendorToDelete),
+            representatives: prev.representatives.filter(rep => rep.vendor !== vendorToDelete)
+        }));
+        showToast('تم حذف المورد وجميع مندوبيه بنجاح.', 'warning');
+    };
+
+    // إدارة المندوبين
+    const handleAddRep = (e) => {
+        e.preventDefault();
+        if (!canManageRepresentatives) {
+            showToast('لا تملك صلاحية إضافة المندوبين.', 'error');
+            return;
+        }
+        if (!newRep.name.trim() || !newRep.vendor) return;
+
+        if (settings.representatives.some(r => r.name === newRep.name)) {
+            showToast('هذا المندوب موجود بالفعل.', 'error');
+            return;
         }
 
         handleSettingChange(prev => ({
@@ -6018,37 +6081,41 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
         }));
         setNewRep({ name: '', vendor: settings.vendors[0] || '' });
         showToast(`تم إضافة المندوب ${newRep.name} بنجاح.`, 'success');
-    };
-    
-    const handleDeleteRep = (repToDelete) => {
-        handleSettingChange(prev => ({
-            ...prev,
-            representatives: prev.representatives.filter(rep => rep.name !== repToDelete.name)
-        }));
-        showToast('تم حذف المندوب بنجاح.', 'warning');
+    };
+
+    const handleDeleteRep = (repToDelete) => {
+        if (!canManageRepresentatives) {
+            showToast('لا تملك صلاحية حذف المندوبين.', 'error');
+            return;
+        }
+        handleSettingChange(prev => ({
+            ...prev,
+            representatives: prev.representatives.filter(rep => rep.name !== repToDelete.name)
+        }));
+        showToast('تم حذف المندوب بنجاح.', 'warning');
     };
     
     // إدارة المستخدمين
     
     const openUserModal = (user = null) => {
-        if (user) {
-            setCurrentUser(user);
-            setUserForm({
-                username: user.username,
-                id: user.id,
-                email: user.email,
-                password: '', // لا نعرض الباسورد المحفوظة
+        if (user) {
+            setEditingSettingsUser(user);
+            setUserForm({
+                username: user.username,
+                id: user.id,
+                email: user.email,
+                password: '', // لا نعرض الباسورد المحفوظة
                 role: user.role || USER_ROLES.CASHIER,
                 customPermissions: user.customPermissions || {},
                 permissions: user.permissions || ROLE_PERMISSIONS[user.role || USER_ROLES.CASHIER]
             });
-        } else {
-             setCurrentUser(null);
+        } else {
+             setEditingSettingsUser(null);
              setUserForm({
-                username: '',
-                id: crypto.randomUUID(),
-                email: '',
-                password: '',
+                username: '',
+                id: crypto.randomUUID(),
+                email: '',
+                password: '',
                 role: USER_ROLES.CASHIER,
                 permissions: ROLE_PERMISSIONS[USER_ROLES.CASHIER],
                 customPermissions: {}
@@ -6065,19 +6132,19 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
         }
 
         // التحقق من كلمة المرور عند إضافة مستخدم جديد فقط
-        if (!currentUser && !userForm.password.trim()) {
+        if (!editingSettingsUser && !userForm.password.trim()) {
             showToast('يجب إدخال كلمة المرور للمستخدم الجديد.', 'error');
             return;
         }
 
         // منع إنشاء حساب أدمن جديد
-        if (!currentUser && userForm.role === USER_ROLES.ADMIN) {
+        if (!editingSettingsUser && userForm.role === USER_ROLES.ADMIN) {
             showToast('لا يمكن إنشاء حساب أدمن جديد. يمكن فقط تعديل الحسابات الموجودة.', 'error');
             return;
         }
 
-        const userToSave = {
-            ...userForm,
+        const userToSave = {
+            ...userForm,
             // ضمان وجود صلاحية الرؤية دائما للوحة المعلومات
             // دمج الصلاحيات الأساسية مع الصلاحيات المخصصة
             role: userForm.role || USER_ROLES.CASHIER,
@@ -6087,23 +6154,23 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
                 ...userForm.customPermissions,
                 dashboard: { view: true }
             }
-        };
+        };
 
-        handleSettingChange(prev => {
-            const newUsers = currentUser 
-                ? prev.users.map(u => u.id === userToSave.id ? userToSave : u)
-                : [...prev.users, userToSave];
-            
-            // تصحيح: يجب تحديث المستخدم الذي تم تعديله بـ userToSave
-            const finalUsers = prev.users.map(u => u.id === userToSave.id ? userToSave : u);
-            if (!currentUser) finalUsers.push(userToSave);
+        handleSettingChange(prev => {
+            const newUsers = editingSettingsUser
+                ? prev.users.map(u => u.id === userToSave.id ? userToSave : u)
+                : [...prev.users, userToSave];
 
-            return { ...prev, users: finalUsers };
-        });
-        
-        setIsUserModalOpen(false);
-        showToast(currentUser ? 'تم تعديل صلاحيات المستخدم بنجاح.' : 'تم إضافة مستخدم جديد بنجاح.', 'success');
-    };
+            // تصحيح: يجب تحديث المستخدم الذي تم تعديله بـ userToSave
+            const finalUsers = prev.users.map(u => u.id === userToSave.id ? userToSave : u);
+            if (!editingSettingsUser) finalUsers.push(userToSave);
+
+            return { ...prev, users: finalUsers };
+        });
+
+        setIsUserModalOpen(false);
+        showToast(editingSettingsUser ? 'تم تعديل صلاحيات المستخدم بنجاح.' : 'تم إضافة مستخدم جديد بنجاح.', 'success');
+    };
     
     const handleDeleteUser = (userId) => {
         handleSettingChange(prev => ({
@@ -6196,30 +6263,38 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
                     <h3 className="text-lg md:text-2xl font-bold text-teal-800 dark:text-teal-300 flex items-center"><List className="w-5 h-5 md:w-6 md:h-6 ml-2" /> إدارة الفئات والأقسام والمناصب</h3>
 
                     <div className="flex gap-2 overflow-x-auto -mx-2 px-2 pb-2">
-                        {['expenseCategories', 'revenueCategories', 'advanceCategories', 'departments', 'jobTitles', 'vendors'].map(key => (
+                        {categoryLists.map(key => (
                             <button
                                 key={key}
+                                type="button"
                                 onClick={() => setCurrentList(key)}
                                 className={`px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm flex-shrink-0 font-semibold transition whitespace-nowrap ${currentList === key ? 'bg-teal-600 text-white shadow-md' : 'bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-teal-50 dark:hover:bg-gray-600'}`}
                             >
-                                {key === 'expenseCategories' ? 'مصروفات' : key === 'revenueCategories' ? 'إيرادات' : key === 'advanceCategories' ? 'سلف' : key === 'departments' ? 'أقسام' : key === 'jobTitles' ? 'مناصب' : 'الموردين'}
+                                {key === 'expenseCategories' ? 'مصروفات' : key === 'revenueCategories' ? 'إيرادات' : key === 'advanceCategories' ? 'سلف' : key === 'departments' ? 'أقسام' : 'مناصب'}
                             </button>
                         ))}
                     </div>
 
                     <form onSubmit={handleAddItem} className="space-y-3">
-                        <h4 className="text-sm md:text-base font-semibold text-gray-700 dark:text-gray-300">إضافة عنصر جديد ({currentList === 'vendors' ? 'مورد' : 'فئة'})</h4>
-                        <InputField 
-                            value={newItem} 
-                            onChange={(e) => setNewItem(e.target.value)} 
-                            placeholder="أدخل اسماً جديداً" 
+                        <h4 className="text-sm md:text-base font-semibold text-gray-700 dark:text-gray-300">إضافة {categoryLabels[currentList]}</h4>
+                        <InputField
+                            value={newItem}
+                            onChange={(e) => setNewItem(e.target.value)}
+                            placeholder="أدخل اسماً جديداً"
                             required
+                            readOnly={!canManageCategories}
                         >
-                            {/* **إصلاح زر الإضافة:** جعله أيقونة بيضاء بدون نص */}
-                            <button type="submit" className="absolute left-1 top-1/2 transform -translate-y-1/2 px-4 py-1 text-sm bg-white hover:bg-gray-100 dark:bg-gray-600 p-2 rounded-lg">
-                                <Plus className="w-4 h-4 text-teal-600" />
+                            <button
+                                type="submit"
+                                disabled={!canManageCategories}
+                                className={`absolute left-1 top-1/2 transform -translate-y-1/2 px-4 py-1 text-sm rounded-lg p-2 ${canManageCategories ? 'bg-white hover:bg-gray-100 dark:bg-gray-600' : 'bg-gray-200 text-gray-400 cursor-not-allowed dark:bg-gray-600/40'}`}
+                            >
+                                <Plus className={`w-4 h-4 ${canManageCategories ? 'text-teal-600' : 'text-gray-400'}`} />
                             </button>
                         </InputField>
+                        {!canManageCategories && (
+                            <p className="text-xs text-red-600 dark:text-red-300">لا تملك صلاحية إضافة أو تعديل الفئات.</p>
+                        )}
                     </form>
 
                     <div className="space-y-2 max-h-60 overflow-y-auto p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800">
@@ -6227,7 +6302,12 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
                         {currentItems.map(item => (
                             <div key={item} className="flex justify-between gap-2 items-center p-2 bg-gray-100 dark:bg-gray-600 rounded-lg shadow-sm">
                                 <span className="font-medium text-sm md:text-base break-words flex-1 text-gray-800 dark:text-gray-200">{item}</span>
-                                <button onClick={() => handleDeleteItem(item)} className="text-red-500 hover:text-red-700 p-1 flex-shrink-0">
+                                <button
+                                    type="button"
+                                    onClick={() => handleDeleteItem(item)}
+                                    disabled={!canManageCategories}
+                                    className={`p-1 flex-shrink-0 rounded-md ${canManageCategories ? 'text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/30' : 'text-gray-400 cursor-not-allowed'}`}
+                                >
                                     <Trash2 className="w-4 h-4" />
                                 </button>
                             </div>
@@ -6236,49 +6316,97 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
                     </div>
                 </div>
 
-                {/* إدارة المندوبين */}
+                {/* إدارة الموردين والمندوبين */}
                 <div className="space-y-4 md:space-y-6 p-4 md:p-6 rounded-xl shadow-lg border-l-4 border-blue-500 bg-gray-50 dark:bg-gray-800">
-                    <h3 className="text-lg md:text-2xl font-bold text-blue-800 dark:text-blue-300 flex items-center"><User className="w-5 h-5 md:w-6 md:h-6 ml-2" /> إدارة المندوبين (للشركات الموردة)</h3>
+                    <h3 className="text-lg md:text-2xl font-bold text-blue-800 dark:text-blue-300 flex items-center"><User className="w-5 h-5 md:w-6 md:h-6 ml-2" /> إدارة الموردين والمندوبين</h3>
 
-                    <form onSubmit={handleAddRep} className="space-y-3 p-3 md:p-4 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800">
-                        <h4 className="text-sm md:text-base font-semibold text-gray-700 dark:text-gray-300 border-b pb-2">إضافة مندوب جديد</h4>
-                        <InputField 
-                            label="اسم المندوب" 
-                            value={newRep.name} 
-                            onChange={(e) => setNewRep({ ...newRep, name: e.target.value })} 
-                            required
-                        />
-                        <div className="flex flex-col space-y-1 text-right">
-                            <label className="text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300">تابع لشركة</label>
-                            <select
-                                value={newRep.vendor}
-                                onChange={(e) => setNewRep({ ...newRep, vendor: e.target.value })}
+                    <div className="grid gap-4">
+                        <form onSubmit={handleAddVendor} className="space-y-3 p-3 md:p-4 border border-blue-200 dark:border-blue-700 rounded-xl bg-white dark:bg-gray-900">
+                            <h4 className="text-sm md:text-base font-semibold text-gray-700 dark:text-gray-200 border-b pb-2">إضافة مورد جديد</h4>
+                            <InputField
+                                label="اسم المورد"
+                                value={newVendor}
+                                onChange={(e) => setNewVendor(e.target.value)}
                                 required
-                                className="w-full p-2 md:p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl transition text-sm md:text-base duration-150 text-right focus:ring-blue-500 focus:border-blue-500"
-                            >
-                                {settings.vendors.map(vendor => (
-                                    <option key={vendor} value={vendor}>{vendor}</option>
-                                ))}
-                            </select>
-                            {settings.vendors.length === 0 && <p className="text-xs text-red-500 mt-1">يجب إضافة موردين أولاً.</p>}
-                        </div>
-                        <ActionButton type="submit" disabled={settings.vendors.length === 0} className="bg-blue-600 hover:bg-blue-700 w-full text-sm md:text-base">
-                            <UserPlus className="w-4 h-4 md:w-5 md:h-5 ml-2" />
-                            إضافة المندوب
-                        </ActionButton>
-                    </form>
+                                readOnly={!canManageVendors}
+                            />
+                            <ActionButton type="submit" disabled={!canManageVendors} className={`w-full ${canManageVendors ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-400 cursor-not-allowed'}`}>
+                                <FolderOpen className="w-5 h-5 ml-2" />
+                                إضافة المورد
+                            </ActionButton>
+                            {!canManageVendors && <p className="text-xs text-red-600 dark:text-red-300">لا تملك صلاحية إدارة الموردين.</p>}
+                        </form>
 
-                    <div className="space-y-2 max-h-60 overflow-y-auto p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800">
-                        <h4 className="text-sm md:text-base font-semibold text-gray-700 dark:text-gray-300 border-b border-gray-300 dark:border-gray-600 pb-1">قائمة المندوبين:</h4>
-                        {settings.representatives.map((rep, index) => (
-                            <div key={index} className="flex justify-between gap-2 items-center p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg shadow-sm">
-                                <span className="font-medium text-sm md:text-base break-words flex-1 text-gray-800 dark:text-gray-200">{rep.name} <span className="text-xs text-gray-500 dark:text-gray-400">({rep.vendor})</span></span>
-                                <button onClick={() => handleDeleteRep(rep)} className="text-red-500 hover:text-red-700 p-1 flex-shrink-0">
-                                    <Trash2 className="w-4 h-4" />
-                                </button>
+                        <div className="space-y-2 max-h-44 overflow-y-auto p-3 border border-blue-200 dark:border-blue-700 rounded-xl bg-white dark:bg-gray-900">
+                            <h4 className="text-sm md:text-base font-semibold text-gray-700 dark:text-gray-200 border-b border-blue-200 dark:border-blue-700 pb-1">قائمة الموردين</h4>
+                            {settings.vendors.map(vendor => (
+                                <div key={vendor} className="flex justify-between items-center p-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
+                                    <span className="font-medium text-sm md:text-base text-blue-900 dark:text-blue-100">{vendor}</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleDeleteVendor(vendor)}
+                                        disabled={!canManageVendors}
+                                        className={`p-1 rounded-md ${canManageVendors ? 'text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/30' : 'text-gray-400 cursor-not-allowed'}`}
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            ))}
+                            {settings.vendors.length === 0 && <p className="text-sm text-gray-500 dark:text-gray-400 italic">لم يتم إضافة موردين بعد.</p>}
+                        </div>
+
+                        <form onSubmit={handleAddRep} className="space-y-3 p-3 md:p-4 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800">
+                            <h4 className="text-sm md:text-base font-semibold text-gray-700 dark:text-gray-300 border-b pb-2">إضافة مندوب جديد</h4>
+                            <InputField
+                                label="اسم المندوب"
+                                value={newRep.name}
+                                onChange={(e) => setNewRep({ ...newRep, name: e.target.value })}
+                                required
+                                readOnly={!canManageRepresentatives}
+                            />
+                            <div className="flex flex-col space-y-1 text-right">
+                                <label className="text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300">تابع لشركة</label>
+                                <select
+                                    value={newRep.vendor}
+                                    onChange={(e) => setNewRep({ ...newRep, vendor: e.target.value })}
+                                    required
+                                    disabled={!canManageRepresentatives || settings.vendors.length === 0}
+                                    className={`w-full p-2 md:p-3 border border-gray-300 dark:border-gray-600 text-sm md:text-base rounded-xl focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 transition ${!canManageRepresentatives ? 'bg-gray-100 dark:bg-gray-700/40 cursor-not-allowed text-gray-400' : ''}`}
+                                >
+                                    <option value="" disabled>اختر المورد</option>
+                                    {settings.vendors.map(vendor => (
+                                        <option key={vendor} value={vendor}>{vendor}</option>
+                                    ))}
+                                </select>
                             </div>
-                        ))}
-                        {settings.representatives.length === 0 && <p className="text-sm text-gray-500 dark:text-gray-400 italic">لا يوجد مندوبون مضافون حالياً.</p>}
+                            <ActionButton type="submit" disabled={!canManageRepresentatives || !settings.vendors.length} className={`w-full ${canManageRepresentatives && settings.vendors.length ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-400 cursor-not-allowed'}`}>
+                                <UserPlus className="w-4 h-4 md:w-5 md:h-5 ml-2" />
+                                إضافة المندوب
+                            </ActionButton>
+                            {!canManageRepresentatives && <p className="text-xs text-red-600 dark:text-red-300">لا تملك صلاحية إدارة المندوبين.</p>}
+                            {canManageRepresentatives && settings.vendors.length === 0 && <p className="text-xs text-amber-600 dark:text-amber-300">أضف مورداً أولاً قبل تسجيل المندوبين.</p>}
+                        </form>
+
+                        <div className="space-y-2 max-h-60 overflow-y-auto p-2 border border-blue-200 dark:border-blue-700 rounded-lg bg-white dark:bg-gray-900">
+                            <h4 className="text-sm md:text-base font-semibold text-gray-700 dark:text-gray-300 border-b border-blue-200 dark:border-blue-700 pb-1">قائمة المندوبين</h4>
+                            {settings.representatives.map(rep => (
+                                <div key={`${rep.name}-${rep.vendor}`} className="flex justify-between gap-2 items-center p-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg shadow-sm">
+                                    <div className="flex flex-col text-right">
+                                        <span className="font-medium text-sm md:text-base text-blue-900 dark:text-blue-100">{rep.name}</span>
+                                        <span className="text-xs md:text-sm text-blue-600 dark:text-blue-300">{rep.vendor}</span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleDeleteRep(rep)}
+                                        disabled={!canManageRepresentatives}
+                                        className={`text-red-500 p-1 flex-shrink-0 rounded-md ${canManageRepresentatives ? 'hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/30' : 'cursor-not-allowed text-gray-400'}`}
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            ))}
+                            {settings.representatives.length === 0 && <p className="text-sm text-gray-500 dark:text-gray-400 italic">لا يوجد مندوبون مضافون حالياً.</p>}
+                        </div>
                     </div>
                 </div>
                 
@@ -6304,6 +6432,36 @@ const UserManagementSection = React.memo(({ data, handleDataAction, showToast })
         role: USER_ROLES.GENERAL_MANAGER,
         customPermissions: {}
     });
+
+    useEffect(() => {
+        setNewRep(prev => {
+            const fallbackVendor = settings.vendors[0] || '';
+            const nextVendor = settings.vendors.includes(prev.vendor) ? prev.vendor : fallbackVendor;
+            return { ...prev, vendor: nextVendor };
+        });
+    }, [settings.vendors]);
+
+    useEffect(() => {
+        if (!registerLeaveGuard) return;
+
+        const guard = (targetPageKey) => {
+            if (isDirty) {
+                setExitIntent({ open: true, targetPageKey: targetPageKey || null });
+                return false;
+            }
+            return true;
+        };
+
+        const unregister = registerLeaveGuard(guard);
+
+        return () => {
+            if (typeof unregister === 'function') {
+                unregister();
+            } else if (registerLeaveGuard) {
+                registerLeaveGuard(null);
+            }
+        };
+    }, [isDirty, registerLeaveGuard]);
 
     const {
         paginatedItems: paginatedUsers,
@@ -6444,7 +6602,7 @@ const UserManagementSection = React.memo(({ data, handleDataAction, showToast })
         { key: 'inventoryEntry', name: 'الإدخال المخزني', actions: ['view', 'add', 'edit', 'delete', 'approve', 'credit', 'cancel'] },
         { key: 'inventoryWithdrawal', name: 'الاستخراج المخزني', actions: ['view', 'add', 'edit', 'delete'] },
         { key: 'inventory', name: 'المخزون', actions: ['view', 'add', 'edit', 'delete'] },
-        { key: 'settings', name: 'الإعدادات', actions: ['view'] },
+        { key: 'settings', name: 'الإعدادات', actions: ['view', 'manageCategories', 'manageVendors', 'manageRepresentatives'] },
         { key: 'admin', name: 'صفحة الإدارة', actions: ['view'] }
     ];
 
@@ -6456,7 +6614,10 @@ const UserManagementSection = React.memo(({ data, handleDataAction, showToast })
         approve: 'مصادقة',
         cancel: 'إلغاء',
         pay: 'دفع',
-        credit: 'آجل'
+        credit: 'آجل',
+        manageCategories: 'إدارة الفئات',
+        manageVendors: 'إدارة الموردين',
+        manageRepresentatives: 'إدارة المندوبين'
     };
 
     return (
@@ -8582,6 +8743,7 @@ const AccountingApp = () => {
 
     const [currentUser, setCurrentUser] = useState(null); // المستخدم المسجل حالياً
     const [pendingInventoryAction, setPendingInventoryAction] = useState(null);
+    const settingsLeaveGuardRef = useRef(null);
     
     
     
@@ -8730,7 +8892,35 @@ const AccountingApp = () => {
         const updatedUsers = [...data.settings.users];
         updatedUsers[0] = { ...updatedUsers[0], sidebarCollapsed: newCollapse };
         handleSettingsUpdate({ ...data.settings, users: updatedUsers });
-    }; 
+    };
+
+    const registerSettingsLeaveGuard = useCallback((guard) => {
+        settingsLeaveGuardRef.current = guard;
+        return () => {
+            if (settingsLeaveGuardRef.current === guard) {
+                settingsLeaveGuardRef.current = null;
+            }
+        };
+    }, []);
+
+    const ensureSettingsCanLeave = useCallback((targetKey) => {
+        if (currentPage === 'settings' && targetKey !== 'settings' && settingsLeaveGuardRef.current) {
+            return settingsLeaveGuardRef.current(targetKey);
+        }
+        return true;
+    }, [currentPage]);
+
+    const performNavigation = useCallback((key, options = {}) => {
+        const { preserveInitialExpenseState = false } = options;
+        setCurrentPage(key);
+        if (!preserveInitialExpenseState) {
+            setInitialExpenseState(null);
+        }
+        if (pendingInventoryAction) {
+            setPendingInventoryAction(null);
+        }
+        setIsSidebarOpen(false);
+    }, [pendingInventoryAction]);
 
 
     // دالة تحديث الحالة العامة (لحل مشكلة التحديث الفوري)
@@ -9093,7 +9283,7 @@ const AccountingApp = () => {
         { key: 'inventoryEntry', label: 'الإدخال المخزني', icon: ClipboardCheck, component: InventoryEntryComponent, props: { handleRefresh } },
         { key: 'inventoryWithdrawal', label: 'الاستخراج المخزني', icon: LogOut, component: InventoryWithdrawalComponent, props: { handleRefresh, handleDelete, handleDataAction } },
         { key: 'inventory', label: 'المخزن والمواد', icon: Package, component: InventoryPageComponent, props: { handleRefresh, handleDataAction } },
-        { key: 'settings', label: 'الإعدادات', icon: Settings, component: SettingsPage, props: { handleSettingsUpdate } },
+        { key: 'settings', label: 'الإعدادات', icon: Settings, component: SettingsPage, props: { handleSettingsUpdate, registerLeaveGuard: registerSettingsLeaveGuard } },
         { key: 'admin', label: 'الإدارة', icon: Shield, component: AdminPage, props: { handleDataAction, showToast } },
         { key: 'about', label: 'حول النظام', icon: Info, component: AboutPage, props: {} },
     ];
@@ -9133,36 +9323,17 @@ const AccountingApp = () => {
     // const currentUser = data.settings.users[0]; // تم استبداله بـ currentUser من state // المستخدم الافتراضي
     // ------------------------------------
 
-    const handleNavigationClick = (key) => {
-        // **الإصلاح الجذري لمشكلة التنقل:**
-        if (currentPage === 'settings' && key !== 'settings') {
-             // نرسل نية الانتقال إلى SettingsPage لتبدأ عملية التحقق من isDirty
-             const settingsPageInstance = navItems.find(i => i.key === 'settings');
-             
-             // نمرر النية إلى SettingsPage
-             // بما أننا لا نستطيع استخدام Refs/Instances مباشرة، سنعتمد على دالة callback خاصة من App
-             // SettingsPage ستستخدم onNavigateAttempt التي يتم تمريرها لفتح مودال التأكيد
-             handleSettingsNavigation(key);
-             return;
-        }
-
-        setCurrentPage(key);
-        setInitialExpenseState(null);
-        if (pendingInventoryAction) {
-            setPendingInventoryAction(null);
+    const handleNavigationClick = (key) => {
+        if (!ensureSettingsCanLeave(key)) {
+            return;
         }
-        setIsSidebarOpen(false); // إغلاق الشريط الجانبي بعد التنقل في وضع الجوال
-    }
+        performNavigation(key);
+    };
 
     // **دالة تنقل خاصة تستخدمها SettingsPage فقط بعد تأكيد الحفظ/الإلغاء**
     const handleSettingsNavigation = (key) => {
-        setCurrentPage(key);
-        setInitialExpenseState(null);
-        if (pendingInventoryAction) {
-            setPendingInventoryAction(null);
-        }
-        setIsSidebarOpen(false);
-    }
+        performNavigation(key);
+    };
 
 
 

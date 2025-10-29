@@ -56,7 +56,7 @@ export const ROLE_PERMISSIONS = {
         inventoryEntry: { view: true, add: true, edit: true, delete: true, approve: true, credit: true, cancel: true },
         inventoryWithdrawal: { view: true, add: true, edit: true, delete: true },
         inventory: { view: true, add: true, edit: true, delete: true },
-        settings: { view: true },
+        settings: { view: true, manageCategories: true, manageVendors: true, manageRepresentatives: true },
         admin: { view: true }
     },
     
@@ -73,7 +73,7 @@ export const ROLE_PERMISSIONS = {
         inventoryEntry: { view: true, add: true, edit: true, delete: true, approve: true, credit: true, cancel: true },
         inventoryWithdrawal: { view: true, add: true, edit: true, delete: true },
         inventory: { view: true, add: true, edit: true, delete: true },
-        settings: { view: true },
+        settings: { view: true, manageCategories: true, manageVendors: true, manageRepresentatives: true },
         admin: { view: false }
     },
     
@@ -90,7 +90,7 @@ export const ROLE_PERMISSIONS = {
         inventoryEntry: { view: true, add: false, edit: false, delete: false, approve: false, credit: false, cancel: false },
         inventoryWithdrawal: { view: true, add: false, edit: false, delete: false },
         inventory: { view: true, add: false, edit: false, delete: false },
-        settings: { view: false },
+        settings: { view: false, manageCategories: false, manageVendors: false, manageRepresentatives: false },
         admin: { view: false }
     },
     
@@ -107,7 +107,7 @@ export const ROLE_PERMISSIONS = {
         inventoryEntry: { view: true, add: false, edit: false, delete: false, approve: false, credit: false, cancel: false },
         inventoryWithdrawal: { view: true, add: false, edit: false, delete: false },
         inventory: { view: true, add: false, edit: false, delete: false },
-        settings: { view: false },
+        settings: { view: false, manageCategories: false, manageVendors: false, manageRepresentatives: false },
         admin: { view: false }
     },
     
@@ -124,7 +124,7 @@ export const ROLE_PERMISSIONS = {
         inventoryEntry: { view: true, add: true, edit: false, delete: false, approve: true, credit: true, cancel: false },
         inventoryWithdrawal: { view: true, add: false, edit: false, delete: false },
         inventory: { view: true, add: false, edit: false, delete: false },
-        settings: { view: false },
+        settings: { view: false, manageCategories: false, manageVendors: false, manageRepresentatives: false },
         admin: { view: false }
     },
     
@@ -141,7 +141,7 @@ export const ROLE_PERMISSIONS = {
         inventoryEntry: { view: true, add: false, edit: false, delete: false, approve: false, credit: false, cancel: false },
         inventoryWithdrawal: { view: true, add: false, edit: false, delete: false },
         inventory: { view: false, add: false, edit: false, delete: false },
-        settings: { view: false },
+        settings: { view: false, manageCategories: false, manageVendors: false, manageRepresentatives: false },
         admin: { view: false }
     }
 };
