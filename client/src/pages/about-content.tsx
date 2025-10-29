@@ -133,7 +133,7 @@ export const AboutPage = () => {
                     Iraqi Accounting System
                 </p>
                 <div className="inline-block px-6 py-2 bg-white/20 rounded-full">
-                    <span className="text-white font-bold text-lg">الإصدار V3.0</span>
+                    <span className="text-white font-bold text-lg">الإصدار v 0.4</span>
                 </div>
             </div>
 

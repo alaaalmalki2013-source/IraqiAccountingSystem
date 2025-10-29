@@ -5512,7 +5512,7 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
     const [isDirty, setIsDirty] = useState(false); // لتتبع التغييرات
     
     // حالة المودال لإدارة الخروج بدون حفظ
-    const [isExitModalOpen, setIsExitModalOpen] = useState(false);
+    const [exitIntent, setExitIntent] = useState<{ open: boolean; targetPageKey: string | null }>({ open: false, targetPageKey: null });
     
     const [newItem, setNewItem] = useState('');
     const [currentList, setCurrentList] = useState('expenseCategories');
@@ -5546,14 +5546,18 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
     ]), []);
     
     // دالة تحديث الحقل العام وتتبع حالة التغيير
-    const handleSettingChange = (newSettings) => {
-        setSettings(newSettings);
-        
-        // مقارنة بسيطة لمعرفة ما إذا كانت هناك تغييرات
-        const currentJSON = JSON.stringify(newSettings);
-        const originalJSON = JSON.stringify(originalSettings);
-        setIsDirty(currentJSON !== originalJSON);
-    };
+    const handleSettingChange = (updater) => {
+        setSettings(prevSettings => {
+            const nextSettings = typeof updater === 'function' ? updater(prevSettings) : updater;
+
+            // مقارنة بسيطة لمعرفة ما إذا كانت هناك تغييرات
+            const currentJSON = JSON.stringify(nextSettings);
+            const originalJSON = JSON.stringify(originalSettings);
+            setIsDirty(currentJSON !== originalJSON);
+
+            return nextSettings;
+        });
+    };
 
 
     // دالة مساعدة لحفظ جميع الإعدادات
@@ -5564,13 +5568,13 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
         setOriginalSettings(settings); // تحديث الحالة الأصلية بعد الحفظ
         setIsDirty(false);
         showToast('تم حفظ الإعدادات الأساسية بنجاح.', 'success');
-        setIsExitModalOpen(false); // إغلاق المودال في حالة الخروج الموجه
-        
-        // **الإصلاح:** إذا تم الحفظ أثناء محاولة الخروج، نقوم بالتنقل
-        if (isExitModalOpen && isExitModalOpen.targetPageKey) {
-            onNavigateAttempt(isExitModalOpen.targetPageKey);
-        }
-    };
+        setExitIntent({ open: false, targetPageKey: null }); // إغلاق المودال في حالة الخروج الموجه
+
+        // **الإصلاح:** إذا تم الحفظ أثناء محاولة الخروج، نقوم بالتنقل
+        if (exitIntent.open && exitIntent.targetPageKey) {
+            onNavigateAttempt(exitIntent.targetPageKey);
+        }
+    };
     
     // دوال إدارة القوائم (الفئات والموردين)
     
@@ -5728,67 +5732,72 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
 
     // التعامل مع الخروج من الصفحة دون حفظ
     const handleExitClick = (targetPageKey = null) => {
-        if (isDirty) {
-            setIsExitModalOpen({ targetPageKey: targetPageKey });
-        } else if (targetPageKey) {
-             onNavigateAttempt(targetPageKey);
-        }
-    };
-    
-    const confirmDiscardAndExit = () => {
-         setSettings(originalSettings); // إعادة الحالة الأصلية
-         setIsDirty(false);
-         // توجيه التنقل بعد تجاهل التغييرات
-         if (isExitModalOpen.targetPageKey) {
-             onNavigateAttempt(isExitModalOpen.targetPageKey);
-         }
-         setIsExitModalOpen(false);
-         showToast('تم إلغاء التغييرات والخروج.', 'warning');
-    };
-    
-    const confirmSaveAndExit = (e) => {
-        // نستخدم دالة saveAllSettings التي تتضمن منطق التنقل
-        saveAllSettings(e); 
-    };
+        if (isDirty) {
+            setExitIntent({ open: true, targetPageKey });
+        } else if (targetPageKey) {
+            onNavigateAttempt(targetPageKey);
+        }
+    };
+
+    const confirmDiscardAndExit = () => {
+        setSettings(originalSettings); // إعادة الحالة الأصلية
+        setIsDirty(false);
+        // توجيه التنقل بعد تجاهل التغييرات
+        if (exitIntent.targetPageKey) {
+            onNavigateAttempt(exitIntent.targetPageKey);
+        }
+        setExitIntent({ open: false, targetPageKey: null });
+        showToast('تم إلغاء التغييرات والخروج.', 'warning');
+    };
+
+    const confirmSaveAndExit = (e) => {
+        // نستخدم دالة saveAllSettings التي تتضمن منطق التنقل
+        saveAllSettings(e);
+    };
 
 
     // **مهم:** تم تعديل <form> الإعدادات ليصبح زر الحفظ في الأسفل
     // نستخدم React.Fragment للتحكم في عناصر الإدخال
 
     return (
-        <div className="p-6 space-y-8 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl">
-            <h2 className="text-4xl font-extrabold text-gray-800 dark:text-gray-200 border-b-2 border-teal-500 pb-3">الإعدادات {isDirty && <span className='text-red-500 text-base mr-3'>(لم يتم الحفظ)</span>}</h2>
-            
-            {/* **التعامل مع الخروج بدون حفظ** */}
-            {isExitModalOpen && (
-                <Modal title="تنبيه: لم يتم حفظ التغييرات" onClose={() => setIsExitModalOpen(false)} size="sm">
-                    <p className='text-lg font-medium text-red-700 mb-4'>
-                        لقد قمت بإجراء تغييرات في الإعدادات. هل تريد حفظها قبل الخروج؟
-                    </p>
-                    <div className='flex justify-around gap-4'>
-                        <ActionButton 
-                            onClick={confirmSaveAndExit} 
-                            className="bg-green-600 hover:bg-green-700 flex-1"
-                        >
-                            <Save className="w-5 h-5 ml-2" />
-                            حفظ والخروج
-                        </ActionButton>
-                        <ActionButton 
-                            onClick={confirmDiscardAndExit} 
-                            className="bg-gray-400 hover:bg-gray-50 dark:bg-gray-600 dark:hover:bg-gray-700 flex-1"
-                        >
-                            <Trash2 className="w-5 h-5 ml-2" />
-                            تجاهل التغييرات
-                        </ActionButton>
-                    </div>
-                </Modal>
-            )}
+        <div className="p-6 space-y-8 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl">
+            <div className="flex flex-col gap-4 border-b-2 border-teal-500 pb-4">
+                <h2 className="text-4xl font-extrabold text-gray-800 dark:text-gray-200">الإعدادات</h2>
+                {isDirty && (
+                    <div className="flex items-center gap-3 bg-red-100 dark:bg-red-900/40 border border-red-300 dark:border-red-700 text-red-800 dark:text-red-200 px-4 py-3 rounded-2xl shadow-sm">
+                        <AlertTriangle className="w-6 h-6" />
+                        <div>
+                            <p className="text-lg font-bold">لم يتم حفظ التغييرات</p>
+                            <p className="text-sm">احفظ التعديلات الحالية قبل المغادرة لتفادي فقدانها.</p>
+                        </div>
+                    </div>
+                )}
+            </div>
 
-            {/* إعدادات الشركة */}
-            <div className="space-y-4 p-6 rounded-xl shadow-lg border-l-4 border-indigo-500 bg-indigo-50 dark:bg-indigo-900">
-                <h3 className="text-2xl font-bold text-indigo-800 dark:text-indigo-300 flex items-center"><Building className="w-6 h-6 ml-2" /> إعدادات الشركة الأساسية</h3>
-                <p className="text-sm font-medium text-indigo-900 dark:text-indigo-100">تم نقل تعديل اسم الشركة وشعارها إلى صفحة الإدارة للحفاظ على إدارة مركزية للهوية.</p>
-            </div>
+            {/* **التعامل مع الخروج بدون حفظ** */}
+            {exitIntent.open && (
+                <Modal title="لم يتم حفظ التغييرات" onClose={() => setExitIntent({ open: false, targetPageKey: null })} size="sm">
+                    <p className='text-base md:text-lg font-medium text-gray-700 dark:text-gray-200 mb-4'>
+                        لم تحفظ التغييرات التي أجريتها في الإعدادات. اختر متابعة الإجراء المناسب:
+                    </p>
+                    <div className='flex flex-col sm:flex-row gap-3'>
+                        <ActionButton
+                            onClick={confirmDiscardAndExit}
+                            className="bg-gray-200 text-gray-800 hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-100 dark:hover:bg-gray-500 flex-1"
+                        >
+                            <Trash2 className="w-5 h-5 ml-2" />
+                            إلغاء التغييرات
+                        </ActionButton>
+                        <ActionButton
+                            onClick={confirmSaveAndExit}
+                            className="bg-green-600 hover:bg-green-700 flex-1"
+                        >
+                            <Save className="w-5 h-5 ml-2" />
+                            حفظ التغييرات والانتقال
+                        </ActionButton>
+                    </div>
+                </Modal>
+            )}
 
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-8">
@@ -6504,7 +6513,7 @@ const AdminPage = React.memo(({ data, handleDataAction, showToast }) => {
     };
     
     const systemInfo = {
-        version: 'V3.0',
+        version: 'v 0.4',
         lastBackup: 'لم يتم إنشاء نسخة احتياطية',
         totalUsers: data.settings.users.length,
         totalEmployees: data.employees.length,
@@ -6708,7 +6717,8 @@ const ActivityLogSection = React.memo(({ data }) => {
     const [searchTerm, setSearchTerm] = React.useState('');
     const [filterAction, setFilterAction] = React.useState('all');
     const [filterDays, setFilterDays] = React.useState('all');
-    
+    const [selectedLog, setSelectedLog] = React.useState<any>(null);
+
     const activityLog = data.activityLog || [];
     
     // فلترة السجلات
@@ -6741,6 +6751,14 @@ const ActivityLogSection = React.memo(({ data }) => {
         return logs;
     }, [activityLog, searchTerm, filterAction, filterDays]);
     
+    const openLogDetails = (log) => {
+        setSelectedLog(log);
+    };
+
+    const closeLogDetails = () => {
+        setSelectedLog(null);
+    };
+
     return (
         <div className="p-6 rounded-xl shadow-lg bg-gradient-to-br from-gray-50 to-white dark:from-gray-700 dark:to-gray-800 border border-gray-200 dark:border-gray-600">
             <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-6 flex items-center gap-2">
@@ -6839,7 +6857,12 @@ const ActivityLogSection = React.memo(({ data }) => {
                             </tr>
                         ) : (
                             filteredLogs.map((log) => (
-                                <tr key={log.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" data-testid={`row-activity-${log.id}`}>
+                                <tr
+                                    key={log.id}
+                                    className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer"
+                                    data-testid={`row-activity-${log.id}`}
+                                    onClick={() => openLogDetails(log)}
+                                >
                                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
                                         {formatDateDDMMYYYY(log.timestamp)} {new Date(log.timestamp).toLocaleTimeString('ar-IQ', { hour: '2-digit', minute: '2-digit' })}
                                     </td>
@@ -6869,6 +6892,64 @@ const ActivityLogSection = React.memo(({ data }) => {
                     </tbody>
                 </table>
             </div>
+
+            {selectedLog && (
+                <Modal title={`تفاصيل السجل #${selectedLog.id || ''}`} onClose={closeLogDetails} size="md">
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                            <div className="bg-gray-50 dark:bg-gray-700/60 p-3 rounded-lg">
+                                <p className="text-gray-500 dark:text-gray-300 text-xs">التاريخ والوقت</p>
+                                <p className="text-gray-800 dark:text-gray-100 font-semibold">
+                                    {formatDateDDMMYYYY(selectedLog.timestamp)}
+                                    {' '}
+                                    {new Date(selectedLog.timestamp).toLocaleTimeString('ar-IQ', { hour: '2-digit', minute: '2-digit' })}
+                                </p>
+                            </div>
+                            <div className="bg-gray-50 dark:bg-gray-700/60 p-3 rounded-lg">
+                                <p className="text-gray-500 dark:text-gray-300 text-xs">المستخدم</p>
+                                <p className="text-gray-800 dark:text-gray-100 font-semibold">{selectedLog.username}</p>
+                            </div>
+                            <div className="bg-gray-50 dark:bg-gray-700/60 p-3 rounded-lg">
+                                <p className="text-gray-500 dark:text-gray-300 text-xs">نوع العملية</p>
+                                <p className="text-gray-800 dark:text-gray-100 font-semibold">{selectedLog.action}</p>
+                            </div>
+                            <div className="bg-gray-50 dark:bg-gray-700/60 p-3 rounded-lg">
+                                <p className="text-gray-500 dark:text-gray-300 text-xs">القسم</p>
+                                <p className="text-gray-800 dark:text-gray-100 font-semibold">{selectedLog.module}</p>
+                            </div>
+                        </div>
+
+                        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+                            <h4 className="text-sm font-bold text-gray-800 dark:text-gray-200 mb-2">التفاصيل</h4>
+                            <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
+                                {selectedLog.details || 'لا توجد تفاصيل إضافية.'}
+                            </p>
+                        </div>
+
+                        {selectedLog.metadata && typeof selectedLog.metadata === 'object' && Object.keys(selectedLog.metadata).length > 0 && (
+                            <div className="bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+                                <h4 className="text-sm font-bold text-gray-800 dark:text-gray-200 mb-3">بيانات إضافية</h4>
+                                <div className="space-y-2 text-xs md:text-sm">
+                                    {Object.entries(selectedLog.metadata).map(([key, value]) => (
+                                        <div key={key} className="flex justify-between items-center bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg px-3 py-2">
+                                            <span className="font-semibold text-gray-600 dark:text-gray-300">{key}</span>
+                                            <span className="text-gray-800 dark:text-gray-100 text-left break-all ml-3">
+                                                {typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="flex justify-end">
+                            <ActionButton onClick={closeLogDetails} className="bg-indigo-600 hover:bg-indigo-700">
+                                إغلاق التفاصيل
+                            </ActionButton>
+                        </div>
+                    </div>
+                </Modal>
+            )}
         </div>
     );
 });
@@ -7997,7 +8078,7 @@ const LoginPage = ({ users, onLogin, showToast, systemExpiryDate, companyName, m
             <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-3xl shadow-2xl p-6 md:p-8 space-y-6">
                 <div className="text-center space-y-2">
                     <h1 className="text-2xl md:text-3xl font-extrabold text-gray-800 dark:text-white">{companyName || 'نظام المحاسبة العراقي'}</h1>
-                    <p className="text-gray-600 dark:text-gray-300 text-sm md:text-base">V3.0</p>
+                    <p className="text-gray-600 dark:text-gray-300 text-sm md:text-base">v 0.4</p>
                     <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400">قم بتسجيل الدخول للمتابعة</p>
                 </div>
 
