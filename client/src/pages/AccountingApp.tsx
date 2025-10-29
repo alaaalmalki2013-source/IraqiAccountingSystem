@@ -796,22 +796,62 @@ const DataPageComponent = React.memo(({ 
     }, [initialExpenseState]); // Added initialExpenseState to dependency array
     
     // **جديد:** كروت الفئات
+    const dateScopedCategorySource = useMemo(() => {
+        if (collectionName === 'suspended') {
+            return [];
+        }
+
+        const sourceList = Array.isArray(data[collectionName]) ? data[collectionName] : [];
+
+        // في حال لم يتم اختيار أي تاريخ، لا يتم عرض البطاقات أو احتساب المجاميع
+        if (!filterDateFrom && !filterDateTo) {
+            return [];
+        }
+
+        return sourceList.filter(item => {
+            if (!item?.date) {
+                return false;
+            }
+
+            const itemDate = item.date.slice(0, 10);
+
+            if (filterDateFrom && itemDate < filterDateFrom) {
+                return false;
+            }
+
+            if (filterDateTo && itemDate > filterDateTo) {
+                return false;
+            }
+
+            return true;
+        });
+    }, [data, collectionName, filterDateFrom, filterDateTo]);
+
     const categoryTotals = useMemo(() => {
-        const totals = data[collectionName].reduce((acc, item) => {
+        if (dateScopedCategorySource.length === 0) {
+            return [];
+        }
+
+        const totals = dateScopedCategorySource.reduce((acc, item) => {
             const category = item.category || 'غير مصنف';
             acc[category] = (acc[category] || 0) + (parseFloat(item.amount) || 0);
             return acc;
-        }, {});
-        // تحويل الكائن إلى مصفوفة لسهولة العرض
-        return Object.keys(totals).map(category => ({
-            category,
-            total: totals[category],
-            // تحديد اللون بناءً على نوع الصفحة
-            color: type === 'revenue' ? 'green' : 'red'
-        }));
-    }, [data, collectionName, type]);
-    
-    const [activeCategories, setActiveCategories] = useState([]);
+        }, {} as Record<string, number>);
+
+        return Object.keys(totals).map(category => ({
+            category,
+            total: totals[category],
+            color: type === 'revenue' ? 'green' : 'red'
+        }));
+    }, [dateScopedCategorySource, type]);
+
+    const [activeCategories, setActiveCategories] = useState([]);
+
+    useEffect(() => {
+        setActiveCategories(prev => prev.filter(category =>
+            categoryTotals.some(cat => cat.category === category)
+        ));
+    }, [categoryTotals]);
     
     const handleCategoryCardClick = (category) => {
         setActiveCategories(prev => {
