@@ -190,6 +190,107 @@ const InputField = React.memo(({ label, type = 'text', value, onChange, placehol
     );
 });
 
+const PAGE_SIZE_OPTIONS = [50, 100, 200, 'all'];
+const DEFAULT_PAGE_SIZE = 100;
+
+const usePagination = (items, defaultPageSize = DEFAULT_PAGE_SIZE) => {
+    const [pageSize, setPageSize] = useState(defaultPageSize);
+    const [currentPage, setCurrentPage] = useState(1);
+
+    const totalItems = items.length;
+    const resolvedPageSize = pageSize === 'all' ? (totalItems || defaultPageSize) : pageSize;
+    const totalPages = pageSize === 'all' ? 1 : Math.max(1, Math.ceil(totalItems / resolvedPageSize));
+
+    useEffect(() => {
+        setCurrentPage(prev => {
+            const nextPage = Math.min(prev, Math.max(totalPages, 1));
+            return nextPage || 1;
+        });
+    }, [totalPages]);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [totalItems]);
+
+    const paginatedItems = useMemo(() => {
+        if (pageSize === 'all') {
+            return items;
+        }
+        const start = (currentPage - 1) * resolvedPageSize;
+        return items.slice(start, start + resolvedPageSize);
+    }, [items, pageSize, currentPage, resolvedPageSize]);
+
+    const changePageSize = useCallback((size) => {
+        setPageSize(size === 'all' ? 'all' : Number(size));
+        setCurrentPage(1);
+    }, []);
+
+    const goToPage = useCallback((page) => {
+        setCurrentPage(prev => {
+            const nextPage = Math.min(Math.max(page, 1), Math.max(totalPages, 1));
+            return nextPage;
+        });
+    }, [totalPages]);
+
+    return {
+        paginatedItems,
+        totalItems,
+        pageSize,
+        currentPage,
+        totalPages,
+        changePageSize,
+        goToPage,
+    };
+};
+
+const PaginationControls = React.memo(({ pageSize, onPageSizeChange, currentPage, totalPages, onPageChange, totalItems }) => {
+    const normalizedPageSize = pageSize === 'all' ? 'all' : Number(pageSize);
+
+    return (
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 py-4">
+            <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                <span>عرض</span>
+                <select
+                    value={normalizedPageSize}
+                    onChange={(e) => onPageSizeChange(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                    className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 focus:ring-teal-500 focus:border-teal-500"
+                >
+                    {PAGE_SIZE_OPTIONS.map(option => (
+                        <option key={option} value={option === 'all' ? 'all' : option}>
+                            {option === 'all' ? 'الكل' : option}
+                        </option>
+                    ))}
+                </select>
+                <span>سجل لكل صفحة</span>
+            </div>
+            <div className="flex items-center gap-2">
+                <button
+                    onClick={() => onPageChange(currentPage - 1)}
+                    disabled={currentPage <= 1 || totalPages <= 1}
+                    className="flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    <ChevronRight className="w-4 h-4" />
+                    السابق
+                </button>
+                <span className="text-sm text-gray-600 dark:text-gray-300">
+                    صفحة {Math.min(currentPage, Math.max(totalPages, 1))} من {Math.max(totalPages, 1)}
+                </span>
+                <button
+                    onClick={() => onPageChange(currentPage + 1)}
+                    disabled={currentPage >= totalPages || totalPages <= 1}
+                    className="flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    التالي
+                    <ChevronLeft className="w-4 h-4" />
+                </button>
+            </div>
+            <div className="text-sm text-gray-500 dark:text-gray-400 text-right lg:text-left">
+                إجمالي السجلات: {totalItems}
+            </div>
+        </div>
+    );
+});
+
 // زر الإجراءات
 const ActionButton = ({ onClick, children, className = 'bg-teal-600 hover:bg-teal-700', type = 'button', disabled = false }) => ( 
     <button
@@ -932,9 +1033,19 @@ const DataPageComponent = React.memo(({ 
         return list;
     }, [data, collectionName, filterDateFrom, filterDateTo, filterCategory, globalSearch, activeCategories]);
 
-    const totalFilteredAmount = useMemo(() => {
-        return filteredList.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0);
-    }, [filteredList]);
+    const totalFilteredAmount = useMemo(() => {
+        return filteredList.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0);
+    }, [filteredList]);
+
+    const {
+        paginatedItems: paginatedList,
+        totalItems: totalFilteredItems,
+        pageSize: listPageSize,
+        currentPage: listCurrentPage,
+        totalPages: listTotalPages,
+        changePageSize: changeListPageSize,
+        goToPage: goToListPage,
+    } = usePagination(filteredList);
 
 
     const handleSubmit = (e) => {
@@ -1346,7 +1457,7 @@ const DataPageComponent = React.memo(({ 
                         {filteredList.length === 0 ? (
                             <tr><td colSpan={emptyStateColSpan} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">لا توجد سجلات متاحة تتوافق مع الفلاتر.</td></tr>
                         ) : (
-                            filteredList.map(item => (
+                            paginatedList.map(item => (
                                 <tr
                                     key={item.id}
                                     className={`hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150 cursor-pointer ${isSearchActive ? 'bg-amber-50 dark:bg-amber-900/40 border-r-4 border-amber-400' : ''}`}
@@ -1412,11 +1523,20 @@ const DataPageComponent = React.memo(({ 
                             ))
                         )}
                     </tbody>
-                </table>
-            </div>
+                </table>
+            </div>
 
-            {isModalOpen && (
-                <Modal title={currentItem ? 'تعديل السجل' : 'إضافة سجل جديد'} onClose={() => setIsModalOpen(false)}>
+            <PaginationControls
+                pageSize={listPageSize}
+                onPageSizeChange={changeListPageSize}
+                currentPage={listCurrentPage}
+                totalPages={listTotalPages}
+                onPageChange={goToListPage}
+                totalItems={totalFilteredItems}
+            />
+
+            {isModalOpen && (
+                <Modal title={currentItem ? 'تعديل السجل' : 'إضافة سجل جديد'} onClose={() => setIsModalOpen(false)}>
                     <form onSubmit={handleSubmit} className="space-y-5">
                         <InputField
                             label="تاريخ ووقت العملية"
@@ -1794,6 +1914,16 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
         return totals;
     }, [filteredList]);
 
+    const {
+        paginatedItems: paginatedPendingList,
+        totalItems: totalPendingItems,
+        pageSize: pendingPageSize,
+        currentPage: pendingCurrentPage,
+        totalPages: pendingTotalPages,
+        changePageSize: changePendingPageSize,
+        goToPage: goToPendingPage,
+    } = usePagination(filteredList);
+
     const handleShowAllPending = useCallback(() => {
         setFilterDateFrom('');
         setFilterDateTo('');
@@ -2161,11 +2291,11 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                                 </td>
                             </tr>
                         ) : (
-                            filteredList.map(item => {
+                            paginatedPendingList.map(item => {
                                 const employee = item.employeeId ? data.employees.find(e => e.id === item.employeeId) : null;
                                 return (
-                                    <tr 
-                                        key={item.id} 
+                                    <tr
+                                        key={item.id}
                                         className="hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150 cursor-pointer"
                                         onClick={() => setViewItem(item)}
                                         data-testid={`row-${item.id}`}
@@ -2276,6 +2406,15 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                     </tbody>
                 </table>
             </div>
+
+            <PaginationControls
+                pageSize={pendingPageSize}
+                onPageSizeChange={changePendingPageSize}
+                currentPage={pendingCurrentPage}
+                totalPages={pendingTotalPages}
+                onPageChange={goToPendingPage}
+                totalItems={totalPendingItems}
+            />
 
             {/* Modal */}
             {isModalOpen && (
@@ -2699,9 +2838,9 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
         return formatDateDDMMYYYY(dateString);
     };
 
-    const filteredList = useMemo(() => {
-        let list = data.employees.slice().sort((a, b) => a.name.localeCompare(b.name, 'ar'));
-        
+    const filteredList = useMemo(() => {
+        let list = data.employees.slice().sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+
         if (globalSearch) {
             const searchLower = normalizeTextForSearch(globalSearch);
             const searchNumeric = normalizeTextForSearch(globalSearch, true);
@@ -2725,8 +2864,18 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
                 return textMatches || numericMatches;
             });
         }
-        return list;
-    }, [data.employees, globalSearch]);
+        return list;
+    }, [data.employees, globalSearch]);
+
+    const {
+        paginatedItems: paginatedEmployees,
+        totalItems: totalEmployees,
+        pageSize: employeePageSize,
+        currentPage: employeeCurrentPage,
+        totalPages: employeeTotalPages,
+        changePageSize: changeEmployeePageSize,
+        goToPage: goToEmployeePage,
+    } = usePagination(filteredList);
 
     useEffect(() => {
         if (currentEmployee) {
@@ -2967,7 +3116,7 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
                         {filteredList.length === 0 ? (
                             <tr><td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">لا يوجد موظفين مسجلين.</td></tr>
                         ) : (
-                            filteredList.map(emp => (
+                            paginatedEmployees.map(emp => (
                                 <tr
                                     key={emp.id}
                                     className={`hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150 ${searchActive ? 'bg-amber-50 dark:bg-amber-900/40 border-r-4 border-amber-400' : ''}`}
@@ -3210,7 +3359,7 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
     // فلترة الموظفين
     const filteredEmployees = useMemo(() => {
         let list = data.employees.slice();
-        
+
         if (globalSearch) {
             const searchLower = normalizeTextForSearch(globalSearch);
             list = list.filter(emp => 
@@ -3229,6 +3378,16 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
 
         return list.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
     }, [data.employees, globalSearch, statusFilter, selectedMonth, selectedYear, calculateEmployeeSalary]);
+
+    const {
+        paginatedItems: paginatedPayrollEmployees,
+        totalItems: totalPayrollEmployees,
+        pageSize: payrollPageSize,
+        currentPage: payrollCurrentPage,
+        totalPages: payrollTotalPages,
+        changePageSize: changePayrollPageSize,
+        goToPage: goToPayrollPage,
+    } = usePagination(filteredEmployees);
 
     // حساب مجاميع الرواتب للكارتات
     const salaryTotals = useMemo(() => {
@@ -3533,12 +3692,12 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                         {filteredEmployees.length === 0 ? (
                             <tr><td colSpan="10" className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">لا يوجد موظفين.</td></tr>
                         ) : (
-                            filteredEmployees.map(emp => {
+                            paginatedPayrollEmployees.map(emp => {
                                 const salaryData = calculateEmployeeSalary(emp, selectedMonth, selectedYear);
                                 return (
-                                    <tr 
-                                        key={emp.id} 
-                                        className="hover:bg-gray-50 dark:hover:bg-gray-700 transition cursor-pointer" 
+                                    <tr
+                                        key={emp.id}
+                                        className="hover:bg-gray-50 dark:hover:bg-gray-700 transition cursor-pointer"
                                         onClick={() => { setCurrentEmployee(emp); setIsDetailsModalOpen(true); }}
                                         data-testid={`row-employee-${emp.id}`}
                                     >
@@ -3594,6 +3753,24 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                     </tbody>
                 </table>
             </div>
+
+            <PaginationControls
+                pageSize={payrollPageSize}
+                onPageSizeChange={changePayrollPageSize}
+                currentPage={payrollCurrentPage}
+                totalPages={payrollTotalPages}
+                onPageChange={goToPayrollPage}
+                totalItems={totalPayrollEmployees}
+            />
+
+            <PaginationControls
+                pageSize={employeePageSize}
+                onPageSizeChange={changeEmployeePageSize}
+                currentPage={employeeCurrentPage}
+                totalPages={employeeTotalPages}
+                onPageChange={goToEmployeePage}
+                totalItems={totalEmployees}
+            />
 
             {/* مودال التفاصيل */}
             {isDetailsModalOpen && currentEmployee && (
@@ -3936,7 +4113,7 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
 
     const filteredList = useMemo(() => {
         let list = data.inventory.slice().sort((a, b) => a.name.localeCompare(b.name, 'ar'));
-        
+
         if (globalSearch) {
             const searchLower = normalizeTextForSearch(globalSearch);
             const searchNumeric = normalizeTextForSearch(globalSearch, true);
@@ -3962,6 +4139,16 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
         }
         return list;
     }, [data.inventory, globalSearch]);
+
+    const {
+        paginatedItems: paginatedInventory,
+        totalItems: totalInventoryItems,
+        pageSize: inventoryPageSize,
+        currentPage: inventoryCurrentPage,
+        totalPages: inventoryTotalPages,
+        changePageSize: changeInventoryPageSize,
+        goToPage: goToInventoryPage,
+    } = usePagination(filteredList);
 
     const openDetailsModal = (item) => {
         setCurrentItem(item);
@@ -4059,7 +4246,7 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
                         {filteredList.length === 0 ? (
                             <tr><td colSpan="6" className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">لا توجد مواد مضافة في المخزن.</td></tr>
                         ) : (
-                            filteredList.map(item => (
+                            paginatedInventory.map(item => (
                                 <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150" data-testid={`row-inventory-${item.id}`}>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600 dark:text-blue-400 cursor-pointer" onClick={() => openDetailsModal(item)}>{highlightText(item.name, globalSearch)}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{highlightText(item.category, globalSearch)}</td>
@@ -4079,6 +4266,15 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
                     </tbody>
                 </table>
             </div>
+
+            <PaginationControls
+                pageSize={inventoryPageSize}
+                onPageSizeChange={changeInventoryPageSize}
+                currentPage={inventoryCurrentPage}
+                totalPages={inventoryTotalPages}
+                onPageChange={goToInventoryPage}
+                totalItems={totalInventoryItems}
+            />
             
             {/* Modal تفاصيل المادة */}
             {isDetailsModalOpen && currentItem && (
@@ -4480,8 +4676,8 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
     };
     
     // فلترة الفواتير المعلقة (شاملة فلتر الحالة)
-    const filteredInvoices = useMemo(() => {
-        let list = data.pendingInvoices.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+    const filteredInvoices = useMemo(() => {
+        let list = data.pendingInvoices.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
         
         // الفلترة حسب البحث الشامل
         if (globalSearch) {
@@ -4514,8 +4710,18 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
              list = list.filter(inv => statusFilter.includes(inv.status));
         }
         
-        return list;
-    }, [data.pendingInvoices, globalSearch, statusFilter]); // الاعتماد على statusFilter
+        return list;
+    }, [data.pendingInvoices, globalSearch, statusFilter]); // الاعتماد على statusFilter
+
+    const {
+        paginatedItems: paginatedInvoices,
+        totalItems: totalInvoices,
+        pageSize: invoicePageSize,
+        currentPage: invoiceCurrentPage,
+        totalPages: invoiceTotalPages,
+        changePageSize: changeInvoicePageSize,
+        goToPage: goToInvoicePage,
+    } = usePagination(filteredInvoices);
 
     // الإجراء النهائي: الموافقة على الفاتورة (تسجيلها كمصروف وتحديث المخزون)
     const handleApproveInvoice = (invoice, isCreditApproval = false) => {
@@ -4850,15 +5056,15 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                             <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">الحالة والإجراء</th>
                         </tr>
                     </thead>
-                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
-                        {filteredInvoices.length === 0 ? (
-                            <tr><td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">لا توجد فواتير مشتريات مطابقة للفلترة.</td></tr>
-                        ) : (
-                            filteredInvoices.map(invoice => (
-                                <tr key={invoice.id} 
-                                    className={`hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150 cursor-pointer ${invoice.status === 'Dispatched' ? 'bg-green-50 dark:bg-green-900' : invoice.status === 'Cancelled' ? 'bg-red-50 dark:bg-red-900' : invoice.status === 'CreditApproved' ? 'bg-blue-50 dark:bg-blue-900' : 'bg-yellow-50 dark:bg-yellow-900'}`}
-                                    onClick={() => openDetailsModal(invoice)}
-                                >
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
+                        {filteredInvoices.length === 0 ? (
+                            <tr><td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">لا توجد فواتير مشتريات مطابقة للفلترة.</td></tr>
+                        ) : (
+                            paginatedInvoices.map(invoice => (
+                                <tr key={invoice.id}
+                                    className={`hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150 cursor-pointer ${invoice.status === 'Dispatched' ? 'bg-green-50 dark:bg-green-900' : invoice.status === 'Cancelled' ? 'bg-red-50 dark:bg-red-900' : invoice.status === 'CreditApproved' ? 'bg-blue-50 dark:bg-blue-900' : 'bg-yellow-50 dark:bg-yellow-900'}`}
+                                    onClick={() => openDetailsModal(invoice)}
+                                >
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900 dark:text-gray-100">{highlightText(invoice.invoiceNumber, globalSearch)}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{formatDateDDMMYYYY(invoice.date)}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{highlightText(`${invoice.vendor} (${invoice.representative})`, globalSearch)}</td>
@@ -5908,6 +6114,15 @@ const UserManagementSection = React.memo(({ data, handleDataAction, showToast })
                 </table>
             </div>
 
+            <PaginationControls
+                pageSize={invoicePageSize}
+                onPageSizeChange={changeInvoicePageSize}
+                currentPage={invoiceCurrentPage}
+                totalPages={invoiceTotalPages}
+                onPageChange={goToInvoicePage}
+                totalItems={totalInvoices}
+            />
+
             {/* مودال إضافة/تعديل مستخدم */}
             {isModalOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setIsModalOpen(false)}>
@@ -6671,9 +6886,9 @@ const InventoryDispatchComponent = React.memo(({ data, handleDataAction, showToa
 
     
     // قائمة سجلات الصرف (للعرض في الصفحة الرئيسية للمكون)
-    const dispatchHistory = useMemo(() => {
-        let list = data.inventoryDispatches.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
-        
+    const dispatchHistory = useMemo(() => {
+        let list = data.inventoryDispatches.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+
         if (globalSearchHistory) {
             const searchLower = normalizeTextForSearch(globalSearchHistory);
             const searchNumeric = normalizeTextForSearch(globalSearchHistory, true);
@@ -6689,8 +6904,18 @@ const InventoryDispatchComponent = React.memo(({ data, handleDataAction, showToa
                 return textMatches || numericMatches;
             });
         }
-        return list; 
-    }, [data.inventoryDispatches, globalSearchHistory]);
+        return list;
+    }, [data.inventoryDispatches, globalSearchHistory]);
+
+    const {
+        paginatedItems: paginatedDispatchHistory,
+        totalItems: totalDispatchItems,
+        pageSize: dispatchPageSize,
+        currentPage: dispatchCurrentPage,
+        totalPages: dispatchTotalPages,
+        changePageSize: changeDispatchPageSize,
+        goToPage: goToDispatchPage,
+    } = usePagination(dispatchHistory);
     
     // لفتح مودال التفاصيل عند النقر على سجل في الجدول
     const openDispatchDetails = (dispatch) => {
@@ -6740,14 +6965,14 @@ const InventoryDispatchComponent = React.memo(({ data, handleDataAction, showToa
                             </tr>
                         </thead>
                         <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
-                            {dispatchHistory.length === 0 ? (
-                                <tr><td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">لا يوجد سجلات صرف مخزني.</td></tr>
-                            ) : (
-                                dispatchHistory.map(dispatch => (
-                                    <tr key={dispatch.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150 cursor-pointer" onClick={() => openDispatchDetails(dispatch)}>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{formatDateTimeDDMMYYYY(dispatch.date)}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-indigo-600 font-semibold">{highlightText(dispatch.employeeName, globalSearchHistory)}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{dispatch.items.reduce((sum, item) => sum + item.count, 0)}</td>
+                        {dispatchHistory.length === 0 ? (
+                            <tr><td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">لا يوجد سجلات صرف مخزني.</td></tr>
+                        ) : (
+                            paginatedDispatchHistory.map(dispatch => (
+                                <tr key={dispatch.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150 cursor-pointer" onClick={() => openDispatchDetails(dispatch)}>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{formatDateTimeDDMMYYYY(dispatch.date)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-indigo-600 font-semibold">{highlightText(dispatch.employeeName, globalSearchHistory)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{dispatch.items.reduce((sum, item) => sum + item.count, 0)}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-red-600">{highlightText(formatCurrencyDisplay(dispatch.totalCost), globalSearchHistory)}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                              <button onClick={(e) => { e.stopPropagation(); handleDelete('inventoryDispatches', dispatch.id); }} className="text-red-600 hover:text-red-900">
@@ -7367,6 +7592,15 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
                     </tbody>
                 </table>
             </div>
+
+            <PaginationControls
+                pageSize={dispatchPageSize}
+                onPageSizeChange={changeDispatchPageSize}
+                currentPage={dispatchCurrentPage}
+                totalPages={dispatchTotalPages}
+                onPageChange={goToDispatchPage}
+                totalItems={totalDispatchItems}
+            />
 
             {/* مودال إضافة/تعديل استخراج */}
             {isNewWithdrawalModalOpen && (
