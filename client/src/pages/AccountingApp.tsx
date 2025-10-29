@@ -7951,6 +7951,16 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
         });
     }
 
+    const {
+        paginatedItems: paginatedWithdrawals,
+        totalItems: totalWithdrawalItems,
+        pageSize: withdrawalPageSize,
+        currentPage: withdrawalCurrentPage,
+        totalPages: withdrawalTotalPages,
+        changePageSize: changeWithdrawalPageSize,
+        goToPage: goToWithdrawalPage,
+    } = usePagination(filteredWithdrawals);
+
     return (
         <div className="p-6 space-y-6 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl">
             <h2 className="text-4xl font-extrabold text-gray-800 dark:text-gray-200 border-b-2 border-green-500 pb-3 flex items-center">
@@ -8035,7 +8045,7 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
                         {filteredWithdrawals.length === 0 ? (
                             <tr><td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">{t('noWithdrawals')}</td></tr>
                         ) : (
-                            filteredWithdrawals.map(withdrawal => (
+                            paginatedWithdrawals.map(withdrawal => (
                                 <tr key={withdrawal.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition">
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">{highlightText(withdrawal.withdrawalNumber, globalSearch)}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm">{formatDateTimeDDMMYYYY(withdrawal.date)}</td>
@@ -8064,12 +8074,12 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
             </div>
 
             <PaginationControls
-                pageSize={dispatchPageSize}
-                onPageSizeChange={changeDispatchPageSize}
-                currentPage={dispatchCurrentPage}
-                totalPages={dispatchTotalPages}
-                onPageChange={goToDispatchPage}
-                totalItems={totalDispatchItems}
+                pageSize={withdrawalPageSize}
+                onPageSizeChange={changeWithdrawalPageSize}
+                currentPage={withdrawalCurrentPage}
+                totalPages={withdrawalTotalPages}
+                onPageChange={goToWithdrawalPage}
+                totalItems={totalWithdrawalItems}
             />
 
             {/* مودال إضافة/تعديل استخراج */}
