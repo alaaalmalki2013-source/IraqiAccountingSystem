@@ -735,45 +735,291 @@ const PrintReportModal = React.memo(({ reportData, title, onClose, companyName, 
  * 3.1. Dashboard Component
  */
 const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
-    const { revenues, expenses, suspended, advances, employees, payroll } = data;
+    const { revenues, expenses, suspended, advances, employees, payroll } = data;
     const { t } = useLanguage();
 
-    // استخدام useMemo لضمان عدم إعادة الحساب إلا عند الضرورة
-    const summaryData = useMemo(() => {
-        const totalRevenues = revenues.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
-        const totalExpenses = expenses.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
-        const totalAdvances = advances.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
-        const totalSuspended = suspended.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
-        const totalSalaries = employees.reduce((sum, emp) => sum + parseFloat(emp.salary || 0), 0);
-        
+    const currentYear = useMemo(() => new Date().getFullYear(), []);
+    const currentMonth = useMemo(() => new Date().getMonth() + 1, []);
+    const initialRange = useMemo(() => getCurrentMonthRange(), []);
+    const [filterDateFrom, setFilterDateFrom] = useState(initialRange.start);
+    const [filterDateTo, setFilterDateTo] = useState(initialRange.end);
+    const [selectedMonth, setSelectedMonth] = useState(() => String(currentMonth));
+    const [selectedYear, setSelectedYear] = useState(() => String(currentYear));
 
-        // تجميع الإيرادات حسب الفئة
-        const revenueByCategory = revenues.reduce((acc, item) => {
-            acc[item.category] = (acc[item.category] || 0) + (parseFloat(item.amount) || 0);
-            return acc;
-        }, {});
-        
-        // تجميع الصرفيات حسب الفئة
-        const expenseByCategory = expenses.reduce((acc, item) => {
-            acc[item.category] = (acc[item.category] || 0) + (parseFloat(item.amount) || 0);
-            return acc;
-        }, {});
+    const monthOptions = useMemo(() => {
+        const names = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+        const base = names.map((name, index) => ({
+            value: String(index + 1),
+            label: `${String(index + 1).padStart(2, '0')} - ${name}`
+        }));
+        return [
+            { value: 'all', label: 'كل الأشهر' },
+            ...base,
+            { value: 'custom', label: 'نطاق مخصص' }
+        ];
+    }, []);
+
+    const getRecordDate = useCallback((record) => {
+        if (!record) return null;
+        const candidate = record.date || record.createdAt || record.entryDate || record.dispatchedAt || record.updatedAt;
+        if (!candidate) return null;
+
+        if (typeof candidate === 'string') {
+            if (candidate.length >= 10) {
+                return candidate.slice(0, 10);
+            }
+            const parsed = new Date(candidate);
+            return isNaN(parsed.getTime()) ? null : parsed.toISOString().slice(0, 10);
+        }
+
+        if (candidate instanceof Date) {
+            return candidate.toISOString().slice(0, 10);
+        }
+
+        const parsed = new Date(candidate);
+        return isNaN(parsed.getTime()) ? null : parsed.toISOString().slice(0, 10);
+    }, []);
+
+    const yearOptions = useMemo(() => {
+        const years = new Set();
+        const registerYears = (list) => {
+            (list || []).forEach(item => {
+                const dateValue = getRecordDate(item);
+                if (dateValue) {
+                    years.add(dateValue.slice(0, 4));
+                }
+            });
+        };
+
+        registerYears(revenues);
+        registerYears(expenses);
+        registerYears(advances);
+        registerYears(suspended);
+
+        (payroll || []).forEach(item => {
+            if (item?.year) {
+                years.add(String(item.year));
+            }
+        });
+
+        years.add(String(currentYear));
+
+        return Array.from(years)
+            .filter(Boolean)
+            .sort((a, b) => parseInt(b, 10) - parseInt(a, 10));
+    }, [revenues, expenses, advances, suspended, payroll, getRecordDate, currentYear]);
+
+    const isDateWithinSelectedRange = useCallback((startDate, endDate = startDate) => {
+        if (!filterDateFrom && !filterDateTo) {
+            return true;
+        }
+
+        if (!startDate && !endDate) {
+            return false;
+        }
+
+        const effectiveStart = startDate || endDate;
+        const effectiveEnd = endDate || startDate;
+
+        if (filterDateFrom && effectiveEnd < filterDateFrom) {
+            return false;
+        }
+
+        if (filterDateTo && effectiveStart > filterDateTo) {
+            return false;
+        }
+
+        return true;
+    }, [filterDateFrom, filterDateTo]);
+
+    const filterRecordsByDate = useCallback((records) => {
+        if (!Array.isArray(records)) {
+            return [];
+        }
+
+        return records.filter(record => {
+            const isoDate = getRecordDate(record);
+            return isDateWithinSelectedRange(isoDate, isoDate);
+        });
+    }, [getRecordDate, isDateWithinSelectedRange]);
+
+    const filteredRevenues = useMemo(() => filterRecordsByDate(revenues), [revenues, filterRecordsByDate]);
+    const filteredExpenses = useMemo(() => filterRecordsByDate(expenses), [expenses, filterRecordsByDate]);
+    const filteredAdvances = useMemo(() => filterRecordsByDate(advances), [advances, filterRecordsByDate]);
+    const filteredSuspended = useMemo(() => filterRecordsByDate(suspended), [suspended, filterRecordsByDate]);
+
+    const filteredPayroll = useMemo(() => {
+        if (!Array.isArray(payroll)) {
+            return [];
+        }
+
+        return payroll.filter(record => {
+            const monthNumber = parseInt(record?.month, 10);
+            const yearNumber = parseInt(record?.year, 10);
+
+            if (!monthNumber || !yearNumber) {
+                return !filterDateFrom && !filterDateTo;
+            }
+
+            const start = `${yearNumber}-${String(monthNumber).padStart(2, '0')}-01`;
+            const endDay = new Date(yearNumber, monthNumber, 0).getDate();
+            const end = `${yearNumber}-${String(monthNumber).padStart(2, '0')}-${String(endDay).padStart(2, '0')}`;
+
+            return isDateWithinSelectedRange(start, end);
+        });
+    }, [payroll, filterDateFrom, filterDateTo, isDateWithinSelectedRange]);
+
+    const updateRangeForSelection = useCallback((monthValue, yearValue) => {
+        if (monthValue === 'custom') {
+            return;
+        }
+
+        if (!monthValue && !yearValue) {
+            setFilterDateFrom('');
+            setFilterDateTo('');
+            return;
+        }
+
+        const parsedYear = yearValue ? parseInt(yearValue, 10) : null;
+
+        if (monthValue === 'all') {
+            if (parsedYear) {
+                setFilterDateFrom(`${parsedYear}-01-01`);
+                setFilterDateTo(`${parsedYear}-12-31`);
+            } else {
+                setFilterDateFrom('');
+                setFilterDateTo('');
+            }
+            return;
+        }
+
+        if (monthValue) {
+            const monthNumber = parseInt(monthValue, 10);
+            if (Number.isFinite(monthNumber)) {
+                const effectiveYear = parsedYear ?? currentYear;
+                const start = `${effectiveYear}-${String(monthNumber).padStart(2, '0')}-01`;
+                const endDay = new Date(effectiveYear, monthNumber, 0).getDate();
+                const end = `${effectiveYear}-${String(monthNumber).padStart(2, '0')}-${String(endDay).padStart(2, '0')}`;
+                setFilterDateFrom(start);
+                setFilterDateTo(end);
+            }
+        } else if (parsedYear) {
+            setFilterDateFrom(`${parsedYear}-01-01`);
+            setFilterDateTo(`${parsedYear}-12-31`);
+        }
+    }, [currentYear]);
+
+    const handleMonthSelect = useCallback((value) => {
+        setSelectedMonth(value);
+
+        if (value === 'custom') {
+            return;
+        }
+
+        if (value === 'all') {
+            updateRangeForSelection(value, selectedYear);
+            return;
+        }
+
+        if (!selectedYear) {
+            const fallbackYear = String(currentYear);
+            setSelectedYear(fallbackYear);
+            updateRangeForSelection(value, fallbackYear);
+        } else {
+            updateRangeForSelection(value, selectedYear);
+        }
+    }, [selectedYear, updateRangeForSelection, currentYear]);
+
+    const handleYearSelect = useCallback((value) => {
+        setSelectedYear(value);
+
+        if (!value) {
+            if (selectedMonth === 'all') {
+                setFilterDateFrom('');
+                setFilterDateTo('');
+            }
+            return;
+        }
+
+        if (selectedMonth !== 'custom') {
+            updateRangeForSelection(selectedMonth, value);
+        }
+    }, [selectedMonth, updateRangeForSelection]);
+
+    const handleDateFromChange = useCallback((value) => {
+        setFilterDateFrom(value);
+
+        if (!value && !filterDateTo) {
+            setSelectedMonth('all');
+            setSelectedYear('');
+            return;
+        }
+
+        setSelectedMonth('custom');
+    }, [filterDateTo]);
+
+    const handleDateToChange = useCallback((value) => {
+        setFilterDateTo(value);
+
+        if (!value && !filterDateFrom) {
+            setSelectedMonth('all');
+            setSelectedYear('');
+            return;
+        }
+
+        setSelectedMonth('custom');
+    }, [filterDateFrom]);
+
+    const handleResetToCurrent = useCallback(() => {
+        setSelectedMonth(String(currentMonth));
+        setSelectedYear(String(currentYear));
+        setFilterDateFrom(initialRange.start);
+        setFilterDateTo(initialRange.end);
+    }, [currentMonth, currentYear, initialRange.start, initialRange.end]);
+
+    const handleShowAll = useCallback(() => {
+        setSelectedMonth('all');
+        setSelectedYear('');
+        setFilterDateFrom('');
+        setFilterDateTo('');
+    }, []);
+
+    // استخدام useMemo لضمان عدم إعادة الحساب إلا عند الضرورة
+    const summaryData = useMemo(() => {
+        const totalRevenues = filteredRevenues.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+        const totalExpenses = filteredExpenses.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+        const totalAdvances = filteredAdvances.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+        const totalSuspended = filteredSuspended.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+        const totalSalaries = employees.reduce((sum, emp) => sum + parseFloat(emp.salary || 0), 0);
+
+
+        // تجميع الإيرادات حسب الفئة
+        const revenueByCategory = filteredRevenues.reduce((acc, item) => {
+            acc[item.category] = (acc[item.category] || 0) + (parseFloat(item.amount) || 0);
+            return acc;
+        }, {});
+
+        // تجميع الصرفيات حسب الفئة
+        const expenseByCategory = filteredExpenses.reduce((acc, item) => {
+            acc[item.category] = (acc[item.category] || 0) + (parseFloat(item.amount) || 0);
+            return acc;
+        }, {});
 
 
         // حساب مجموع الرواتب المدفوعة
-        const totalPaidSalaries = payroll ? payroll.reduce((sum, payrollRecord) => {
+        const totalPaidSalaries = filteredPayroll.length > 0 ? filteredPayroll.reduce((sum, payrollRecord) => {
             if (!payrollRecord.isPaid) return sum;
-            
+
             // إيجاد الموظف المرتبط بسجل الرواتب
             const employee = employees.find(emp => emp.id === payrollRecord.employeeId);
             if (!employee) return sum;
-            
+
             const baseSalary = parseFloat(employee.salary) || 0;
             let bonuses = 0;
             let deductions = 0;
             let absenceAmount = 0;
             let overtimeAmount = 0;
-            
+
             // حساب التعديلات
             if (payrollRecord.adjustments) {
                 payrollRecord.adjustments.forEach(adj => {
@@ -784,29 +1030,29 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
                     if (adj.type === 'overtime') overtimeAmount += amount;
                 });
             }
-            
+
             // حساب الراتب الإجمالي (قبل خصم السلف)
             // ملاحظة: السلف تُخصم بشكل منفصل في معادلة رصيد الصندوق
             const grossSalary = baseSalary + bonuses + overtimeAmount - deductions - absenceAmount;
-            
+
             return sum + grossSalary;
         }, 0) : 0;
 
         // حساب الصندوق: الإيرادات - (المصروفات + السلف + المعلقة + الرواتب المدفوعة)
         const totalCashFund = totalRevenues - (totalExpenses + totalAdvances + totalSuspended + totalPaidSalaries);
 
-        return {
-            totalRevenues,
-            totalExpenses,
-            totalAdvances,
-            totalSuspended,
-            totalSalaries,
+        return {
+            totalRevenues,
+            totalExpenses,
+            totalAdvances,
+            totalSuspended,
+            totalSalaries,
             totalPaidSalaries,
-            totalCashFund,
-            revenueByCategory,
-            expenseByCategory
-        };
-    }, [revenues, expenses, suspended, advances, employees, payroll]);
+            totalCashFund,
+            revenueByCategory,
+            expenseByCategory
+        };
+    }, [filteredRevenues, filteredExpenses, filteredAdvances, filteredSuspended, employees, filteredPayroll]);
 
     const primaryCards = [
         { 
@@ -871,9 +1117,80 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
 
     return (
         <div className="space-y-8 p-8 bg-gradient-to-br from-white to-gray-50 dark:from-gray-900 dark:to-gray-800 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700">
-            <h2 className="text-4xl font-extrabold bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent border-b-2 border-blue-500 dark:border-blue-400 pb-3">{ t("dashboard") }</h2>
+            <h2 className="text-4xl font-extrabold bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent border-b-2 border-blue-500 dark:border-blue-400 pb-3">{ t("dashboard") }</h2>
 
-            {upcomingBirthdays.length > 0 && (
+            <div className="bg-white/90 dark:bg-gray-900/60 border border-gray-200 dark:border-gray-700 rounded-3xl shadow-xl p-6">
+                <div className="flex flex-col xl:flex-row gap-4 xl:items-end justify-between">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 flex-1">
+                        <div className="flex flex-col text-right">
+                            <label className="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-1">من تاريخ</label>
+                            <input
+                                type="date"
+                                value={filterDateFrom}
+                                onChange={(e) => handleDateFromChange(e.target.value)}
+                                className="w-full rounded-2xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2.5 text-gray-700 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
+                        <div className="flex flex-col text-right">
+                            <label className="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-1">إلى تاريخ</label>
+                            <input
+                                type="date"
+                                value={filterDateTo}
+                                onChange={(e) => handleDateToChange(e.target.value)}
+                                className="w-full rounded-2xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2.5 text-gray-700 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
+                        <div className="flex flex-col text-right">
+                            <label className="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-1">اختر الشهر</label>
+                            <select
+                                value={selectedMonth}
+                                onChange={(e) => handleMonthSelect(e.target.value)}
+                                className="w-full rounded-2xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2.5 text-gray-700 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
+                            >
+                                {monthOptions.map(option => (
+                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="flex flex-col text-right">
+                            <label className="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-1">اختر السنة</label>
+                            <select
+                                value={selectedYear}
+                                onChange={(e) => handleYearSelect(e.target.value)}
+                                className="w-full rounded-2xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2.5 text-gray-700 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
+                            >
+                                <option value="">اختر السنة</option>
+                                {yearOptions.map(year => (
+                                    <option key={year} value={year}>{year}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-3 justify-end w-full xl:w-auto">
+                        <button
+                            onClick={handleResetToCurrent}
+                            className="inline-flex items-center justify-center rounded-2xl bg-blue-500 text-white px-5 py-2.5 text-sm font-semibold shadow-lg hover:bg-blue-600 transition-colors"
+                        >
+                            <CalendarCheck className="w-4 h-4 ml-2" />
+                            شهر حالي
+                        </button>
+                        <button
+                            onClick={handleShowAll}
+                            className="inline-flex items-center justify-center rounded-2xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 px-5 py-2.5 text-sm font-semibold shadow-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                        >
+                            <RotateCcw className="w-4 h-4 ml-2" />
+                            إظهار الكل
+                        </button>
+                    </div>
+                </div>
+                {(filterDateFrom || filterDateTo) && (
+                    <div className="mt-4 text-right text-sm text-blue-700 dark:text-blue-300">
+                        <span>النطاق الحالي: {filterDateFrom || 'غير محدد'} → {filterDateTo || 'غير محدد'}</span>
+                    </div>
+                )}
+            </div>
+
+            {upcomingBirthdays.length > 0 && (
                 <div className="bg-gradient-to-r from-pink-100 to-rose-100 dark:from-pink-950/50 dark:to-rose-950/50 border-l-4 border-pink-500 dark:border-pink-400 p-6 rounded-2xl shadow-xl">
                     <h3 className="text-2xl font-bold text-pink-800 dark:text-pink-200 flex items-center mb-2">
                         <Gift className="w-6 h-6 ml-2" />
