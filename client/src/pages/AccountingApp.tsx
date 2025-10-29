@@ -190,6 +190,169 @@ const InputField = React.memo(({ label, type = 'text', value, onChange, placehol
     );
 });
 
+const FILTER_CARD_THEMES = {
+    teal: {
+        bg: 'bg-teal-50 dark:bg-teal-900/30',
+        activeBg: 'bg-teal-100 dark:bg-teal-900/50',
+        text: 'text-teal-800 dark:text-teal-200',
+        activeText: 'text-teal-900 dark:text-teal-100',
+        border: 'border-teal-400 dark:border-teal-500',
+        iconBg: 'bg-white/50 dark:bg-black/30'
+    },
+    rose: {
+        bg: 'bg-rose-50 dark:bg-rose-900/30',
+        activeBg: 'bg-rose-100 dark:bg-rose-900/50',
+        text: 'text-rose-800 dark:text-rose-200',
+        activeText: 'text-rose-900 dark:text-rose-100',
+        border: 'border-rose-400 dark:border-rose-500',
+        iconBg: 'bg-white/50 dark:bg-black/30'
+    },
+    purple: {
+        bg: 'bg-purple-50 dark:bg-purple-900/30',
+        activeBg: 'bg-purple-100 dark:bg-purple-900/50',
+        text: 'text-purple-800 dark:text-purple-200',
+        activeText: 'text-purple-900 dark:text-purple-100',
+        border: 'border-purple-400 dark:border-purple-500',
+        iconBg: 'bg-white/50 dark:bg-black/30'
+    },
+    amber: {
+        bg: 'bg-amber-50 dark:bg-amber-900/30',
+        activeBg: 'bg-amber-100 dark:bg-amber-900/50',
+        text: 'text-amber-800 dark:text-amber-200',
+        activeText: 'text-amber-900 dark:text-amber-100',
+        border: 'border-amber-400 dark:border-amber-500',
+        iconBg: 'bg-white/60 dark:bg-black/20'
+    },
+    orange: {
+        bg: 'bg-orange-50 dark:bg-orange-900/30',
+        activeBg: 'bg-orange-100 dark:bg-orange-900/50',
+        text: 'text-orange-800 dark:text-orange-200',
+        activeText: 'text-orange-900 dark:text-orange-100',
+        border: 'border-orange-400 dark:border-orange-500',
+        iconBg: 'bg-white/50 dark:bg-black/30'
+    },
+    emerald: {
+        bg: 'bg-emerald-50 dark:bg-emerald-900/30',
+        activeBg: 'bg-emerald-100 dark:bg-emerald-900/50',
+        text: 'text-emerald-800 dark:text-emerald-200',
+        activeText: 'text-emerald-900 dark:text-emerald-100',
+        border: 'border-emerald-400 dark:border-emerald-500',
+        iconBg: 'bg-white/50 dark:bg-black/30'
+    },
+    slate: {
+        bg: 'bg-slate-50 dark:bg-slate-800/40',
+        activeBg: 'bg-slate-100 dark:bg-slate-800/60',
+        text: 'text-slate-700 dark:text-slate-200',
+        activeText: 'text-slate-900 dark:text-slate-100',
+        border: 'border-slate-400 dark:border-slate-500',
+        iconBg: 'bg-white/40 dark:bg-black/20'
+    },
+    blue: {
+        bg: 'bg-blue-50 dark:bg-blue-900/30',
+        activeBg: 'bg-blue-100 dark:bg-blue-900/50',
+        text: 'text-blue-800 dark:text-blue-200',
+        activeText: 'text-blue-900 dark:text-blue-100',
+        border: 'border-blue-400 dark:border-blue-500',
+        iconBg: 'bg-white/50 dark:bg-black/30'
+    },
+    gray: {
+        bg: 'bg-gray-50 dark:bg-gray-800/40',
+        activeBg: 'bg-gray-100 dark:bg-gray-800/60',
+        text: 'text-gray-700 dark:text-gray-200',
+        activeText: 'text-gray-900 dark:text-white',
+        border: 'border-gray-300 dark:border-gray-500',
+        iconBg: 'bg-white/40 dark:bg-black/20'
+    }
+};
+
+const mergeFilterThemes = (baseTheme, customTheme) => {
+    if (!customTheme) {
+        return baseTheme;
+    }
+
+    const mergeClasses = (baseValue, customValue) => {
+        if (!customValue) {
+            return baseValue;
+        }
+        return `${baseValue} ${customValue}`;
+    };
+
+    return {
+        ...baseTheme,
+        bg: mergeClasses(baseTheme.bg, customTheme.bg),
+        activeBg: mergeClasses(baseTheme.activeBg, customTheme.bg),
+        text: mergeClasses(baseTheme.text, customTheme.text),
+        activeText: mergeClasses(baseTheme.activeText, customTheme.text),
+        border: mergeClasses(baseTheme.border, customTheme.border),
+    };
+};
+
+const FilterStatCard = React.memo(({
+    title,
+    value,
+    subtitle,
+    meta,
+    icon: Icon,
+    onClick,
+    active = false,
+    themeKey = 'teal',
+    customTheme = null,
+    size = 'sm',
+    dataTestId,
+    disabled = false
+}) => {
+    const baseTheme = FILTER_CARD_THEMES[themeKey] || FILTER_CARD_THEMES.gray;
+    const theme = mergeFilterThemes(baseTheme, customTheme);
+
+    const padding = size === 'md' ? 'p-5' : 'p-4';
+    const valueSize = size === 'md' ? 'text-2xl' : 'text-xl';
+    const titleSize = size === 'md' ? 'text-sm' : 'text-xs';
+    const subtitleSize = size === 'md' ? 'text-sm' : 'text-xs';
+    const metaSize = size === 'md' ? 'text-xs' : 'text-[11px]';
+    const iconPadding = size === 'md' ? 'p-3' : 'p-2';
+    const iconSize = size === 'md' ? 'w-6 h-6' : 'w-5 h-5';
+
+    const cardClasses = [
+        'relative overflow-hidden rounded-2xl transition-all duration-300 flex flex-col justify-between text-right',
+        disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer',
+        active ? 'border-4 shadow-2xl scale-[1.01]' : 'border-2 shadow-md hover:-translate-y-1 hover:shadow-lg',
+        theme.border,
+        active ? theme.activeBg : theme.bg,
+        active ? theme.activeText : theme.text,
+        padding
+    ].filter(Boolean).join(' ');
+
+    const contentTextClass = active ? theme.activeText : theme.text;
+
+    return (
+        <div
+            className={cardClasses}
+            onClick={disabled ? undefined : onClick}
+            data-testid={dataTestId}
+        >
+            <div className="flex items-center justify-between gap-3">
+                <div className={`flex-1 space-y-1 ${contentTextClass}`}>
+                    <p className={`${titleSize} font-semibold leading-tight`}>{title}</p>
+                    {value !== undefined && (
+                        <p className={`font-extrabold ${valueSize}`}>{value}</p>
+                    )}
+                    {subtitle && (
+                        <p className={`${subtitleSize} font-medium`}>{subtitle}</p>
+                    )}
+                </div>
+                {Icon && (
+                    <div className={`flex items-center justify-center rounded-xl ${theme.iconBg} ${contentTextClass} ${iconPadding}`}>
+                        <Icon className={`${iconSize} text-current`} />
+                    </div>
+                )}
+            </div>
+            {meta && (
+                <p className={`${metaSize} font-medium mt-3 ${contentTextClass}`}>{meta}</p>
+            )}
+        </div>
+    );
+});
+
 const PAGE_SIZE_OPTIONS = [50, 100, 200, 'all'];
 const DEFAULT_PAGE_SIZE = 100;
 
@@ -1379,31 +1542,22 @@ const DataPageComponent = React.memo(({ 
                         <Filter className="w-5 h-5 ml-2" />
                         فلترة حسب فئة {type === 'revenue' ? 'الإيراد' : 'الصرف'}
                     </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 text-right justify-items-end">
-                        {categoryTotals.map(cat => {
-                            const customColor = CUSTOM_CATEGORY_COLORS[cat.category] || (cat.color === 'green' ? { bg: 'bg-green-50 dark:bg-green-900', text: 'text-green-800 dark:text-green-200', border: 'border-green-500' } : { bg: 'bg-red-50 dark:bg-red-900', text: 'text-red-800 dark:text-red-200', border: 'border-red-500' });
-                            return (
-                                <div
-                                    key={cat.category}
-                                    onClick={() => handleCategoryCardClick(cat.category)}
-                                    className={`p-4 rounded-2xl shadow-lg cursor-pointer transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl text-right
-                                        ${isFilterActive(cat.category)
-                                            ? `${customColor.bg.replace('-50', '-200').replace('-100', '-200')} ${customColor.border.replace('border-', 'ring-4 ring-opacity-60 ring-')} ${customColor.text.replace('-800', '-900')}`
-                                            : `${customColor.bg} ${customColor.text} ${customColor.border}`
-                                        }
-                                    `}
-                                    style={{ 
-                                        '--ring-current': customColor.border.replace('border-', '') // لتحديد لون الـ ring
-                                    }}
-                                >
-                                    <p className="text-sm font-semibold">{cat.category}</p>
-                                    <p className="text-xl font-extrabold">{formatCurrencyDisplay(cat.total)}</p>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-            )}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                        {categoryTotals.map(cat => (
+                            <FilterStatCard
+                                key={cat.category}
+                                title={cat.category}
+                                value={formatCurrencyDisplay(cat.total)}
+                                onClick={() => handleCategoryCardClick(cat.category)}
+                                active={isFilterActive(cat.category)}
+                                themeKey={type === 'revenue' ? 'teal' : type === 'advance' ? 'purple' : 'rose'}
+                                customTheme={CUSTOM_CATEGORY_COLORS[cat.category]}
+                                size="sm"
+                            />
+                        ))}
+                    </div>
+                </div>
+            )}
 
 
             
@@ -2138,109 +2292,71 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
             </div>
 
             {/* بطاقات فلتر النوع */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div
-                    onClick={() => setFilterTypes(prev => 
-                        prev.includes('expense') 
-                            ? prev.filter(t => t !== 'expense')
-                            : [...prev, 'expense']
-                    )}
-                    className={`p-6 rounded-2xl shadow-lg cursor-pointer transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl border-r-4
-                        ${filterTypes.includes('expense')
-                            ? 'bg-red-200 dark:bg-red-800 border-red-600 ring-4 ring-red-500 ring-opacity-60'
-                            : 'bg-red-50 dark:bg-red-900 border-red-600'
-                        }
-                    `}
-                    data-testid="filter-card-expenses"
-                >
-                    <div className="flex items-center justify-between gap-3">
-                        <div className="flex-1">
-                            <p className="text-sm font-semibold text-red-800 dark:text-red-200 mb-1">الصرفيات</p>
-                            <p className="text-2xl font-extrabold text-red-900 dark:text-red-100">{formatCurrencyDisplay(typeTotals.expense)}</p>
-                        </div>
-                        <div className="p-2 rounded-lg bg-white/20 dark:bg-black/20">
-                            <TrendingDown className="w-5 h-5 text-red-800 dark:text-red-200" />
-                        </div>
-                    </div>
-                </div>
-
-                <div
-                    onClick={() => setFilterTypes(prev => 
-                        prev.includes('advance') 
-                            ? prev.filter(t => t !== 'advance')
-                            : [...prev, 'advance']
-                    )}
-                    className={`p-6 rounded-2xl shadow-lg cursor-pointer transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl border-r-4
-                        ${filterTypes.includes('advance')
-                            ? 'bg-purple-200 dark:bg-purple-800 border-purple-600 ring-4 ring-purple-500 ring-opacity-60'
-                            : 'bg-purple-50 dark:bg-purple-900 border-purple-600'
-                        }
-                    `}
-                    data-testid="filter-card-advances"
-                >
-                    <div className="flex items-center justify-between gap-3">
-                        <div className="flex-1">
-                            <p className="text-sm font-semibold text-purple-800 dark:text-purple-200 mb-1">السلف</p>
-                            <p className="text-2xl font-extrabold text-purple-900 dark:text-purple-100">{formatCurrencyDisplay(typeTotals.advance)}</p>
-                        </div>
-                        <div className="p-2 rounded-lg bg-white/20 dark:bg-black/20">
-                            <Coins className="w-5 h-5 text-purple-800 dark:text-purple-200" />
-                        </div>
-                    </div>
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <FilterStatCard
+                    title="الصرفيات"
+                    value={formatCurrencyDisplay(typeTotals.expense)}
+                    icon={TrendingDown}
+                    onClick={() => setFilterTypes(prev => (
+                        prev.includes('expense') ? prev.filter(t => t !== 'expense') : [...prev, 'expense']
+                    ))}
+                    active={filterTypes.includes('expense')}
+                    themeKey="rose"
+                    size="md"
+                    dataTestId="filter-card-expenses"
+                />
+                <FilterStatCard
+                    title="السلف"
+                    value={formatCurrencyDisplay(typeTotals.advance)}
+                    icon={Coins}
+                    onClick={() => setFilterTypes(prev => (
+                        prev.includes('advance') ? prev.filter(t => t !== 'advance') : [...prev, 'advance']
+                    ))}
+                    active={filterTypes.includes('advance')}
+                    themeKey="purple"
+                    size="md"
+                    dataTestId="filter-card-advances"
+                />
             </div>
 
             {/* بطاقات فلتر الحالة */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div
-                    onClick={() => setFilterStatuses(prev => 
-                        prev.includes('pending') 
-                            ? prev.filter(s => s !== 'pending')
-                            : [...prev, 'pending']
-                    )}
-                    className={`p-6 rounded-2xl shadow-lg cursor-pointer transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl border-r-4
-                        ${filterStatuses.includes('pending')
-                            ? 'bg-amber-200 dark:bg-amber-800 border-amber-600 ring-4 ring-amber-500 ring-opacity-60'
-                            : 'bg-amber-50 dark:bg-amber-900 border-amber-600'
-                        }
-                    `}
-                    data-testid="filter-status-pending"
-                >
-                    <div className="flex items-center justify-between gap-3">
-                        <div className="flex-1">
-                            <p className="text-sm font-semibold text-amber-800 dark:text-amber-200 mb-1">الطلبات المعلقة</p>
-                            <p className="text-2xl font-extrabold text-amber-900 dark:text-amber-100">{formatCurrencyDisplay(statusTotals.pending)}</p>
-                        </div>
-                        <div className="p-2 rounded-lg bg-white/20 dark:bg-black/20">
-                            <Clock className="w-5 h-5 text-amber-800 dark:text-amber-200" />
-                        </div>
-                    </div>
-                </div>
-
-                <div
-                    onClick={() => setFilterStatuses(prev => 
-                        prev.includes('cancelled') 
-                            ? prev.filter(s => s !== 'cancelled')
-                            : [...prev, 'cancelled']
-                    )}
-                    className={`p-6 rounded-2xl shadow-lg cursor-pointer transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl border-r-4
-                        ${filterStatuses.includes('cancelled')
-                            ? 'bg-rose-200 dark:bg-rose-800 border-rose-600 ring-4 ring-rose-500 ring-opacity-60'
-                            : 'bg-rose-50 dark:bg-rose-900 border-rose-600'
-                        }
-                    `}
-                    data-testid="filter-status-cancelled"
-                >
-                    <div className="flex items-center justify-between gap-3">
-                        <div className="flex-1">
-                            <p className="text-sm font-semibold text-rose-800 dark:text-rose-200 mb-1">الطلبات الملغاة</p>
-                            <p className="text-2xl font-extrabold text-rose-900 dark:text-rose-100">{formatCurrencyDisplay(statusTotals.cancelled)}</p>
-                        </div>
-                        <div className="p-2 rounded-lg bg-white/20 dark:bg-black/20">
-                            <XCircle className="w-5 h-5 text-rose-800 dark:text-rose-200" />
-                        </div>
-                    </div>
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <FilterStatCard
+                    title="الطلبات المعلقة"
+                    value={formatCurrencyDisplay(statusTotals.pending)}
+                    icon={Clock}
+                    onClick={() => setFilterStatuses(prev => (
+                        prev.includes('pending') ? prev.filter(s => s !== 'pending') : [...prev, 'pending']
+                    ))}
+                    active={filterStatuses.includes('pending')}
+                    themeKey="amber"
+                    size="md"
+                    dataTestId="filter-status-pending"
+                />
+                <FilterStatCard
+                    title="الطلبات المعتمدة"
+                    value={formatCurrencyDisplay(statusTotals.paid)}
+                    icon={CheckCircle}
+                    onClick={() => setFilterStatuses(prev => (
+                        prev.includes('paid') ? prev.filter(s => s !== 'paid') : [...prev, 'paid']
+                    ))}
+                    active={filterStatuses.includes('paid')}
+                    themeKey="emerald"
+                    size="md"
+                    dataTestId="filter-status-paid"
+                />
+                <FilterStatCard
+                    title="الطلبات الملغاة"
+                    value={formatCurrencyDisplay(statusTotals.cancelled)}
+                    icon={XCircle}
+                    onClick={() => setFilterStatuses(prev => (
+                        prev.includes('cancelled') ? prev.filter(s => s !== 'cancelled') : [...prev, 'cancelled']
+                    ))}
+                    active={filterStatuses.includes('cancelled')}
+                    themeKey="rose"
+                    size="md"
+                    dataTestId="filter-status-cancelled"
+                />
             </div>
 
 
@@ -3576,76 +3692,38 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                 </div>
             </div>
 
-            {/* كارتات مجاميع الرواتب - قابلة للضغط للفلترة */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {/* الكل */}
-                <div 
+            {/* كروت مجاميع الرواتب */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                <FilterStatCard
+                    title="الكل"
+                    value={formatCurrencyDisplay(salaryTotals.totalAll)}
+                    icon={Calculator}
                     onClick={() => setStatusFilter('الكل')}
-                    className={`cursor-pointer p-6 rounded-2xl shadow-xl border-r-4 transition-all duration-300 transform hover:scale-[1.02] ${
-                        statusFilter === 'الكل'
-                            ? 'bg-gradient-to-br from-teal-100 to-teal-200 dark:from-teal-900 dark:to-teal-800 border-r-8 border-teal-600 dark:border-teal-300 shadow-2xl ring-4 ring-teal-300 dark:ring-teal-600'
-                            : 'bg-gradient-to-br from-teal-50 to-teal-100 dark:from-teal-950/50 dark:to-teal-900/50 border-teal-500 dark:border-teal-400 hover:shadow-2xl'
-                    }`}
-                    data-testid="card-total-all"
-                >
-                    <div className="flex items-center justify-between">
-                        <div className="space-y-2">
-                            <p className="text-lg font-bold text-gray-700 dark:text-gray-300">الكل</p>
-                            <p className="text-3xl font-extrabold text-teal-600 dark:text-teal-400">
-                                {formatCurrencyDisplay(salaryTotals.totalAll)}
-                            </p>
-                        </div>
-                        <div className="p-4 bg-teal-500/20 dark:bg-teal-500/30 rounded-2xl">
-                            <Calculator className="w-8 h-8 text-teal-600 dark:text-teal-400" />
-                        </div>
-                    </div>
-                </div>
-
-                {/* المدفوع */}
-                <div 
+                    active={statusFilter === 'الكل'}
+                    themeKey="teal"
+                    size="md"
+                    dataTestId="card-total-all"
+                />
+                <FilterStatCard
+                    title="المدفوع"
+                    value={formatCurrencyDisplay(salaryTotals.totalPaid)}
+                    icon={CheckCircle}
                     onClick={() => setStatusFilter('مدفوعة')}
-                    className={`cursor-pointer p-6 rounded-2xl shadow-xl border-r-4 transition-all duration-300 transform hover:scale-[1.02] ${
-                        statusFilter === 'مدفوعة'
-                            ? 'bg-gradient-to-br from-green-100 to-green-200 dark:from-green-900 dark:to-green-800 border-r-8 border-green-600 dark:border-green-300 shadow-2xl ring-4 ring-green-300 dark:ring-green-600'
-                            : 'bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950/50 dark:to-green-900/50 border-green-500 dark:border-green-400 hover:shadow-2xl'
-                    }`}
-                    data-testid="card-total-paid"
-                >
-                    <div className="flex items-center justify-between">
-                        <div className="space-y-2">
-                            <p className="text-lg font-bold text-gray-700 dark:text-gray-300">المدفوع</p>
-                            <p className="text-3xl font-extrabold text-green-600 dark:text-green-400">
-                                {formatCurrencyDisplay(salaryTotals.totalPaid)}
-                            </p>
-                        </div>
-                        <div className="p-4 bg-green-500/20 dark:bg-green-500/30 rounded-2xl">
-                            <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
-                        </div>
-                    </div>
-                </div>
-
-                {/* الغير مدفوع */}
-                <div 
+                    active={statusFilter === 'مدفوعة'}
+                    themeKey="emerald"
+                    size="md"
+                    dataTestId="card-total-paid"
+                />
+                <FilterStatCard
+                    title="الغير مدفوع"
+                    value={formatCurrencyDisplay(salaryTotals.totalUnpaid)}
+                    icon={XCircle}
                     onClick={() => setStatusFilter('غير مدفوعة')}
-                    className={`cursor-pointer p-6 rounded-2xl shadow-xl border-r-4 transition-all duration-300 transform hover:scale-[1.02] ${
-                        statusFilter === 'غير مدفوعة'
-                            ? 'bg-gradient-to-br from-orange-100 to-orange-200 dark:from-orange-900 dark:to-orange-800 border-r-8 border-orange-600 dark:border-orange-300 shadow-2xl ring-4 ring-orange-300 dark:ring-orange-600'
-                            : 'bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950/50 dark:to-orange-900/50 border-orange-500 dark:border-orange-400 hover:shadow-2xl'
-                    }`}
-                    data-testid="card-total-unpaid"
-                >
-                    <div className="flex items-center justify-between">
-                        <div className="space-y-2">
-                            <p className="text-lg font-bold text-gray-700 dark:text-gray-300">الغير مدفوع</p>
-                            <p className="text-3xl font-extrabold text-orange-600 dark:text-orange-400">
-                                {formatCurrencyDisplay(salaryTotals.totalUnpaid)}
-                            </p>
-                        </div>
-                        <div className="p-4 bg-orange-500/20 dark:bg-orange-500/30 rounded-2xl">
-                            <XCircle className="w-8 h-8 text-orange-600 dark:text-orange-400" />
-                        </div>
-                    </div>
-                </div>
+                    active={statusFilter === 'غير مدفوعة'}
+                    themeKey="orange"
+                    size="md"
+                    dataTestId="card-total-unpaid"
+                />
             </div>
 
             {/* البحث */}
@@ -4969,45 +5047,48 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
         <div className="p-6 space-y-6 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl">
             <h2 className="text-4xl font-extrabold text-gray-800 dark:text-gray-200 border-b-2 border-teal-500 pb-3">إدارة الإدخال المخزني </h2>
 
-                <div className="flex flex-wrap gap-3 justify-start">
-                    {/* الإحصائيات المحدثة */}
-                    <div 
-                        onClick={() => handleFilterClick('Pending')}
-                        className={`text-xl font-bold p-4 rounded-xl shadow-md border-r-4 cursor-pointer transition transform hover:scale-[1.03] min-w-[150px] flex flex-col items-center justify-center 
-                        ${isFilterActive('Pending') ? 'bg-yellow-200 dark:bg-yellow-700 text-yellow-900 dark:text-yellow-200 border-yellow-800 ring-4 ring-yellow-400' : 'bg-yellow-50 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 border-yellow-600'}`}
-                    >
-                        <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 ml-1">معلقة:</span>
-                        <span className="font-extrabold text-2xl">{stats.pendingCount}</span>
-                        <span className="text-xs text-gray-600 dark:text-gray-400">{formatCurrencyDisplay(stats.totalPending)}</span>
-                    </div>
-                    <div 
-                        onClick={() => handleFilterClick('Dispatched')}
-                        className={`text-xl font-bold p-4 rounded-xl shadow-md border-r-4 cursor-pointer transition transform hover:scale-[1.03] min-w-[150px] flex flex-col items-center justify-center 
-                         ${isFilterActive('Dispatched') ? 'bg-green-200 dark:bg-green-700 text-green-900 dark:text-green-200 border-green-800 ring-4 ring-green-400' : 'bg-green-50 dark:bg-green-900 text-green-800 dark:text-green-200 border-green-600'}`}
-                    >
-                         <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 ml-1">معتمدة كاش:</span>
-                        <span className="font-extrabold text-2xl">{stats.cashCount}</span>
-                         <span className="text-xs text-gray-600 dark:text-gray-400">{formatCurrencyDisplay(stats.totalCash)}</span>
-                    </div>
-                    <div 
-                        onClick={() => handleFilterClick('CreditApproved')}
-                        className={`text-xl font-bold p-4 rounded-xl shadow-md border-r-4 cursor-pointer transition transform hover:scale-[1.03] min-w-[150px] flex flex-col items-center justify-center 
-                         ${isFilterActive('CreditApproved') ? 'bg-blue-200 dark:bg-blue-700 text-blue-900 dark:text-blue-200 border-blue-800 ring-4 ring-blue-400' : 'bg-blue-50 dark:bg-blue-900 text-blue-800 dark:text-blue-200 border-blue-600'}`}
-                    >
-                         <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 ml-1">معتمدة آجل:</span>
-                        <span className="font-extrabold text-2xl">{stats.creditCount}</span>
-                         <span className="text-xs text-gray-600 dark:text-gray-400">{formatCurrencyDisplay(stats.totalCredit)}</span>
-                    </div>
-                    <div 
-                        onClick={() => handleFilterClick('Cancelled')}
-                        className={`text-xl font-bold p-4 rounded-xl shadow-md border-r-4 cursor-pointer transition transform hover:scale-[1.03] min-w-[150px] flex flex-col items-center justify-center 
-                         ${isFilterActive('Cancelled') ? 'bg-red-200 dark:bg-red-700 text-red-900 dark:text-red-200 border-red-800 ring-4 ring-red-400' : 'bg-red-50 dark:bg-red-900 text-red-800 dark:text-red-200 border-red-600'}`}
-                    >
-                        <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 ml-1">ملغاة:</span>
-                        <span className="font-extrabold text-2xl">{stats.cancelledCount}</span>
-                        <span className="text-xs text-gray-600 dark:text-gray-400">{formatCurrencyDisplay(stats.totalCancelled)}</span>
-                    </div>
-                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+                <FilterStatCard
+                    title="الفواتير المعلقة"
+                    value={`${stats.pendingCount} فاتورة`}
+                    subtitle={`إجمالي: ${formatCurrencyDisplay(stats.totalPending)}`}
+                    icon={Clock}
+                    onClick={() => handleFilterClick('Pending')}
+                    active={isFilterActive('Pending')}
+                    themeKey="amber"
+                    size="md"
+                />
+                <FilterStatCard
+                    title="معتمدة كاش"
+                    value={`${stats.cashCount} فاتورة`}
+                    subtitle={`إجمالي: ${formatCurrencyDisplay(stats.totalCash)}`}
+                    icon={CheckCircle}
+                    onClick={() => handleFilterClick('Dispatched')}
+                    active={isFilterActive('Dispatched')}
+                    themeKey="emerald"
+                    size="md"
+                />
+                <FilterStatCard
+                    title="معتمدة آجل"
+                    value={`${stats.creditCount} فاتورة`}
+                    subtitle={`إجمالي: ${formatCurrencyDisplay(stats.totalCredit)}`}
+                    icon={ClipboardCheck}
+                    onClick={() => handleFilterClick('CreditApproved')}
+                    active={isFilterActive('CreditApproved')}
+                    themeKey="blue"
+                    size="md"
+                />
+                <FilterStatCard
+                    title="فواتير ملغاة"
+                    value={`${stats.cancelledCount} فاتورة`}
+                    subtitle={`إجمالي: ${formatCurrencyDisplay(stats.totalCancelled)}`}
+                    icon={XCircle}
+                    onClick={() => handleFilterClick('Cancelled')}
+                    active={isFilterActive('Cancelled')}
+                    themeKey="rose"
+                    size="md"
+                />
+            </div>
 
             <div className="bg-white dark:bg-gray-700 p-4 rounded-xl shadow-lg border border-teal-100 dark:border-teal-700 relative">
                  <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">البحث في الفواتير المعلقة</label>
