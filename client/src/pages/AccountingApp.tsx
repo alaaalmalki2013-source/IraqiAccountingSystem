@@ -360,7 +360,8 @@ const usePagination = (items, defaultPageSize = DEFAULT_PAGE_SIZE) => {
     const [pageSize, setPageSize] = useState(defaultPageSize);
     const [currentPage, setCurrentPage] = useState(1);
 
-    const totalItems = items.length;
+    const safeItems = Array.isArray(items) ? items : [];
+    const totalItems = safeItems.length;
     const resolvedPageSize = pageSize === 'all' ? (totalItems || defaultPageSize) : pageSize;
     const totalPages = pageSize === 'all' ? 1 : Math.max(1, Math.ceil(totalItems / resolvedPageSize));
 
@@ -377,11 +378,11 @@ const usePagination = (items, defaultPageSize = DEFAULT_PAGE_SIZE) => {
 
     const paginatedItems = useMemo(() => {
         if (pageSize === 'all') {
-            return items;
+            return safeItems;
         }
         const start = (currentPage - 1) * resolvedPageSize;
-        return items.slice(start, start + resolvedPageSize);
-    }, [items, pageSize, currentPage, resolvedPageSize]);
+        return safeItems.slice(start, start + resolvedPageSize);
+    }, [safeItems, pageSize, currentPage, resolvedPageSize]);
 
     const changePageSize = useCallback((size) => {
         setPageSize(size === 'all' ? 'all' : Number(size));
