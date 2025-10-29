@@ -4158,15 +4158,6 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                 totalItems={totalPayrollEmployees}
             />
 
-            <PaginationControls
-                pageSize={employeePageSize}
-                onPageSizeChange={changeEmployeePageSize}
-                currentPage={employeeCurrentPage}
-                totalPages={employeeTotalPages}
-                onPageChange={goToEmployeePage}
-                totalItems={totalEmployees}
-            />
-
             {/* مودال التفاصيل */}
             {isDetailsModalOpen && currentEmployee && (
                 <Modal title={`تفاصيل راتب: ${currentEmployee.name}`} onClose={() => setIsDetailsModalOpen(false)} size="xl">
