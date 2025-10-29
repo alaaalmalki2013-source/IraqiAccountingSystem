@@ -6304,6 +6304,16 @@ const UserManagementSection = React.memo(({ data, handleDataAction, showToast })
         customPermissions: {}
     });
 
+    const {
+        paginatedItems: paginatedUsers,
+        totalItems: totalUsers,
+        pageSize: usersPageSize,
+        currentPage: usersCurrentPage,
+        totalPages: usersTotalPages,
+        changePageSize: changeUsersPageSize,
+        goToPage: goToUsersPage,
+    } = usePagination(data.settings.users || []);
+
     const handleAddUser = () => {
         setEditingUser(null);
         setUserForm({
@@ -6477,7 +6487,7 @@ const UserManagementSection = React.memo(({ data, handleDataAction, showToast })
                         </tr>
                     </thead>
                     <tbody>
-                        {data.settings.users.map((user, index) => (
+                        {paginatedUsers.map((user, index) => (
                             <tr key={user.id} className={index % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-gray-50 dark:bg-gray-700'}>
                                 <td className="p-3 text-sm text-gray-800 dark:text-gray-200">{user.username}</td>
                                 <td className="p-3 text-sm text-gray-800 dark:text-gray-200">{user.password}</td>
@@ -6513,12 +6523,12 @@ const UserManagementSection = React.memo(({ data, handleDataAction, showToast })
             </div>
 
             <PaginationControls
-                pageSize={invoicePageSize}
-                onPageSizeChange={changeInvoicePageSize}
-                currentPage={invoiceCurrentPage}
-                totalPages={invoiceTotalPages}
-                onPageChange={goToInvoicePage}
-                totalItems={totalInvoices}
+                pageSize={usersPageSize}
+                onPageSizeChange={changeUsersPageSize}
+                currentPage={usersCurrentPage}
+                totalPages={usersTotalPages}
+                onPageChange={goToUsersPage}
+                totalItems={totalUsers}
             />
 
             {/* مودال إضافة/تعديل مستخدم */}
