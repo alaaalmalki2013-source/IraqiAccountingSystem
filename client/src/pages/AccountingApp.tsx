@@ -111,25 +111,82 @@ const generateClientSideId = () => {
     return `att_${Math.random().toString(16).slice(2)}_${Date.now()}`;
 };
 
+const resolveAttachmentSource = (attachment) => {
+    if (!attachment) {
+        return '';
+    }
+
+    if (typeof attachment === 'string') {
+        return attachment.trim();
+    }
+
+    return (
+        attachment.dataUrl ||
+        attachment.url ||
+        attachment.attachmentUrl ||
+        attachment.src ||
+        attachment.fileUrl ||
+        attachment.path ||
+        attachment.filePath ||
+        ''
+    );
+};
+
+const inferMimeTypeFromSource = (source, fallback = '') => {
+    if (!source) {
+        return fallback;
+    }
+
+    if (source.startsWith('data:')) {
+        const match = source.match(/^data:([^;]+);/);
+        if (match) {
+            return match[1];
+        }
+    }
+
+    const extensionMatch = source.match(/\.([a-z0-9]+)(?:[?#]|$)/i);
+    if (extensionMatch) {
+        const ext = extensionMatch[1].toLowerCase();
+        if (ext === 'pdf') {
+            return 'application/pdf';
+        }
+
+        if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].includes(ext)) {
+            return `image/${ext === 'jpg' ? 'jpeg' : ext}`;
+        }
+    }
+
+    return fallback;
+};
+
 const ensureAttachmentShape = (attachment, fallbackName = 'مرفق') => {
     if (!attachment) {
         return null;
     }
 
-    const dataUrl = attachment.dataUrl || attachment.url || attachment.attachmentUrl || attachment.src || '';
-    if (!dataUrl) {
+    if (typeof attachment === 'string') {
+        const trimmed = attachment.trim();
+        if (!trimmed) {
+            return null;
+        }
+
+        return ensureAttachmentShape({ dataUrl: trimmed, name: fallbackName }, fallbackName);
+    }
+
+    const source = resolveAttachmentSource(attachment);
+    if (!source) {
         return null;
     }
 
-    const inferredType = attachment.type || (dataUrl.startsWith('data:') ? dataUrl.slice(5, dataUrl.indexOf(';')) : '');
+    const inferredType = attachment.type || inferMimeTypeFromSource(source, '');
 
     return {
         id: attachment.id || generateClientSideId(),
         name: attachment.name || attachment.fileName || fallbackName,
         type: inferredType,
-        size: attachment.size || 0,
-        dataUrl,
-        uploadedAt: attachment.uploadedAt || new Date().toISOString(),
+        size: attachment.size || attachment.fileSize || 0,
+        dataUrl: source,
+        uploadedAt: attachment.uploadedAt || attachment.createdAt || new Date().toISOString(),
     };
 };
 
@@ -144,6 +201,11 @@ const normalizeAttachmentList = (source, fallbackUrl = '', fallbackName = 'مر�
         normalized = source
             .map(item => ensureAttachmentShape(item, item?.name || fallbackName))
             .filter(Boolean);
+    } else if (typeof source === 'string') {
+        const ensured = ensureAttachmentShape(source, fallbackName);
+        if (ensured) {
+            normalized = [ensured];
+        }
     } else if (source && typeof source === 'object') {
         const ensured = ensureAttachmentShape(source, source?.name || fallbackName);
         if (ensured) {
@@ -166,12 +228,12 @@ const getPrimaryAttachmentDataUrl = (attachments = []) => {
         return '';
     }
 
-    const primary = attachments.find(att => att && (att.dataUrl || att.url || att.attachmentUrl));
+    const primary = attachments.find(att => att && resolveAttachmentSource(att));
     if (!primary) {
         return '';
     }
 
-    return primary.dataUrl || primary.url || primary.attachmentUrl || '';
+    return resolveAttachmentSource(primary);
 };
 
 const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
@@ -219,8 +281,8 @@ const isImageAttachment = (attachment) => {
         return false;
     }
     const type = attachment.type || '';
-    const dataUrl = attachment.dataUrl || attachment.url || attachment.attachmentUrl || '';
-    return (type && type.startsWith('image')) || /^data:image\//.test(dataUrl);
+    const source = resolveAttachmentSource(attachment);
+    return (type && type.startsWith('image')) || /^data:image\//.test(source) || /\.(png|jpe?g|gif|webp|bmp|svg)(?:[?#]|$)/i.test(source);
 };
 
 const isPdfAttachment = (attachment) => {
@@ -231,16 +293,11 @@ const isPdfAttachment = (attachment) => {
     if (type.includes('pdf')) {
         return true;
     }
-    const source = attachment.dataUrl || attachment.url || attachment.attachmentUrl || '';
-    return /\.pdf($|\?)/i.test(source);
+    const source = resolveAttachmentSource(attachment);
+    return /\.pdf(?:[?#]|$)/i.test(source);
 };
 
-const getAttachmentSource = (attachment) => {
-    if (!attachment) {
-        return '';
-    }
-    return attachment.dataUrl || attachment.url || attachment.attachmentUrl || '';
-};
+const getAttachmentSource = (attachment) => resolveAttachmentSource(attachment);
 
 const useAttachmentPreviewState = (defaultName = 'مرفق') => {
     const [state, setState] = useState({ attachments: [], index: 0 });
