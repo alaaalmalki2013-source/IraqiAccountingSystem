@@ -2,7 +2,7 @@
 import { AboutPage } from "./about-content";
 import { Sidebar } from '../components/Sidebar';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import {
     Home,
@@ -52,6 +52,8 @@ import {
     MessageCircle,
     Send,
     Minimize2,
+    ZoomIn,
+    ZoomOut,
     Languages,
     FolderOpen,
     Upload,
@@ -62,12 +64,13 @@ import {
     Shield,
     FileDown,
     Mail,
-    Key
+    Key,
+    PieChart,
+    Scan
 } from 'lucide-react';
 
 // استيراد الثوابت والأنواع
 import {
-    STORAGE_KEY,
     CUSTOM_CATEGORY_COLORS,
     BASE_PERMISSIONS,
     USER_ROLES,
@@ -77,6 +80,7 @@ import {
     defaultSettings,
     defaultDataStructure
 } from '../types/accounting';
+import { normalizeSnapshotData } from '@shared/data';
 
 // استيراد الدوال المساعدة
 import {
@@ -100,9 +104,279 @@ import { useLanguage } from '../contexts/LanguageContext';
 // 2. المكونات الأساسية (UI PRIMITIVES)
 // =================================================================
 
+const generateClientSideId = () => {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+        return crypto.randomUUID();
+    }
+    return `att_${Math.random().toString(16).slice(2)}_${Date.now()}`;
+};
+
+const resolveAttachmentSource = (attachment) => {
+    if (!attachment) {
+        return '';
+    }
+
+    if (typeof attachment === 'string') {
+        return attachment.trim();
+    }
+
+    return (
+        attachment.dataUrl ||
+        attachment.url ||
+        attachment.attachmentUrl ||
+        attachment.src ||
+        attachment.fileUrl ||
+        attachment.path ||
+        attachment.filePath ||
+        ''
+    );
+};
+
+const inferMimeTypeFromSource = (source, fallback = '') => {
+    if (!source) {
+        return fallback;
+    }
+
+    if (source.startsWith('data:')) {
+        const match = source.match(/^data:([^;]+);/);
+        if (match) {
+            return match[1];
+        }
+    }
+
+    const extensionMatch = source.match(/\.([a-z0-9]+)(?:[?#]|$)/i);
+    if (extensionMatch) {
+        const ext = extensionMatch[1].toLowerCase();
+        if (ext === 'pdf') {
+            return 'application/pdf';
+        }
+
+        if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].includes(ext)) {
+            return `image/${ext === 'jpg' ? 'jpeg' : ext}`;
+        }
+    }
+
+    return fallback;
+};
+
+const ensureAttachmentShape = (attachment, fallbackName = 'مرفق') => {
+    if (!attachment) {
+        return null;
+    }
+
+    if (typeof attachment === 'string') {
+        const trimmed = attachment.trim();
+        if (!trimmed) {
+            return null;
+        }
+
+        return ensureAttachmentShape({ dataUrl: trimmed, name: fallbackName }, fallbackName);
+    }
+
+    const source = resolveAttachmentSource(attachment);
+    if (!source) {
+        return null;
+    }
+
+    const inferredType = attachment.type || inferMimeTypeFromSource(source, '');
+
+    return {
+        id: attachment.id || generateClientSideId(),
+        name: attachment.name || attachment.fileName || fallbackName,
+        type: inferredType,
+        size: attachment.size || attachment.fileSize || 0,
+        dataUrl: source,
+        uploadedAt: attachment.uploadedAt || attachment.createdAt || new Date().toISOString(),
+    };
+};
+
+const dedupeAttachments = (attachments = []) => {
+    if (!Array.isArray(attachments)) {
+        return [];
+    }
+
+    const seen = new Set();
+    return attachments.filter((attachment) => {
+        if (!attachment) {
+            return false;
+        }
+
+        const source = attachment.dataUrl || attachment.url || attachment.fileUrl || '';
+        const key = `${source}::${attachment.name || ''}`;
+        if (seen.has(key)) {
+            return false;
+        }
+
+        seen.add(key);
+        return true;
+    });
+};
+
+const normalizeAttachmentList = (source, fallbackUrl = '', fallbackName = 'مرفق') => {
+    if (!source && !fallbackUrl) {
+        return [];
+    }
+
+    let normalized = [];
+
+    if (Array.isArray(source)) {
+        normalized = source
+            .map(item => ensureAttachmentShape(item, item?.name || fallbackName))
+            .filter(Boolean);
+    } else if (typeof source === 'string') {
+        const ensured = ensureAttachmentShape(source, fallbackName);
+        if (ensured) {
+            normalized = [ensured];
+        }
+    } else if (source && typeof source === 'object') {
+        const ensured = ensureAttachmentShape(source, source?.name || fallbackName);
+        if (ensured) {
+            normalized = [ensured];
+        }
+    }
+
+    if (normalized.length === 0 && fallbackUrl) {
+        const ensured = ensureAttachmentShape({ dataUrl: fallbackUrl, name: fallbackName });
+        if (ensured) {
+            normalized = [ensured];
+        }
+    }
+
+    return dedupeAttachments(normalized);
+};
+
+const getPrimaryAttachmentDataUrl = (attachments = []) => {
+    if (!Array.isArray(attachments) || attachments.length === 0) {
+        return '';
+    }
+
+    const primary = attachments.find(att => att && resolveAttachmentSource(att));
+    if (!primary) {
+        return '';
+    }
+
+    return resolveAttachmentSource(primary);
+};
+
+const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        resolve(event?.target?.result || '');
+    };
+    reader.onerror = () => reject(new Error('failed_to_read_file'));
+    reader.readAsDataURL(file);
+});
+
+const createAttachmentFromFile = async (file) => {
+    const dataUrl = await readFileAsDataUrl(file);
+    return ensureAttachmentShape({
+        id: generateClientSideId(),
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        dataUrl,
+        uploadedAt: new Date().toISOString(),
+    });
+};
+
+const createAttachmentFromDataUrl = (dataUrl, name = 'مرفق ممسوح') => {
+    if (!dataUrl) {
+        return null;
+    }
+
+    const mimeMatch = dataUrl.match(/^data:([^;]+);/);
+    const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+    const estimatedSize = Math.round((dataUrl.length * 3) / 4);
+
+    return ensureAttachmentShape({
+        id: generateClientSideId(),
+        name,
+        type: mimeType,
+        size: estimatedSize,
+        dataUrl,
+        uploadedAt: new Date().toISOString(),
+    }, name);
+};
+
+const isImageAttachment = (attachment) => {
+    if (!attachment) {
+        return false;
+    }
+    const type = attachment.type || '';
+    const source = resolveAttachmentSource(attachment);
+    return (type && type.startsWith('image')) || /^data:image\//.test(source) || /\.(png|jpe?g|gif|webp|bmp|svg)(?:[?#]|$)/i.test(source);
+};
+
+const isPdfAttachment = (attachment) => {
+    if (!attachment) {
+        return false;
+    }
+    const type = attachment.type || '';
+    if (type.includes('pdf')) {
+        return true;
+    }
+    const source = resolveAttachmentSource(attachment);
+    return /\.pdf(?:[?#]|$)/i.test(source);
+};
+
+const getAttachmentSource = (attachment) => resolveAttachmentSource(attachment);
+
+const useAttachmentPreviewState = (defaultName = 'مرفق') => {
+    const [state, setState] = useState({ attachments: [], index: 0 });
+
+    const openPreview = useCallback((targetAttachment, collection = [], fallbackUrl = '', fallbackName = defaultName) => {
+        const effectiveName = fallbackName || defaultName || 'مرفق';
+
+        const ensuredTarget = targetAttachment
+            ? ensureAttachmentShape(targetAttachment, targetAttachment?.name || effectiveName)
+            : null;
+
+        let attachmentsList = dedupeAttachments(
+            normalizeAttachmentList(collection, fallbackUrl, effectiveName)
+                .map(item => ensureAttachmentShape(item, item?.name || effectiveName))
+                .filter(Boolean)
+        );
+
+        if (ensuredTarget) {
+            const existingIndex = attachmentsList.findIndex(att =>
+                att.id === ensuredTarget.id || att.dataUrl === ensuredTarget.dataUrl
+            );
+
+            if (existingIndex >= 0) {
+                attachmentsList[existingIndex] = ensuredTarget;
+                setState({ attachments: dedupeAttachments(attachmentsList), index: existingIndex });
+                return true;
+            }
+
+            attachmentsList = dedupeAttachments([...attachmentsList, ensuredTarget]);
+            setState({ attachments: attachmentsList, index: attachmentsList.length - 1 });
+            return true;
+        }
+
+        if (attachmentsList.length === 0) {
+            return false;
+        }
+
+        setState({ attachments: attachmentsList, index: 0 });
+        return true;
+    }, [defaultName]);
+
+    const closePreview = useCallback(() => {
+        setState({ attachments: [], index: 0 });
+    }, []);
+
+    return {
+        isOpen: state.attachments.length > 0,
+        attachments: state.attachments,
+        initialIndex: state.index,
+        openPreview,
+        closePreview,
+    };
+};
+
 // مكون التنبيه المنبثق
 const NotificationToast = React.memo(({ message, type, onClose }) => {
-    const isSuccess = type === 'success';
+    const isSuccess = type === 'success';
     const bgColor = isSuccess ? 'bg-green-50 dark:bg-green-900' : (type === 'error' ? 'bg-red-50 dark:bg-red-900' : 'bg-amber-50 dark:bg-amber-900');
     const textColor = isSuccess ? 'text-green-800 dark:text-green-200' : (type === 'error' ? 'text-red-800 dark:text-red-200' : 'text-amber-800 dark:text-amber-200');
     const Icon = isSuccess ? CheckCircle : AlertTriangle;
@@ -125,90 +399,771 @@ const NotificationToast = React.memo(({ message, type, onClose }) => {
     );
 });
 
+const ScannerCaptureModal = React.memo(({ isOpen, title, onClose, onCapture, defaultFileName = 'مرفق ممسوح' }) => {
+    const videoRef = useRef(null);
+    const streamRef = useRef(null);
+    const [isInitializing, setIsInitializing] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
+
+    const stopStream = useCallback(() => {
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+            streamRef.current = null;
+        }
+    }, []);
+
+    const initializeStream = useCallback(async () => {
+        if (!isOpen) {
+            return;
+        }
+
+        setErrorMessage('');
+        setIsInitializing(true);
+
+        try {
+            if (!navigator.mediaDevices?.getUserMedia) {
+                throw new Error('unsupported');
+            }
+
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'environment' },
+                audio: false,
+            });
+
+            streamRef.current = stream;
+
+            if (videoRef.current) {
+                videoRef.current.srcObject = stream;
+                await videoRef.current.play();
+            }
+        } catch (error) {
+            console.error('Failed to initialize scanner stream', error);
+            setErrorMessage('تعذر الوصول إلى الكاميرا. يرجى التأكد من السماح للمتصفح باستخدامها أو جرب جهازًا آخر.');
+            stopStream();
+        } finally {
+            setIsInitializing(false);
+        }
+    }, [isOpen, stopStream]);
+
+    useEffect(() => {
+        if (isOpen) {
+            initializeStream();
+        }
+
+        return () => {
+            stopStream();
+        };
+    }, [isOpen, initializeStream, stopStream]);
+
+    const handleClose = useCallback(() => {
+        stopStream();
+        onClose();
+    }, [onClose, stopStream]);
+
+    const handleCapture = useCallback(async () => {
+        if (!videoRef.current) {
+            return;
+        }
+
+        try {
+            const video = videoRef.current;
+            const canvas = document.createElement('canvas');
+            const width = video.videoWidth || 1280;
+            const height = video.videoHeight || 720;
+            canvas.width = width;
+            canvas.height = height;
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, width, height);
+
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+            const attachment = createAttachmentFromDataUrl(dataUrl, defaultFileName);
+
+            if (attachment && typeof onCapture === 'function') {
+                onCapture(attachment);
+            }
+
+            handleClose();
+        } catch (error) {
+            console.error('Failed to capture scanner frame', error);
+            setErrorMessage('حدث خطأ أثناء التقاط الصورة. يرجى المحاولة مرة أخرى.');
+        }
+    }, [defaultFileName, handleClose, onCapture]);
+
+    if (!isOpen) {
+        return null;
+    }
+
+    return (
+        <Modal title={title || 'مسح المستند عبر السكنر'} onClose={handleClose} size="xl">
+            <div className="space-y-4">
+                {errorMessage && (
+                    <div className="p-3 rounded-xl bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-200 text-sm font-semibold">
+                        {errorMessage}
+                    </div>
+                )}
+
+                <div className="relative rounded-2xl overflow-hidden bg-black">
+                    <video
+                        ref={videoRef}
+                        playsInline
+                        autoPlay
+                        muted
+                        className="w-full h-full object-contain max-h-[60vh]"
+                    />
+                    {isInitializing && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/60 text-white text-sm">
+                            جاري تهيئة الكاميرا...
+                        </div>
+                    )}
+                </div>
+
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <p className="text-sm text-gray-600 dark:text-gray-300">
+                        وجّه المستند أمام الكاميرا ثم اضغط زر المسح لحفظه كصورة ضمن المرفقات.
+                    </p>
+                    <button
+                        type="button"
+                        onClick={handleCapture}
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white shadow-lg transition"
+                        disabled={isInitializing}
+                    >
+                        <Scan className="w-5 h-5" />
+                        مسح المستند الآن
+                    </button>
+                </div>
+            </div>
+        </Modal>
+    );
+});
+
 // حقل إدخال موحد
-const InputField = React.memo(({ label, type = 'text', value, onChange, placeholder, required = false, currency = false, children, inputKey = label, readOnly = false, textarea = false, onBlur, className = '' }) => ( 
-    <div className="flex flex-col space-y-1 text-right">
-        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{label}</label>
-        <div className="relative">
-            {textarea ? (
-                <textarea
-                    value={value}
-                    onChange={onChange}
-                    onBlur={onBlur} 
-                    placeholder={placeholder}
-                    required={required}
-                    onInvalid={(e) => e.target.setCustomValidity(required ? 'هذا الحقل إجباري، يرجى ملئه.' : '')}
-                    onInput={(e) => e.target.setCustomValidity('')}
-                    readOnly={readOnly}
-                    key={inputKey} 
-                    rows="4"
-                    className={`w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl transition duration-150 ${readOnly ? 'bg-gray-100 dark:bg-gray-600' : 'bg-white dark:bg-gray-700 focus:ring-teal-500 focus:border-teal-500 dark:text-white'} ${className}`}
-                />
-            ) : (
-                <input
-                    type={type === 'number' && !currency ? 'tel' : type} // استخدام tel للأرقام لتحسين تجربة الجوال، و التعامل مع نوع text للحقول النقدية في الأغلب
-                    value={value}
-                    onChange={(e) => {
-                        if (currency || type === 'number') {
-                            // **الحل الجذري للأرقام العربية في جميع أماكن المبالغ:**
-                            let newValue = e.target.value;
-                            // 1. تحويل الأرقام العربية إلى إنجليزية
-                            newValue = convertArabicToEnglish(newValue);
-                            // 2. إزالة أي رموز غير الأرقام والنقطة لضمان النظافة
-                            newValue = newValue.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'); 
-                            onChange({ target: { value: newValue } });
-                        } else {
-                            onChange(e);
-                        }
-                    }}
-                    onBlur={onBlur} 
-                    placeholder={placeholder}
-                    required={required}
-                    onInvalid={(e) => e.target.setCustomValidity(required ? 'هذا الحقل إجباري، يرجى ملئه.' : '')}
-                    onInput={(e) => e.target.setCustomValidity('')}
-                    readOnly={readOnly}
-                    key={inputKey} 
-                    className={`w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl transition duration-150 ${currency ? 'pr-14 text-right dir-ltr' : ''} ${readOnly ? 'bg-gray-100 dark:bg-gray-600' : 'bg-white dark:bg-gray-700 focus:ring-teal-500 focus:border-teal-500 dark:text-white'} ${className}`}
-                />
-            )}
-            
-            {currency && <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-sm text-gray-500 dark:text-gray-400 font-bold">د.ع.</span>}
-            {children} 
-        </div>
-    </div>
-));
+const InputField = React.memo(({ label, type = 'text', value, onChange, placeholder, required = false, currency = false, children, inputKey = label, readOnly = false, textarea = false, onBlur, className = '' }) => {
+    const fieldRef = React.useRef(null);
+
+    React.useEffect(() => {
+        if (required && value !== undefined && value !== null && value !== '') {
+            fieldRef.current?.setCustomValidity('');
+        }
+    }, [value, required]);
+
+    return (
+        <div className="flex flex-col space-y-1 text-right">
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{label}</label>
+            <div className="relative">
+                {textarea ? (
+                    <textarea
+                        ref={fieldRef}
+                        value={value}
+                        onChange={onChange}
+                        onBlur={onBlur}
+                        placeholder={placeholder}
+                        required={required}
+                        onInvalid={(e) => e.target.setCustomValidity(required ? 'هذا الحقل إجباري، يرجى ملئه.' : '')}
+                        onInput={(e) => e.target.setCustomValidity('')}
+                        readOnly={readOnly}
+                        key={inputKey}
+                        rows="4"
+                        className={`w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl transition duration-150 ${readOnly ? 'bg-gray-100 dark:bg-gray-600' : 'bg-white dark:bg-gray-700 focus:ring-teal-500 focus:border-teal-500 dark:text-white'} ${className}`}
+                    />
+                ) : (
+                    <input
+                        ref={fieldRef}
+                        type={type === 'number' && !currency ? 'tel' : type} // استخدام tel للأرقام لتحسين تجربة الجوال، و التعامل مع نوع text للحقول النقدية في الأغلب
+                        value={value}
+                        onChange={(e) => {
+                            if (currency || type === 'number') {
+                                // **الحل الجذري للأرقام العربية في جميع أماكن المبالغ:**
+                                let newValue = e.target.value;
+                                // 1. تحويل الأرقام العربية إلى إنجليزية
+                                newValue = convertArabicToEnglish(newValue);
+                                // 2. إزالة أي رموز غير الأرقام والنقطة لضمان النظافة
+                                newValue = newValue.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+                                onChange({ target: { value: newValue } });
+                            } else {
+                                onChange(e);
+                            }
+                        }}
+                        onBlur={onBlur}
+                        placeholder={placeholder}
+                        required={required}
+                        onInvalid={(e) => e.target.setCustomValidity(required ? 'هذا الحقل إجباري، يرجى ملئه.' : '')}
+                        onInput={(e) => e.target.setCustomValidity('')}
+                        readOnly={readOnly}
+                        key={inputKey}
+                        className={`w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl transition duration-150 ${currency ? 'pr-14 text-right dir-ltr' : ''} ${readOnly ? 'bg-gray-100 dark:bg-gray-600' : 'bg-white dark:bg-gray-700 focus:ring-teal-500 focus:border-teal-500 dark:text-white'} ${className}`}
+                    />
+                )}
+
+                {currency && <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-sm text-gray-500 dark:text-gray-400 font-bold">د.ع.</span>}
+                {children}
+            </div>
+        </div>
+    );
+});
+
+const FILTER_CARD_THEMES = {
+    teal: {
+        bg: 'bg-teal-50 dark:bg-teal-900/30',
+        activeBg: 'bg-teal-100 dark:bg-teal-900/50',
+        text: 'text-teal-800 dark:text-teal-200',
+        activeText: 'text-teal-900 dark:text-teal-100',
+        border: 'border-teal-400 dark:border-teal-500',
+        iconBg: 'bg-white/50 dark:bg-black/30'
+    },
+    rose: {
+        bg: 'bg-rose-50 dark:bg-rose-900/30',
+        activeBg: 'bg-rose-100 dark:bg-rose-900/50',
+        text: 'text-rose-800 dark:text-rose-200',
+        activeText: 'text-rose-900 dark:text-rose-100',
+        border: 'border-rose-400 dark:border-rose-500',
+        iconBg: 'bg-white/50 dark:bg-black/30'
+    },
+    purple: {
+        bg: 'bg-purple-50 dark:bg-purple-900/30',
+        activeBg: 'bg-purple-100 dark:bg-purple-900/50',
+        text: 'text-purple-800 dark:text-purple-200',
+        activeText: 'text-purple-900 dark:text-purple-100',
+        border: 'border-purple-400 dark:border-purple-500',
+        iconBg: 'bg-white/50 dark:bg-black/30'
+    },
+    amber: {
+        bg: 'bg-amber-50 dark:bg-amber-900/30',
+        activeBg: 'bg-amber-100 dark:bg-amber-900/50',
+        text: 'text-amber-800 dark:text-amber-200',
+        activeText: 'text-amber-900 dark:text-amber-100',
+        border: 'border-amber-400 dark:border-amber-500',
+        iconBg: 'bg-white/60 dark:bg-black/20'
+    },
+    orange: {
+        bg: 'bg-orange-50 dark:bg-orange-900/30',
+        activeBg: 'bg-orange-100 dark:bg-orange-900/50',
+        text: 'text-orange-800 dark:text-orange-200',
+        activeText: 'text-orange-900 dark:text-orange-100',
+        border: 'border-orange-400 dark:border-orange-500',
+        iconBg: 'bg-white/50 dark:bg-black/30'
+    },
+    emerald: {
+        bg: 'bg-emerald-50 dark:bg-emerald-900/30',
+        activeBg: 'bg-emerald-100 dark:bg-emerald-900/50',
+        text: 'text-emerald-800 dark:text-emerald-200',
+        activeText: 'text-emerald-900 dark:text-emerald-100',
+        border: 'border-emerald-400 dark:border-emerald-500',
+        iconBg: 'bg-white/50 dark:bg-black/30'
+    },
+    slate: {
+        bg: 'bg-slate-50 dark:bg-slate-800/40',
+        activeBg: 'bg-slate-100 dark:bg-slate-800/60',
+        text: 'text-slate-700 dark:text-slate-200',
+        activeText: 'text-slate-900 dark:text-slate-100',
+        border: 'border-slate-400 dark:border-slate-500',
+        iconBg: 'bg-white/40 dark:bg-black/20'
+    },
+    blue: {
+        bg: 'bg-blue-50 dark:bg-blue-900/30',
+        activeBg: 'bg-blue-100 dark:bg-blue-900/50',
+        text: 'text-blue-800 dark:text-blue-200',
+        activeText: 'text-blue-900 dark:text-blue-100',
+        border: 'border-blue-400 dark:border-blue-500',
+        iconBg: 'bg-white/50 dark:bg-black/30'
+    },
+    gray: {
+        bg: 'bg-gray-50 dark:bg-gray-800/40',
+        activeBg: 'bg-gray-100 dark:bg-gray-800/60',
+        text: 'text-gray-700 dark:text-gray-200',
+        activeText: 'text-gray-900 dark:text-white',
+        border: 'border-gray-300 dark:border-gray-500',
+        iconBg: 'bg-white/40 dark:bg-black/20'
+    }
+};
+
+const DEBT_TYPES = {
+    MANUAL: 'manual',
+    INVENTORY: 'inventoryCredit',
+};
+
+const DEBT_TYPE_LABELS = {
+    [DEBT_TYPES.MANUAL]: 'الديون السابقة',
+    [DEBT_TYPES.INVENTORY]: 'فواتير آجلة',
+};
+
+const mergeFilterThemes = (baseTheme, customTheme) => {
+    if (!customTheme) {
+        return baseTheme;
+    }
+
+    const mergeClasses = (baseValue, customValue) => {
+        if (!customValue) {
+            return baseValue;
+        }
+        return `${baseValue} ${customValue}`;
+    };
+
+    return {
+        ...baseTheme,
+        bg: mergeClasses(baseTheme.bg, customTheme.bg),
+        activeBg: mergeClasses(baseTheme.activeBg, customTheme.bg),
+        text: mergeClasses(baseTheme.text, customTheme.text),
+        activeText: mergeClasses(baseTheme.activeText, customTheme.text),
+        border: mergeClasses(baseTheme.border, customTheme.border),
+    };
+};
+
+const FilterStatCard = React.memo(({
+    title,
+    value,
+    subtitle,
+    meta,
+    icon: Icon,
+    onClick,
+    active = false,
+    themeKey = 'teal',
+    customTheme = null,
+    size = 'sm',
+    dataTestId,
+    disabled = false
+}) => {
+    const baseTheme = FILTER_CARD_THEMES[themeKey] || FILTER_CARD_THEMES.gray;
+    const theme = mergeFilterThemes(baseTheme, customTheme);
+
+    const padding = size === 'md' ? 'p-5' : 'p-4';
+    const valueSize = size === 'md' ? 'text-2xl' : 'text-xl';
+    const titleSize = size === 'md' ? 'text-sm' : 'text-xs';
+    const subtitleSize = size === 'md' ? 'text-sm' : 'text-xs';
+    const metaSize = size === 'md' ? 'text-xs' : 'text-[11px]';
+    const iconPadding = size === 'md' ? 'p-3' : 'p-2';
+    const iconSize = size === 'md' ? 'w-6 h-6' : 'w-5 h-5';
+
+    const cardClasses = [
+        'relative overflow-hidden rounded-2xl transition-all duration-300 flex flex-col justify-between text-right',
+        disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer',
+        active ? 'border-4 shadow-2xl scale-[1.01]' : 'border-2 shadow-md hover:-translate-y-1 hover:shadow-lg',
+        theme.border,
+        active ? theme.activeBg : theme.bg,
+        active ? theme.activeText : theme.text,
+        padding
+    ].filter(Boolean).join(' ');
+
+    const contentTextClass = active ? theme.activeText : theme.text;
+
+    return (
+        <div
+            className={cardClasses}
+            onClick={disabled ? undefined : onClick}
+            data-testid={dataTestId}
+        >
+            <div className="flex items-center justify-between gap-3">
+                <div className={`flex-1 space-y-1 ${contentTextClass}`}>
+                    <p className={`${titleSize} font-semibold leading-tight`}>{title}</p>
+                    {value !== undefined && (
+                        <p className={`font-extrabold ${valueSize}`}>{value}</p>
+                    )}
+                    {subtitle && (
+                        <p className={`${subtitleSize} font-medium`}>{subtitle}</p>
+                    )}
+                </div>
+                {Icon && (
+                    <div className={`flex items-center justify-center rounded-xl ${theme.iconBg} ${contentTextClass} ${iconPadding}`}>
+                        <Icon className={`${iconSize} text-current`} />
+                    </div>
+                )}
+            </div>
+            {meta && (
+                <p className={`${metaSize} font-medium mt-3 ${contentTextClass}`}>{meta}</p>
+            )}
+        </div>
+    );
+});
+
+const PAGE_SIZE_OPTIONS = [50, 100, 200, 'all'];
+const DEFAULT_PAGE_SIZE = 100;
+
+const usePagination = (items, defaultPageSize = DEFAULT_PAGE_SIZE) => {
+    const [pageSize, setPageSize] = useState(defaultPageSize);
+    const [currentPage, setCurrentPage] = useState(1);
+
+    const safeItems = Array.isArray(items) ? items : [];
+    const totalItems = safeItems.length;
+    const resolvedPageSize = pageSize === 'all' ? (totalItems || defaultPageSize) : pageSize;
+    const totalPages = pageSize === 'all' ? 1 : Math.max(1, Math.ceil(totalItems / resolvedPageSize));
+
+    useEffect(() => {
+        setCurrentPage(prev => {
+            const nextPage = Math.min(prev, Math.max(totalPages, 1));
+            return nextPage || 1;
+        });
+    }, [totalPages]);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [totalItems]);
+
+    const paginatedItems = useMemo(() => {
+        if (pageSize === 'all') {
+            return safeItems;
+        }
+        const start = (currentPage - 1) * resolvedPageSize;
+        return safeItems.slice(start, start + resolvedPageSize);
+    }, [safeItems, pageSize, currentPage, resolvedPageSize]);
+
+    const changePageSize = useCallback((size) => {
+        setPageSize(size === 'all' ? 'all' : Number(size));
+        setCurrentPage(1);
+    }, []);
+
+    const goToPage = useCallback((page) => {
+        setCurrentPage(prev => {
+            const nextPage = Math.min(Math.max(page, 1), Math.max(totalPages, 1));
+            return nextPage;
+        });
+    }, [totalPages]);
+
+    return {
+        paginatedItems,
+        totalItems,
+        pageSize,
+        currentPage,
+        totalPages,
+        changePageSize,
+        goToPage,
+    };
+};
+
+const PaginationControls = React.memo(({ pageSize, onPageSizeChange, currentPage, totalPages, onPageChange, totalItems }) => {
+    const normalizedPageSize = pageSize === 'all' ? 'all' : Number(pageSize);
+
+    return (
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 py-4">
+            <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                <span>عرض</span>
+                <select
+                    value={normalizedPageSize}
+                    onChange={(e) => onPageSizeChange(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                    className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 focus:ring-teal-500 focus:border-teal-500"
+                >
+                    {PAGE_SIZE_OPTIONS.map(option => (
+                        <option key={option} value={option === 'all' ? 'all' : option}>
+                            {option === 'all' ? 'الكل' : option}
+                        </option>
+                    ))}
+                </select>
+                <span>سجل لكل صفحة</span>
+            </div>
+            <div className="flex items-center gap-2">
+                <button
+                    onClick={() => onPageChange(currentPage - 1)}
+                    disabled={currentPage <= 1 || totalPages <= 1}
+                    className="flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    <ChevronRight className="w-4 h-4" />
+                    السابق
+                </button>
+                <span className="text-sm text-gray-600 dark:text-gray-300">
+                    صفحة {Math.min(currentPage, Math.max(totalPages, 1))} من {Math.max(totalPages, 1)}
+                </span>
+                <button
+                    onClick={() => onPageChange(currentPage + 1)}
+                    disabled={currentPage >= totalPages || totalPages <= 1}
+                    className="flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    التالي
+                    <ChevronLeft className="w-4 h-4" />
+                </button>
+            </div>
+            <div className="text-sm text-gray-500 dark:text-gray-400 text-right lg:text-left">
+                إجمالي السجلات: {totalItems}
+            </div>
+        </div>
+    );
+});
 
 // زر الإجراءات
-const ActionButton = ({ onClick, children, className = 'bg-teal-600 hover:bg-teal-700', type = 'button', disabled = false }) => ( 
-    <button
-        onClick={onClick}
-        type={type}
-        disabled={disabled}
-        className={`px-6 py-3 text-white rounded-xl shadow-lg transition duration-200 flex items-center justify-center space-x-2 space-x-reverse font-semibold ${className} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-    >
-        {children}
-    </button>
+const ActionButton = ({ onClick, children, className = '', type = 'button', disabled = false }) => (
+    <button
+        onClick={onClick}
+        type={type}
+        disabled={disabled}
+        className={`px-6 py-3 rounded-xl shadow-lg transition duration-200 flex items-center justify-center space-x-2 space-x-reverse font-semibold text-white bg-teal-600 hover:bg-teal-700 ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${className}`.trim()}
+    >
+        {children}
+    </button>
 );
 
 // نافذة المودال
-const Modal = ({ title, children, onClose, size = 'lg', isPrintModal = false }) => (
-    <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
-        <div className={`bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-h-[90vh] overflow-y-auto transform transition-all duration-300 scale-100 
-            ${size === 'lg' ? 'max-w-md md:max-w-xl' : size === 'xl' ? 'max-w-3xl' : 'max-w-4xl'} 
-            ${isPrintModal ? 'bg-white/90 dark:bg-gray-800/90 backdrop-filter backdrop-blur-sm' : ''}
-        `} onClick={e => e.stopPropagation()}>
-            <div className="flex justify-between items-center p-4 border-b border-teal-100 dark:border-teal-700 bg-teal-50 dark:bg-teal-900/30 rounded-t-3xl">
-                <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200 flex-grow text-center">{title}</h3> 
-                <button onClick={onClose} className="flex items-center justify-center text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition p-1 bg-white dark:bg-gray-700 rounded-full">
-                    <X className="w-5 h-5 md:w-6 md:h-6" />
-                </button>
-            </div>
-            <div className="p-6">
-                {children}
-            </div>
-        </div>
-    </div>
-);
+const Modal = ({ title, children, onClose, size = 'lg', isPrintModal = false }) => {
+        const sizeClass = size === 'sm'
+                ? 'max-w-sm md:max-w-md'
+                : size === 'md'
+                        ? 'max-w-lg'
+			: size === 'lg'
+				? 'max-w-md md:max-w-xl'
+				: size === 'xl'
+					? 'max-w-3xl'
+					: size === '2xl'
+						? 'max-w-5xl'
+						: size === 'full'
+							? 'max-w-6xl'
+							: 'max-w-4xl';
+
+	return (
+		<div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
+			<div className={`bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-h-[90vh] overflow-y-auto transform transition-all duration-300 scale-100
+				${sizeClass}
+				${isPrintModal ? 'bg-white/90 dark:bg-gray-800/90 backdrop-filter backdrop-blur-sm' : ''}
+			`} onClick={e => e.stopPropagation()}>
+				<div className="flex justify_between items-center p-4 border-b border-teal-100 dark:border-teal-700 bg-teal-50 dark:bg-teal-900/30 rounded-t-3xl">
+					<h3 className="text-xl font-bold text-gray-800 dark:text-gray-200 flex-grow text-center">{title}</h3>
+					<button onClick={onClose} className="flex items-center justify-center text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition p-1 bg-white dark:bg-gray-700 rounded-full">
+						<X className="w-5 h-5 md:w-6 md:h-6" />
+					</button>
+				</div>
+				<div className="p-6">
+					{children}
+				</div>
+			</div>
+                </div>
+        );
+};
+
+const AttachmentPreviewModal = React.memo(({ attachments = [], initialIndex = 0, onClose, title = 'معاينة المرفقات' }) => {
+    const sanitizedAttachments = useMemo(
+        () => attachments.map(att => ensureAttachmentShape(att, att?.name || 'مرفق')).filter(Boolean),
+        [attachments]
+    );
+
+    const safeIndex = sanitizedAttachments.length > 0
+        ? Math.min(Math.max(initialIndex, 0), sanitizedAttachments.length - 1)
+        : 0;
+
+    const [currentIndex, setCurrentIndex] = useState(safeIndex);
+    const [zoom, setZoom] = useState(1);
+    const [transformOrigin, setTransformOrigin] = useState('50% 50%');
+
+    useEffect(() => {
+        setCurrentIndex(safeIndex);
+    }, [safeIndex, sanitizedAttachments.length]);
+
+    useEffect(() => {
+        setZoom(1);
+        setTransformOrigin('50% 50%');
+    }, [currentIndex, sanitizedAttachments.length]);
+
+    const currentAttachment = sanitizedAttachments[currentIndex];
+    const source = currentAttachment ? getAttachmentSource(currentAttachment) : '';
+    const isImage = currentAttachment ? isImageAttachment(currentAttachment) : false;
+    const isPdf = currentAttachment ? isPdfAttachment(currentAttachment) : false;
+
+    const toggleZoom = useCallback(() => {
+        setZoom(prev => (prev === 1 ? 2 : Math.max(1, prev - 1)));
+    }, []);
+
+    const handleMouseMove = useCallback((event) => {
+        if (zoom <= 1) {
+            return;
+        }
+        const rect = event.currentTarget.getBoundingClientRect();
+        const relativeX = ((event.clientX - rect.left) / rect.width) * 100;
+        const relativeY = ((event.clientY - rect.top) / rect.height) * 100;
+        setTransformOrigin(`${relativeX}% ${relativeY}%`);
+    }, [zoom]);
+
+    const handleMouseLeave = useCallback(() => {
+        if (zoom <= 1) {
+            return;
+        }
+        setTransformOrigin('50% 50%');
+    }, [zoom]);
+
+    const goPrevious = useCallback(() => {
+        if (sanitizedAttachments.length <= 1) {
+            return;
+        }
+        setCurrentIndex(prev => (prev - 1 + sanitizedAttachments.length) % sanitizedAttachments.length);
+    }, [sanitizedAttachments.length]);
+
+    const goNext = useCallback(() => {
+        if (sanitizedAttachments.length <= 1) {
+            return;
+        }
+        setCurrentIndex(prev => (prev + 1) % sanitizedAttachments.length);
+    }, [sanitizedAttachments.length]);
+
+    return (
+        <Modal title={title} onClose={onClose} size="xl">
+            <div className="space-y-4">
+                {sanitizedAttachments.length === 0 || !currentAttachment ? (
+                    <p className="text-center text-sm text-gray-500 dark:text-gray-400">لا توجد مرفقات متاحة للعرض.</p>
+                ) : (
+                    <>
+                        <div className="flex items-center justify-between gap-4 text-sm text-gray-600 dark:text-gray-300">
+                            <div className="flex flex-col gap-1">
+                                <span className="font-semibold text-gray-700 dark:text-gray-200">{currentAttachment.name}</span>
+                                {currentAttachment.uploadedAt && (
+                                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                                        تاريخ الرفع: {formatDateTimeDDMMYYYY(currentAttachment.uploadedAt)}
+                                    </span>
+                                )}
+                            </div>
+                            {source && (
+                                <div className="flex items-center gap-2">
+                                    <a
+                                        href={source}
+                                        download={currentAttachment.name || 'attachment'}
+                                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition"
+                                    >
+                                        <Download className="w-4 h-4" />
+                                        تنزيل
+                                    </a>
+                                    <a
+                                        href={source}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition"
+                                    >
+                                        <ExternalLink className="w-4 h-4" />
+                                        فتح في تبويب
+                                    </a>
+                                </div>
+                            )}
+                        </div>
+
+                        {isImage ? (
+                            <div className="relative">
+                                {sanitizedAttachments.length > 1 && (
+                                    <>
+                                        <button
+                                            type="button"
+                                            onClick={goPrevious}
+                                            className="absolute -right-12 top-1/2 -translate-y-1/2 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 shadow p-2"
+                                            aria-label="السابق"
+                                        >
+                                            <ChevronRight className="w-5 h-5" />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={goNext}
+                                            className="absolute -left-12 top-1/2 -translate-y-1/2 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 shadow p-2"
+                                            aria-label="التالي"
+                                        >
+                                            <ChevronLeft className="w-5 h-5" />
+                                        </button>
+                                    </>
+                                )}
+
+                                <div
+                                    className={`relative overflow-hidden border border-gray-200 dark:border-gray-700 rounded-2xl bg-gray-50 dark:bg-gray-900 ${zoom > 1 ? 'cursor-zoom-out' : 'cursor-zoom-in'}`}
+                                    onClick={toggleZoom}
+                                    onMouseMove={handleMouseMove}
+                                    onMouseLeave={handleMouseLeave}
+                                >
+                                    <img
+                                        src={source}
+                                        alt={currentAttachment.name}
+                                        className="mx-auto max-h-[70vh] w-auto select-none"
+                                        style={{
+                                            transform: `scale(${zoom})`,
+                                            transformOrigin,
+                                            transition: zoom === 1 ? 'transform 0.25s ease-out' : 'transform 0.05s ease-out',
+                                        }}
+                                        draggable={false}
+                                    />
+                                </div>
+
+                                <div className="mt-2 flex items-center justify-center gap-3 text-xs text-gray-500 dark:text-gray-400">
+                                    <button
+                                        type="button"
+                                        onClick={() => setZoom(prev => Math.max(1, Number((prev - 0.25).toFixed(2))))}
+                                        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700"
+                                    >
+                                        <ZoomOut className="w-4 h-4" />
+                                        تصغير
+                                    </button>
+                                    <span>{zoom > 1 ? 'حرّك مؤشر الفأرة للتحريك.' : 'اضغط للتكبير ثم حرك الفأرة.'}</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => setZoom(prev => Math.min(4, Number((prev + 0.25).toFixed(2))))}
+                                        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700"
+                                    >
+                                        <ZoomIn className="w-4 h-4" />
+                                        تكبير
+                                    </button>
+                                </div>
+                            </div>
+                        ) : isPdf ? (
+                            <div className="h-[70vh] border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden bg-white dark:bg-gray-900">
+                                <object data={source} type="application/pdf" className="w-full h-full">
+                                    <iframe src={source} title={currentAttachment.name} className="w-full h-full" />
+                                </object>
+                            </div>
+                        ) : source ? (
+                            <div className="space-y-3 text-center text-sm text-gray-500 dark:text-gray-400">
+                                <p>لا يمكن عرض هذا النوع من الملفات داخل النظام، ولكن يمكنك تنزيله أو فتحه في تبويب جديد.</p>
+                                <div className="flex justify-center gap-3">
+                                    <a
+                                        href={source}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition"
+                                    >
+                                        <ExternalLink className="w-4 h-4" />
+                                        فتح في تبويب جديد
+                                    </a>
+                                    <a
+                                        href={source}
+                                        download={currentAttachment.name || 'attachment'}
+                                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-teal-600 text-white hover:bg-teal-700 transition"
+                                    >
+                                        <Download className="w-4 h-4" />
+                                        تنزيل المرفق
+                                    </a>
+                                </div>
+                            </div>
+                        ) : (
+                            <p className="text-center text-sm text-gray-500 dark:text-gray-400">لا يتوفر مسار صالح لعرض هذا المرفق.</p>
+                        )}
+
+                        {sanitizedAttachments.length > 1 && (
+                            <div className="pt-4 border-t border-dashed border-gray-200 dark:border-gray-700">
+                                <div className="flex flex-wrap justify-center gap-3">
+                                    {sanitizedAttachments.map((attachment, index) => {
+                                        const attachmentSource = getAttachmentSource(attachment);
+                                        const attachmentIsImage = isImageAttachment(attachment);
+                                        const isActive = index === currentIndex;
+
+                                        return (
+                                            <button
+                                                key={attachment.id || `${attachment.name}-${index}`}
+                                                type="button"
+                                                onClick={() => setCurrentIndex(index)}
+                                                className={`flex flex-col items-center gap-2 px-3 py-2 rounded-xl border transition ${isActive
+                                                    ? 'border-teal-500 bg-teal-50 dark:bg-teal-900/30'
+                                                    : 'border-gray-200 bg-white dark:bg-gray-800 dark:border-gray-700 hover:border-teal-400'}`}
+                                            >
+                                                {attachmentIsImage && attachmentSource ? (
+                                                    <img
+                                                        src={attachmentSource}
+                                                        alt={attachment.name}
+                                                        className="h-14 w-20 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
+                                                    />
+                                                ) : (
+                                                    <div className="h-14 w-20 flex items-center justify-center rounded-lg border border-dashed border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-300 text-xs text-center px-2">
+                                                        {isPdfAttachment(attachment) ? 'ملف PDF' : 'ملف مرفق'}
+                                                    </div>
+                                                )}
+                                                <span className="text-xs font-medium text-gray-600 dark:text-gray-300 truncate max-w-[6rem]">
+                                                    {attachment.name}
+                                                </span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+                    </>
+                )}
+            </div>
+        </Modal>
+    );
+});
 
 // مكون طباعة الفاتورة الفردية
 const PrintInvoice = React.memo(({ item, onClose, companyName, companyLogoUrl, employees }) => {
@@ -443,45 +1398,291 @@ const PrintReportModal = React.memo(({ reportData, title, onClose, companyName, 
  * 3.1. Dashboard Component
  */
 const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
-    const { revenues, expenses, suspended, advances, employees, payroll } = data;
+    const { revenues, expenses, suspended, advances, employees, payroll } = data;
     const { t } = useLanguage();
 
-    // استخدام useMemo لضمان عدم إعادة الحساب إلا عند الضرورة
-    const summaryData = useMemo(() => {
-        const totalRevenues = revenues.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
-        const totalExpenses = expenses.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
-        const totalAdvances = advances.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
-        const totalSuspended = suspended.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
-        const totalSalaries = employees.reduce((sum, emp) => sum + parseFloat(emp.salary || 0), 0);
-        
+    const currentYear = useMemo(() => new Date().getFullYear(), []);
+    const currentMonth = useMemo(() => new Date().getMonth() + 1, []);
+    const initialRange = useMemo(() => getCurrentMonthRange(), []);
+    const [filterDateFrom, setFilterDateFrom] = useState(initialRange.start);
+    const [filterDateTo, setFilterDateTo] = useState(initialRange.end);
+    const [selectedMonth, setSelectedMonth] = useState(() => String(currentMonth));
+    const [selectedYear, setSelectedYear] = useState(() => String(currentYear));
 
-        // تجميع الإيرادات حسب الفئة
-        const revenueByCategory = revenues.reduce((acc, item) => {
-            acc[item.category] = (acc[item.category] || 0) + (parseFloat(item.amount) || 0);
-            return acc;
-        }, {});
-        
-        // تجميع الصرفيات حسب الفئة
-        const expenseByCategory = expenses.reduce((acc, item) => {
-            acc[item.category] = (acc[item.category] || 0) + (parseFloat(item.amount) || 0);
-            return acc;
-        }, {});
+    const monthOptions = useMemo(() => {
+        const names = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+        const base = names.map((name, index) => ({
+            value: String(index + 1),
+            label: `${String(index + 1).padStart(2, '0')} - ${name}`
+        }));
+        return [
+            { value: 'all', label: 'كل الأشهر' },
+            ...base,
+            { value: 'custom', label: 'نطاق مخصص' }
+        ];
+    }, []);
+
+    const getRecordDate = useCallback((record) => {
+        if (!record) return null;
+        const candidate = record.date || record.createdAt || record.entryDate || record.dispatchedAt || record.updatedAt;
+        if (!candidate) return null;
+
+        if (typeof candidate === 'string') {
+            if (candidate.length >= 10) {
+                return candidate.slice(0, 10);
+            }
+            const parsed = new Date(candidate);
+            return isNaN(parsed.getTime()) ? null : parsed.toISOString().slice(0, 10);
+        }
+
+        if (candidate instanceof Date) {
+            return candidate.toISOString().slice(0, 10);
+        }
+
+        const parsed = new Date(candidate);
+        return isNaN(parsed.getTime()) ? null : parsed.toISOString().slice(0, 10);
+    }, []);
+
+    const yearOptions = useMemo(() => {
+        const years = new Set();
+        const registerYears = (list) => {
+            (list || []).forEach(item => {
+                const dateValue = getRecordDate(item);
+                if (dateValue) {
+                    years.add(dateValue.slice(0, 4));
+                }
+            });
+        };
+
+        registerYears(revenues);
+        registerYears(expenses);
+        registerYears(advances);
+        registerYears(suspended);
+
+        (payroll || []).forEach(item => {
+            if (item?.year) {
+                years.add(String(item.year));
+            }
+        });
+
+        years.add(String(currentYear));
+
+        return Array.from(years)
+            .filter(Boolean)
+            .sort((a, b) => parseInt(b, 10) - parseInt(a, 10));
+    }, [revenues, expenses, advances, suspended, payroll, getRecordDate, currentYear]);
+
+    const isDateWithinSelectedRange = useCallback((startDate, endDate = startDate) => {
+        if (!filterDateFrom && !filterDateTo) {
+            return true;
+        }
+
+        if (!startDate && !endDate) {
+            return false;
+        }
+
+        const effectiveStart = startDate || endDate;
+        const effectiveEnd = endDate || startDate;
+
+        if (filterDateFrom && effectiveEnd < filterDateFrom) {
+            return false;
+        }
+
+        if (filterDateTo && effectiveStart > filterDateTo) {
+            return false;
+        }
+
+        return true;
+    }, [filterDateFrom, filterDateTo]);
+
+    const filterRecordsByDate = useCallback((records) => {
+        if (!Array.isArray(records)) {
+            return [];
+        }
+
+        return records.filter(record => {
+            const isoDate = getRecordDate(record);
+            return isDateWithinSelectedRange(isoDate, isoDate);
+        });
+    }, [getRecordDate, isDateWithinSelectedRange]);
+
+    const filteredRevenues = useMemo(() => filterRecordsByDate(revenues), [revenues, filterRecordsByDate]);
+    const filteredExpenses = useMemo(() => filterRecordsByDate(expenses), [expenses, filterRecordsByDate]);
+    const filteredAdvances = useMemo(() => filterRecordsByDate(advances), [advances, filterRecordsByDate]);
+    const filteredSuspended = useMemo(() => filterRecordsByDate(suspended), [suspended, filterRecordsByDate]);
+
+    const filteredPayroll = useMemo(() => {
+        if (!Array.isArray(payroll)) {
+            return [];
+        }
+
+        return payroll.filter(record => {
+            const monthNumber = parseInt(record?.month, 10);
+            const yearNumber = parseInt(record?.year, 10);
+
+            if (!monthNumber || !yearNumber) {
+                return !filterDateFrom && !filterDateTo;
+            }
+
+            const start = `${yearNumber}-${String(monthNumber).padStart(2, '0')}-01`;
+            const endDay = new Date(yearNumber, monthNumber, 0).getDate();
+            const end = `${yearNumber}-${String(monthNumber).padStart(2, '0')}-${String(endDay).padStart(2, '0')}`;
+
+            return isDateWithinSelectedRange(start, end);
+        });
+    }, [payroll, filterDateFrom, filterDateTo, isDateWithinSelectedRange]);
+
+    const updateRangeForSelection = useCallback((monthValue, yearValue) => {
+        if (monthValue === 'custom') {
+            return;
+        }
+
+        if (!monthValue && !yearValue) {
+            setFilterDateFrom('');
+            setFilterDateTo('');
+            return;
+        }
+
+        const parsedYear = yearValue ? parseInt(yearValue, 10) : null;
+
+        if (monthValue === 'all') {
+            if (parsedYear) {
+                setFilterDateFrom(`${parsedYear}-01-01`);
+                setFilterDateTo(`${parsedYear}-12-31`);
+            } else {
+                setFilterDateFrom('');
+                setFilterDateTo('');
+            }
+            return;
+        }
+
+        if (monthValue) {
+            const monthNumber = parseInt(monthValue, 10);
+            if (Number.isFinite(monthNumber)) {
+                const effectiveYear = parsedYear ?? currentYear;
+                const start = `${effectiveYear}-${String(monthNumber).padStart(2, '0')}-01`;
+                const endDay = new Date(effectiveYear, monthNumber, 0).getDate();
+                const end = `${effectiveYear}-${String(monthNumber).padStart(2, '0')}-${String(endDay).padStart(2, '0')}`;
+                setFilterDateFrom(start);
+                setFilterDateTo(end);
+            }
+        } else if (parsedYear) {
+            setFilterDateFrom(`${parsedYear}-01-01`);
+            setFilterDateTo(`${parsedYear}-12-31`);
+        }
+    }, [currentYear]);
+
+    const handleMonthSelect = useCallback((value) => {
+        setSelectedMonth(value);
+
+        if (value === 'custom') {
+            return;
+        }
+
+        if (value === 'all') {
+            updateRangeForSelection(value, selectedYear);
+            return;
+        }
+
+        if (!selectedYear) {
+            const fallbackYear = String(currentYear);
+            setSelectedYear(fallbackYear);
+            updateRangeForSelection(value, fallbackYear);
+        } else {
+            updateRangeForSelection(value, selectedYear);
+        }
+    }, [selectedYear, updateRangeForSelection, currentYear]);
+
+    const handleYearSelect = useCallback((value) => {
+        setSelectedYear(value);
+
+        if (!value) {
+            if (selectedMonth === 'all') {
+                setFilterDateFrom('');
+                setFilterDateTo('');
+            }
+            return;
+        }
+
+        if (selectedMonth !== 'custom') {
+            updateRangeForSelection(selectedMonth, value);
+        }
+    }, [selectedMonth, updateRangeForSelection]);
+
+    const handleDateFromChange = useCallback((value) => {
+        setFilterDateFrom(value);
+
+        if (!value && !filterDateTo) {
+            setSelectedMonth('all');
+            setSelectedYear('');
+            return;
+        }
+
+        setSelectedMonth('custom');
+    }, [filterDateTo]);
+
+    const handleDateToChange = useCallback((value) => {
+        setFilterDateTo(value);
+
+        if (!value && !filterDateFrom) {
+            setSelectedMonth('all');
+            setSelectedYear('');
+            return;
+        }
+
+        setSelectedMonth('custom');
+    }, [filterDateFrom]);
+
+    const handleResetToCurrent = useCallback(() => {
+        setSelectedMonth(String(currentMonth));
+        setSelectedYear(String(currentYear));
+        setFilterDateFrom(initialRange.start);
+        setFilterDateTo(initialRange.end);
+    }, [currentMonth, currentYear, initialRange.start, initialRange.end]);
+
+    const handleShowAll = useCallback(() => {
+        setSelectedMonth('all');
+        setSelectedYear('');
+        setFilterDateFrom('');
+        setFilterDateTo('');
+    }, []);
+
+    // استخدام useMemo لضمان عدم إعادة الحساب إلا عند الضرورة
+    const summaryData = useMemo(() => {
+        const totalRevenues = filteredRevenues.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+        const totalExpenses = filteredExpenses.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+        const totalAdvances = filteredAdvances.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+        const totalSuspended = filteredSuspended.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+        const totalSalaries = employees.reduce((sum, emp) => sum + parseFloat(emp.salary || 0), 0);
+
+
+        // تجميع الإيرادات حسب الفئة
+        const revenueByCategory = filteredRevenues.reduce((acc, item) => {
+            acc[item.category] = (acc[item.category] || 0) + (parseFloat(item.amount) || 0);
+            return acc;
+        }, {});
+
+        // تجميع الصرفيات حسب الفئة
+        const expenseByCategory = filteredExpenses.reduce((acc, item) => {
+            acc[item.category] = (acc[item.category] || 0) + (parseFloat(item.amount) || 0);
+            return acc;
+        }, {});
 
 
         // حساب مجموع الرواتب المدفوعة
-        const totalPaidSalaries = payroll ? payroll.reduce((sum, payrollRecord) => {
+        const totalPaidSalaries = filteredPayroll.length > 0 ? filteredPayroll.reduce((sum, payrollRecord) => {
             if (!payrollRecord.isPaid) return sum;
-            
+
             // إيجاد الموظف المرتبط بسجل الرواتب
             const employee = employees.find(emp => emp.id === payrollRecord.employeeId);
             if (!employee) return sum;
-            
+
             const baseSalary = parseFloat(employee.salary) || 0;
             let bonuses = 0;
             let deductions = 0;
             let absenceAmount = 0;
             let overtimeAmount = 0;
-            
+
             // حساب التعديلات
             if (payrollRecord.adjustments) {
                 payrollRecord.adjustments.forEach(adj => {
@@ -492,29 +1693,29 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
                     if (adj.type === 'overtime') overtimeAmount += amount;
                 });
             }
-            
+
             // حساب الراتب الإجمالي (قبل خصم السلف)
             // ملاحظة: السلف تُخصم بشكل منفصل في معادلة رصيد الصندوق
             const grossSalary = baseSalary + bonuses + overtimeAmount - deductions - absenceAmount;
-            
+
             return sum + grossSalary;
         }, 0) : 0;
 
         // حساب الصندوق: الإيرادات - (المصروفات + السلف + المعلقة + الرواتب المدفوعة)
         const totalCashFund = totalRevenues - (totalExpenses + totalAdvances + totalSuspended + totalPaidSalaries);
 
-        return {
-            totalRevenues,
-            totalExpenses,
-            totalAdvances,
-            totalSuspended,
-            totalSalaries,
+        return {
+            totalRevenues,
+            totalExpenses,
+            totalAdvances,
+            totalSuspended,
+            totalSalaries,
             totalPaidSalaries,
-            totalCashFund,
-            revenueByCategory,
-            expenseByCategory
-        };
-    }, [revenues, expenses, suspended, advances, employees, payroll]);
+            totalCashFund,
+            revenueByCategory,
+            expenseByCategory
+        };
+    }, [filteredRevenues, filteredExpenses, filteredAdvances, filteredSuspended, employees, filteredPayroll]);
 
     const primaryCards = [
         { 
@@ -579,9 +1780,80 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
 
     return (
         <div className="space-y-8 p-8 bg-gradient-to-br from-white to-gray-50 dark:from-gray-900 dark:to-gray-800 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700">
-            <h2 className="text-4xl font-extrabold bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent border-b-2 border-blue-500 dark:border-blue-400 pb-3">{ t("dashboard") }</h2>
+            <h2 className="text-4xl font-extrabold bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent border-b-2 border-blue-500 dark:border-blue-400 pb-3">{ t("dashboard") }</h2>
 
-            {upcomingBirthdays.length > 0 && (
+            <div className="bg-white/90 dark:bg-gray-900/60 border border-gray-200 dark:border-gray-700 rounded-3xl shadow-xl p-6">
+                <div className="flex flex-col xl:flex-row gap-4 xl:items-end justify-between">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 flex-1">
+                        <div className="flex flex-col text-right">
+                            <label className="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-1">من تاريخ</label>
+                            <input
+                                type="date"
+                                value={filterDateFrom}
+                                onChange={(e) => handleDateFromChange(e.target.value)}
+                                className="w-full rounded-2xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2.5 text-gray-700 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
+                        <div className="flex flex-col text-right">
+                            <label className="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-1">إلى تاريخ</label>
+                            <input
+                                type="date"
+                                value={filterDateTo}
+                                onChange={(e) => handleDateToChange(e.target.value)}
+                                className="w-full rounded-2xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2.5 text-gray-700 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
+                        <div className="flex flex-col text-right">
+                            <label className="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-1">اختر الشهر</label>
+                            <select
+                                value={selectedMonth}
+                                onChange={(e) => handleMonthSelect(e.target.value)}
+                                className="w-full rounded-2xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2.5 text-gray-700 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
+                            >
+                                {monthOptions.map(option => (
+                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="flex flex-col text-right">
+                            <label className="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-1">اختر السنة</label>
+                            <select
+                                value={selectedYear}
+                                onChange={(e) => handleYearSelect(e.target.value)}
+                                className="w-full rounded-2xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2.5 text-gray-700 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
+                            >
+                                <option value="">اختر السنة</option>
+                                {yearOptions.map(year => (
+                                    <option key={year} value={year}>{year}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-3 justify-end w-full xl:w-auto">
+                        <button
+                            onClick={handleResetToCurrent}
+                            className="inline-flex items-center justify-center rounded-2xl bg-blue-500 text-white px-5 py-2.5 text-sm font-semibold shadow-lg hover:bg-blue-600 transition-colors"
+                        >
+                            <CalendarCheck className="w-4 h-4 ml-2" />
+                            شهر حالي
+                        </button>
+                        <button
+                            onClick={handleShowAll}
+                            className="inline-flex items-center justify-center rounded-2xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 px-5 py-2.5 text-sm font-semibold shadow-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                        >
+                            <RotateCcw className="w-4 h-4 ml-2" />
+                            إظهار الكل
+                        </button>
+                    </div>
+                </div>
+                {(filterDateFrom || filterDateTo) && (
+                    <div className="mt-4 text-right text-sm text-blue-700 dark:text-blue-300">
+                        <span>النطاق الحالي: {filterDateFrom || 'غير محدد'} → {filterDateTo || 'غير محدد'}</span>
+                    </div>
+                )}
+            </div>
+
+            {upcomingBirthdays.length > 0 && (
                 <div className="bg-gradient-to-r from-pink-100 to-rose-100 dark:from-pink-950/50 dark:to-rose-950/50 border-l-4 border-pink-500 dark:border-pink-400 p-6 rounded-2xl shadow-xl">
                     <h3 className="text-2xl font-bold text-pink-800 dark:text-pink-200 flex items-center mb-2">
                         <Gift className="w-6 h-6 ml-2" />
@@ -693,10 +1965,11 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
 /**
  * 3.2. DataPage Component (لإدارة الإيرادات، الصرفيات، السلف، المعلقة)
  */
-const DataPageComponent = React.memo(({ 
-    type, title, collectionName, fields, categories, data, 
-    handleDataAction, handleDelete, setPrintItem, setPrintReportData, 
-    setIsReportModalOpen, showToast, initialExpenseState, handleRefresh, setInitialExpenseState
+const DataPageComponent = React.memo(({
+    type, title, collectionName, fields, categories, data,
+    handleDataAction, handleDelete, setPrintItem, setPrintReportData,
+    setIsReportModalOpen, showToast, initialExpenseState, handleRefresh, setInitialExpenseState,
+    openScanner,
 }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [currentItem, setCurrentItem] = useState(null);
@@ -706,43 +1979,91 @@ const DataPageComponent = React.memo(({ 
     const initialRange = useMemo(() => getCurrentMonthRange(), []);
     const [filterDateFrom, setFilterDateFrom] = useState(initialRange.start);
     const [filterDateTo, setFilterDateTo] = useState(initialRange.end);
-    const [filterCategory, setFilterCategory] = useState('الكل');
-    const [globalSearch, setGlobalSearch] = useState('');
+    const [filterCategory, setFilterCategory] = useState('الكل');
+    const [globalSearch, setGlobalSearch] = useState('');
     const [filterStatus, setFilterStatus] = useState('active'); // فلتر الحالة: active, cancelled, all
+    const isSearchActive = useMemo(() => globalSearch.trim().length > 0, [globalSearch]);
+    const emptyStateColSpan = useMemo(() => {
+        const base = 2; // التاريخ + الإجراءات
+        const vendorColumn = collectionName === 'expenses' ? 1 : 0;
+        const invoiceColumn = collectionName !== 'revenues' ? 1 : 0;
+        const attachmentsColumn = collectionName === 'expenses' ? 1 : 0;
+        return fields.length + base + vendorColumn + invoiceColumn + attachmentsColumn;
+    }, [fields.length, collectionName]);
     
     // دالة تهيئة النماذج لتبسيط useEffect
-    const getInitialFormState = useCallback((item = null, initialDispatch = null) => {
-        const defaultForm = fields.reduce((acc, field) => ({ ...acc, [field.key]: field.defaultValue || '' }), {});
-        
-        let baseState = item ? item : {
-            ...defaultForm,
-            date: getDefaultDateTime(),
-            employeeId: collectionName === 'advances' ? data.employees[0]?.id || '' : ''
-        };
+    const getInitialFormState = useCallback((item = null, initialDispatch = null) => {
+        const defaultForm = fields.reduce((acc, field) => ({ ...acc, [field.key]: field.defaultValue || '' }), {});
 
-        if (initialDispatch && collectionName === 'expenses' && !item) {
-            baseState = {
-                ...baseState,
-                amount: initialDispatch.amount.toString(),
-                category: initialDispatch.category, 
-                description: initialDispatch.description,
-                vendor: initialDispatch.vendor,
-                representative: initialDispatch.representative,
-                invoiceImageUrl: initialDispatch.invoiceImageUrl,
-                inventoryItems: initialDispatch.inventoryItems, 
-            };
-        }
+        let baseState = item ? item : {
+            ...defaultForm,
+            date: getDefaultDateTime(),
+            employeeId: collectionName === 'advances' ? data.employees[0]?.id || '' : '',
+        };
 
-        return baseState;
-    }, [fields, collectionName, data.employees]);
+        if (initialDispatch && collectionName === 'expenses' && !item) {
+            baseState = {
+                ...baseState,
+                amount: initialDispatch.amount.toString(),
+                category: initialDispatch.category,
+                description: initialDispatch.description,
+                vendor: initialDispatch.vendor,
+                representative: initialDispatch.representative,
+                invoiceImageUrl: initialDispatch.invoiceImageUrl,
+                inventoryItems: initialDispatch.inventoryItems,
+                linkedDebtId: initialDispatch.linkedDebtId,
+                linkedDebtPaymentId: initialDispatch.linkedDebtPaymentId,
+            };
+        }
 
-    const [formState, setFormState] = useState(() => getInitialFormState(currentItem, initialExpenseState));
-    const [selectedVendor, setSelectedVendor] = useState(collectionName === 'expenses' && formState.vendor ? formState.vendor : '');
+        const baseId = item?.id || initialDispatch?.id || baseState?.id || null;
 
-    // إعادة تهيئة FormState عند تغيير currentItem أو initialExpenseState
-    useEffect(() => {
-        setFormState(getInitialFormState(currentItem, initialExpenseState));
-        if (collectionName === 'expenses') {
+        if (collectionName === 'expenses') {
+            const attachments = normalizeAttachmentList(
+                item?.attachments || initialDispatch?.attachments,
+                item?.invoiceImageUrl || initialDispatch?.invoiceImageUrl,
+                'مرفق'
+            );
+
+            baseState = {
+                ...baseState,
+                attachments,
+                invoiceImageUrl: getPrimaryAttachmentDataUrl(attachments) || baseState.invoiceImageUrl || '',
+            };
+        } else {
+            baseState = {
+                ...baseState,
+                attachments: normalizeAttachmentList(item?.attachments, item?.invoiceImageUrl, 'مرفق'),
+            };
+        }
+
+        baseState = {
+            ...baseState,
+            invoiceNumber: item?.invoiceNumber || initialDispatch?.invoiceNumber || baseState?.invoiceNumber || '',
+        };
+
+        return {
+            ...baseState,
+            id: baseId,
+        };
+    }, [fields, collectionName, data.employees]);
+
+    const [formState, setFormState] = useState(() => getInitialFormState(currentItem, initialExpenseState));
+    const [selectedVendor, setSelectedVendor] = useState(collectionName === 'expenses' && formState.vendor ? formState.vendor : '');
+    const attachmentsList = Array.isArray(formState.attachments) ? formState.attachments : [];
+    const {
+        isOpen: isAttachmentPreviewOpen,
+        attachments: attachmentPreviewList,
+        initialIndex: attachmentPreviewIndex,
+        openPreview: openAttachmentPreview,
+        closePreview: closeAttachmentPreview,
+    } = useAttachmentPreviewState('مرفق');
+    const scannerAvailable = typeof openScanner === 'function';
+
+    // إعادة تهيئة FormState عند تغيير currentItem أو initialExpenseState
+    useEffect(() => {
+        setFormState(getInitialFormState(currentItem, initialExpenseState));
+        if (collectionName === 'expenses') {
             setSelectedVendor(currentItem?.vendor || initialExpenseState?.vendor || '');
         }
     }, [currentItem, initialExpenseState, getInitialFormState, collectionName]);
@@ -756,33 +2077,88 @@ const DataPageComponent = React.memo(({ 
     }, [initialExpenseState]); // Added initialExpenseState to dependency array
     
     // **جديد:** كروت الفئات
-    const categoryTotals = useMemo(() => {
-        const totals = data[collectionName].reduce((acc, item) => {
-            const category = item.category || 'غير مصنف';
-            acc[category] = (acc[category] || 0) + (parseFloat(item.amount) || 0);
-            return acc;
-        }, {});
-        // تحويل الكائن إلى مصفوفة لسهولة العرض
-        return Object.keys(totals).map(category => ({
-            category,
-            total: totals[category],
-            // تحديد اللون بناءً على نوع الصفحة
-            color: type === 'revenue' ? 'green' : 'red'
-        }));
-    }, [data, collectionName, type]);
+    const dateScopedCategorySource = useMemo(() => {
+        if (collectionName === 'suspended') {
+            return [];
+        }
+
+        const sourceList = Array.isArray(data[collectionName]) ? data[collectionName] : [];
+
+        return sourceList.filter(item => {
+            if (!item?.date) {
+                // في حال عدم توفر تاريخ للسجل، يتم تضمينه فقط عندما لا يكون هناك فلتر تاريخ محدد
+                return !filterDateFrom && !filterDateTo;
+            }
+
+            const rawDate = typeof item.date === 'string'
+                ? item.date
+                : new Date(item.date).toISOString();
+            const itemDate = rawDate.slice(0, 10);
+
+            if (filterDateFrom && itemDate < filterDateFrom) {
+                return false;
+            }
+
+            if (filterDateTo && itemDate > filterDateTo) {
+                return false;
+            }
+
+            return true;
+        });
+    }, [data, collectionName, filterDateFrom, filterDateTo]);
+
+    const categoryTotals = useMemo(() => {
+        if (dateScopedCategorySource.length === 0) {
+            return [];
+        }
+
+        const totals = dateScopedCategorySource.reduce((acc, item) => {
+            const category = item.category || 'غير مصنف';
+            acc[category] = (acc[category] || 0) + (parseFloat(item.amount) || 0);
+            return acc;
+        }, {} as Record<string, number>);
+
+        return Object.keys(totals).map(category => ({
+            category,
+            total: totals[category],
+            color: type === 'revenue' ? 'green' : 'red'
+        }));
+    }, [dateScopedCategorySource, type]);
+
+    const [activeCategories, setActiveCategories] = useState([]);
+
+    useEffect(() => {
+        setActiveCategories(prev => prev.filter(category =>
+            categoryTotals.some(cat => cat.category === category)
+        ));
+    }, [categoryTotals]);
     
-    const [activeCategories, setActiveCategories] = useState([]);
-    
-    const handleCategoryCardClick = (category) => {
-        setActiveCategories(prev => {
-            if (prev.includes(category)) {
-                return prev.filter(cat => cat !== category);
-            } else {
-                return [...prev, category];
-            }
-        });
-    };
-    
+    const handleCategoryCardClick = (category) => {
+        setActiveCategories(prev => {
+            if (prev.includes(category)) {
+                return prev.filter(cat => cat !== category);
+            } else {
+                return [...prev, category];
+            }
+        });
+    };
+
+    const handleShowAllRecords = useCallback(() => {
+        setFilterDateFrom('');
+        setFilterDateTo('');
+        setFilterCategory('الكل');
+        setActiveCategories([]);
+        setGlobalSearch('');
+    }, []);
+
+    const handleResetFiltersToMonth = useCallback(() => {
+        setFilterDateFrom(initialRange.start);
+        setFilterDateTo(initialRange.end);
+        setFilterCategory('الكل');
+        setActiveCategories([]);
+        setGlobalSearch('');
+    }, [initialRange.start, initialRange.end]);
+
     // دالة مساعدة لتحديد حالة الفلتر النشطة
     const isFilterActive = (category) => {
         return activeCategories.includes(category);
@@ -805,51 +2181,83 @@ const DataPageComponent = React.memo(({ 
             }
         }
         
-        if (globalSearch) {
-            const searchLower = normalizeTextForSearch(globalSearch); 
-            const searchNumeric = normalizeTextForSearch(globalSearch, true); 
-            
-            list = list.filter(item => {
-                // البحث النصي
-                const matchesInvoice = item.invoiceNumber && normalizeTextForSearch(item.invoiceNumber).includes(searchLower);
-                const matchesCategory = item.category && normalizeTextForSearch(item.category).includes(searchLower);
-                const matchesDescription = item.description && normalizeTextForSearch(item.description).includes(searchLower);
-                const matchesNotes = item.notes && normalizeTextForSearch(item.notes).includes(searchLower);
-                const matchesRecipient = item.recipientName && normalizeTextForSearch(item.recipientName).includes(searchLower);
-                const matchesVendor = item.vendor && normalizeTextForSearch(item.vendor).includes(searchLower);
-                const matchesRep = item.representative && normalizeTextForSearch(item.representative).includes(searchLower);
-                const matchesEmployee = item.employeeId && data.employees.find(e => e.id === item.employeeId)?.name && normalizeTextForSearch(data.employees.find(e => e.id === item.employeeId).name).includes(searchLower);
-                
-                // البحث الرقمي (للمبالغ)
-                const matchesAmount = item.amount && normalizeTextForSearch(item.amount.toString(), true).includes(searchNumeric);
+        if (globalSearch) {
+            const searchLower = normalizeTextForSearch(globalSearch);
+            const searchNumeric = normalizeTextForSearch(globalSearch, true);
+            const hasTextSearch = searchLower.length > 0;
+            const hasNumericSearch = searchNumeric.length > 0;
 
+            list = list.filter(item => {
+                let textMatches = false;
+                if (hasTextSearch) {
+                    const matchesInvoice = item.invoiceNumber && normalizeTextForSearch(item.invoiceNumber).includes(searchLower);
+                    const matchesCategory = item.category && normalizeTextForSearch(item.category).includes(searchLower);
+                    const matchesDescription = item.description && normalizeTextForSearch(item.description).includes(searchLower);
+                    const matchesNotes = item.notes && normalizeTextForSearch(item.notes).includes(searchLower);
+                    const matchesRecipient = item.recipientName && normalizeTextForSearch(item.recipientName).includes(searchLower);
+                    const matchesVendor = item.vendor && normalizeTextForSearch(item.vendor).includes(searchLower);
+                    const matchesRep = item.representative && normalizeTextForSearch(item.representative).includes(searchLower);
+                    const employeeName = item.employeeId ? data.employees.find(e => e.id === item.employeeId)?.name : '';
+                    const matchesEmployee = employeeName && normalizeTextForSearch(employeeName).includes(searchLower);
 
-                return matchesInvoice || matchesCategory || matchesDescription || matchesRecipient || matchesAmount || matchesVendor || matchesRep || matchesNotes || matchesEmployee;
-            });
-        }
+                    textMatches = matchesInvoice || matchesCategory || matchesDescription || matchesRecipient || matchesVendor || matchesRep || matchesNotes || matchesEmployee;
+                }
+
+                const numericMatches = hasNumericSearch
+                    ? !!(item.amount && normalizeTextForSearch(item.amount.toString(), true).includes(searchNumeric))
+                    : false;
+
+                return textMatches || numericMatches;
+            });
+        }
         return list;
     }, [data, collectionName, filterDateFrom, filterDateTo, filterCategory, globalSearch, activeCategories]);
 
-    const totalFilteredAmount = useMemo(() => {
-        return filteredList.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0);
-    }, [filteredList]);
+    const totalFilteredAmount = useMemo(() => {
+        return filteredList.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0);
+    }, [filteredList]);
+
+    const {
+        paginatedItems: paginatedList,
+        totalItems: totalFilteredItems,
+        pageSize: listPageSize,
+        currentPage: listCurrentPage,
+        totalPages: listTotalPages,
+        changePageSize: changeListPageSize,
+        goToPage: goToListPage,
+    } = usePagination(filteredList);
 
 
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        
-        let itemToSave = collectionName === 'expenses' ? {
-            ...formState,
-            vendor: selectedVendor,
-            // Pass inventory items only if present (i.e., this came from dispatch flow)
-            inventoryItems: formState.inventoryItems || [],
-        } : formState;
-        
-        // تحقق إضافي لحقول المصروفات
+    const handleSubmit = (e) => {
+        e.preventDefault();
+
+        let itemToSave = collectionName === 'expenses' ? {
+            ...formState,
+            vendor: selectedVendor,
+            // Pass inventory items only if present (i.e., this came from dispatch flow)
+            inventoryItems: formState.inventoryItems || [],
+        } : formState;
+
+        if (collectionName === 'expenses') {
+            const normalizedAttachments = normalizeAttachmentList(itemToSave.attachments, itemToSave.invoiceImageUrl, 'مرفق');
+            itemToSave = {
+                ...itemToSave,
+                attachments: normalizedAttachments,
+                invoiceImageUrl: getPrimaryAttachmentDataUrl(normalizedAttachments),
+            };
+
+            const normalizedInvoiceNumber = convertArabicToEnglish((itemToSave.invoiceNumber || '').trim());
+            itemToSave = {
+                ...itemToSave,
+                invoiceNumber: normalizedInvoiceNumber,
+            };
+        }
+
+        // تحقق إضافي لحقول المصروفات
         if (collectionName === 'expenses' && itemToSave.vendor && !itemToSave.representative) {
             showToast('يجب اختيار المندوب عند اختيار المورد.', 'error');
-            return;
-        }
+            return;
+        }
 
 
         handleDataAction(collectionName, itemToSave, !currentItem);
@@ -868,18 +2276,102 @@ const DataPageComponent = React.memo(({ 
         setIsModalOpen(true);
     };
     
-    const handlePrint = (item) => {
-        setPrintItem({ 
-            ...item, 
-            collectionName, 
-            employeeName: item.employeeId ? data.employees.find(e => e.id === item.employeeId)?.name : null
-        });
-    };
-    
-    const handlePrintAll = () => {
-        if (filteredList.length === 0) {
-             showToast('لا توجد بيانات لطباعة التقرير.', "error");
-             return;
+    const handlePrint = (item) => {
+        setPrintItem({
+            ...item,
+            collectionName,
+            employeeName: item.employeeId ? data.employees.find(e => e.id === item.employeeId)?.name : null
+        });
+    };
+
+    const handleAttachmentsUpload = async (event) => {
+        if (collectionName !== 'expenses') {
+            return;
+        }
+
+        const files = Array.from(event.target.files || []);
+        if (files.length === 0) {
+            return;
+        }
+
+        try {
+            const newAttachments = await Promise.all(files.map(createAttachmentFromFile));
+            setFormState(prev => {
+                const existing = Array.isArray(prev.attachments) ? prev.attachments : [];
+                const updated = [...existing, ...newAttachments];
+                return {
+                    ...prev,
+                    attachments: updated,
+                    invoiceImageUrl: getPrimaryAttachmentDataUrl(updated),
+                };
+            });
+            showToast('تم تحميل المرفقات بنجاح.', 'success');
+        } catch (error) {
+            console.error('Failed to upload attachments', error);
+            showToast('تعذر تحميل المرفقات. يرجى المحاولة مرة أخرى.', 'error');
+        } finally {
+            event.target.value = '';
+        }
+    };
+
+    const handleScanAttachment = useCallback(() => {
+        if (collectionName !== 'expenses' || typeof openScanner !== 'function') {
+            return;
+        }
+
+        const timestamp = new Date().toISOString().split('T')[0];
+
+        openScanner({
+            title: 'مسح فاتورة المصروف',
+            defaultFileName: `فاتورة-${timestamp}`,
+            onCapture: (attachment) => {
+                if (!attachment) {
+                    return;
+                }
+                setFormState(prev => {
+                    const existing = Array.isArray(prev.attachments) ? prev.attachments : [];
+                    const updated = [...existing, attachment];
+                    return {
+                        ...prev,
+                        attachments: updated,
+                        invoiceImageUrl: getPrimaryAttachmentDataUrl(updated),
+                    };
+                });
+                showToast('تم التقاط صورة الفاتورة عبر السكنر.', 'success');
+            },
+        });
+    }, [collectionName, openScanner, showToast]);
+
+    const removeAttachment = (attachmentId) => {
+        if (collectionName !== 'expenses') {
+            return;
+        }
+        setFormState(prev => {
+            const existing = Array.isArray(prev.attachments) ? prev.attachments : [];
+            const updated = existing.filter(att => att.id !== attachmentId);
+            return {
+                ...prev,
+                attachments: updated,
+                invoiceImageUrl: getPrimaryAttachmentDataUrl(updated),
+            };
+        });
+    };
+
+    const handleAttachmentPreview = (attachment, collection = [], fallbackUrl = '', fallbackName = 'مرفق') => {
+        if (!attachment) {
+            return;
+        }
+
+        const opened = openAttachmentPreview(attachment, collection, fallbackUrl, fallbackName);
+        if (!opened) {
+            showToast('تعذر فتح المرفق لعدم توفر بيانات صالحة.', 'warning');
+        }
+    };
+
+    const handlePrintAll = () => {
+        if (filteredList.length === 0) {
+             showToast('لا توجد بيانات لطباعة التقرير.', "error");
+             return;
         }
         const exportContent = filteredList.map(item => {
             const baseItem = {
@@ -940,7 +2432,6 @@ const DataPageComponent = React.memo(({ 
         // إنشاء صف واحد كمثال
         const exampleRow = {
             'التاريخ (yyyy-mm-dd)': '2025-01-01',
-            'رقم الفاتورة': 'INV001',
             'المبلغ': 100000,
         };
         
@@ -1015,7 +2506,7 @@ const DataPageComponent = React.memo(({ 
                         const newItem = {
                             id: crypto.randomUUID(),
                             date: row['التاريخ (yyyy-mm-dd)'] ? `${row['التاريخ (yyyy-mm-dd)']}T${new Date().toTimeString().slice(0, 5)}` : getDefaultDateTime(),
-                            invoiceNumber: row['رقم الفاتورة'] || generateInvoiceNumber(),
+                            invoiceNumber: generateInvoiceNumber(),
                             amount: parseFloat(row['المبلغ']) || 0,
                         };
                         
@@ -1050,6 +2541,9 @@ const DataPageComponent = React.memo(({ 
                 showToast(`تم استيراد ${successCount} سجل بنجاح${errorCount > 0 ? ` (${errorCount} خطأ)` : ''}`, successCount > 0 ? 'success' : 'error');
                 setIsImportModalOpen(false);
                 setSelectedFile(null);
+                if (typeof handleRefresh === 'function') {
+                    handleRefresh();
+                }
             } catch (error) {
                 console.error('خطأ في قراءة ملف Excel:', error);
                 showToast('حدث خطأ في قراءة ملف Excel', 'error');
@@ -1095,81 +2589,91 @@ const DataPageComponent = React.memo(({ 
                         )}
 
                         {collectionName !== 'suspended' && (
-                            <>
-                                <div className="flex flex-col space-y-1">
-                                    <label className="text-sm font-medium text-gray-600 dark:text-gray-400">التاريخ من</label>
-                                    <input
-                                        type="date"
-                                        value={filterDateFrom}
-                                        onChange={(e) => setFilterDateFrom(e.target.value)}
-                                        className="p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500"
-                                    />
-                                </div>
+                            <>
+                                <div className="flex flex-col space-y-1">
+                                    <label className="text-sm font-medium text-gray-600 dark:text-gray-400">التاريخ من</label>
+                                    <input
+                                        type="date"
+                                        value={filterDateFrom}
+                                        onChange={(e) => setFilterDateFrom(e.target.value)}
+                                        className="p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500"
+                                    />
+                                </div>
 
-                                <div className="flex flex-col space-y-1">
-                                    <label className="text-sm font-medium text-gray-600 dark:text-gray-400">التاريخ إلى</label>
-                                    <input
-                                        type="date"
-                                        value={filterDateTo}
-                                        onChange={(e) => setFilterDateTo(e.target.value)}
-                                        className="p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500"
-                                    />
-                                </div>
+                                <div className="flex flex-col space-y-1">
+                                    <label className="text-sm font-medium text-gray-600 dark:text-gray-400">التاريخ إلى</label>
+                                    <input
+                                        type="date"
+                                        value={filterDateTo}
+                                        onChange={(e) => setFilterDateTo(e.target.value)}
+                                        className="p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500"
+                                    />
+                                </div>
 
-                                {/* تم إخفاء قائمة الفئة التقليدية لتشجيع استخدام الكروت */
-                                 categories && categories.length > 0 && collectionName !== 'advances' && (
-                                    <div className="flex flex-col space-y-1 hidden"> 
-                                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400">الفئة</label>
-                                        <select
-                                            value={filterCategory}
-                                            onChange={(e) => setFilterCategory(e.target.value)}
-                                            className="p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500"
-                                        >
-                                            <option value="الكل">الكل</option>
-                                            {categories.map(cat => (
-                                                <option key={cat} value={cat}>{cat}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                )}
-                            </>
-                        )}
+                                {/* تم إخفاء قائمة الفئة التقليدية لتشجيع استخدام الكروت */}
+                                {categories && categories.length > 0 && collectionName !== 'advances' && (
+                                    <div className="flex flex-col space-y-1 hidden">
+                                        <label className="text-sm font-medium text-gray-600 dark:text-gray-400">الفئة</label>
+                                        <select
+                                            value={filterCategory}
+                                            onChange={(e) => setFilterCategory(e.target.value)}
+                                            className="p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500"
+                                        >
+                                            <option value="الكل">الكل</option>
+                                            {categories.map(cat => (
+                                                <option key={cat} value={cat}>{cat}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
+
+                                <div className="md:col-span-3 flex flex-wrap gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={handleShowAllRecords}
+                                        className="flex items-center justify-center gap-2 px-4 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-semibold shadow-sm transition"
+                                    >
+                                        <Eye className="w-4 h-4" />
+                                        عرض الكل
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleResetFiltersToMonth}
+                                        className="flex items-center justify-center gap-2 px-4 py-3 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-300 dark:hover:bg-gray-500 transition font-semibold"
+                                    >
+                                        <CalendarCheck className="w-4 h-4" />
+                                        تصفية الشهر الحالي
+                                    </button>
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
             </div>
 
             {/* **جديد:** كروت الفئات (Multiple Select) */}
-            {categoryTotals.length > 0 && (
-                <div className="space-y-4">
-                    <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4 flex items-center gap-2">
-                        <Filter className="w-5 h-5 ml-2" />
-                        فلترة حسب فئة {type === 'revenue' ? 'الإيراد' : 'الصرف'}
-                    </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                        {categoryTotals.map(cat => {
-                            const customColor = CUSTOM_CATEGORY_COLORS[cat.category] || (cat.color === 'green' ? { bg: 'bg-green-50 dark:bg-green-900', text: 'text-green-800 dark:text-green-200', border: 'border-green-500' } : { bg: 'bg-red-50 dark:bg-red-900', text: 'text-red-800 dark:text-red-200', border: 'border-red-500' });
-                            return (
-                                <div 
-                                    key={cat.category}
-                                    onClick={() => handleCategoryCardClick(cat.category)}
-                                    className={`p-4 rounded-2xl shadow-lg cursor-pointer transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl
-                                        ${isFilterActive(cat.category) 
-                                            ? `${customColor.bg.replace('-50', '-200').replace('-100', '-200')} ${customColor.border.replace('border-', 'ring-4 ring-opacity-60 ring-')} ${customColor.text.replace('-800', '-900')}`
-                                            : `${customColor.bg} ${customColor.text} ${customColor.border}`
-                                        }
-                                    `}
-                                    style={{ 
-                                        '--ring-current': customColor.border.replace('border-', '') // لتحديد لون الـ ring
-                                    }}
-                                >
-                                    <p className="text-sm font-semibold">{cat.category}</p>
-                                    <p className="text-xl font-extrabold">{formatCurrencyDisplay(cat.total)}</p>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-            )}
+            {collectionName !== 'suspended' && categoryTotals.length > 0 && (
+                <div className="space-y-4" dir="rtl">
+                    <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4 flex items-center gap-2">
+                        <Filter className="w-5 h-5 ml-2" />
+                        فلترة حسب فئة {type === 'revenue' ? 'الإيراد' : 'الصرف'}
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                        {categoryTotals.map(cat => (
+                            <FilterStatCard
+                                key={cat.category}
+                                title={cat.category}
+                                value={formatCurrencyDisplay(cat.total)}
+                                onClick={() => handleCategoryCardClick(cat.category)}
+                                active={isFilterActive(cat.category)}
+                                themeKey={type === 'revenue' ? 'teal' : type === 'advance' ? 'purple' : 'rose'}
+                                customTheme={CUSTOM_CATEGORY_COLORS[cat.category]}
+                                size="sm"
+                            />
+                        ))}
+                    </div>
+                </div>
+            )}
 
 
             
@@ -1206,26 +2710,36 @@ const DataPageComponent = React.memo(({ 
 
             <div className="bg-white dark:bg-gray-700 p-6 rounded-xl shadow-lg overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50 dark:bg-gray-600 rounded-t-xl">
-                        <tr>
-                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">التاريخ والوقت</th>
-                            {fields.map(field => (
-                                <th key={field.key} className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">{field.label}</th>
-                            ))}
-                            {collectionName === 'expenses' && <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">المورد والمندوب</th>}
-                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">رقم الفاتورة</th>
-                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">الإجراءات</th>
-                        </tr>
-                    </thead>
-                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
-                        {filteredList.length === 0 ? (
-                            <tr><td colSpan={fields.length + (collectionName === 'expenses' ? 4 : 3)} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">لا توجد سجلات متاحة تتوافق مع الفلاتر.</td></tr>
-                        ) : (
-                            filteredList.map(item => (
-                                <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150 cursor-pointer" onClick={() => openModal(item)} data-testid={`row-${item.id}`}>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{formatDateTimeDDMMYYYY(item.date)}</td>
-                                    {fields.map(field => {
-                                        const itemValue = item[field.key] || '';
+                    <thead className="bg-gray-50 dark:bg-gray-600 rounded-t-xl">
+                        <tr>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">التاريخ والوقت</th>
+                            {fields.map(field => (
+                                <th key={field.key} className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">{field.label}</th>
+                            ))}
+                            {collectionName === 'expenses' && <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">المورد والمندوب</th>}
+                            {collectionName !== 'revenues' && (
+                                <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">رقم الفاتورة</th>
+                            )}
+                            {collectionName === 'expenses' && (
+                                <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">المرفقات</th>
+                            )}
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
+                        {filteredList.length === 0 ? (
+                            <tr><td colSpan={emptyStateColSpan} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">لا توجد سجلات متاحة تتوافق مع الفلاتر.</td></tr>
+                        ) : (
+                            paginatedList.map(item => (
+                                <tr
+                                    key={item.id}
+                                    className={`hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150 cursor-pointer ${isSearchActive ? 'bg-amber-50 dark:bg-amber-900/40 border-r-4 border-amber-400' : ''}`}
+                                    onClick={() => openModal(item)}
+                                    data-testid={`row-${item.id}`}
+                                >
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{formatDateTimeDDMMYYYY(item.date)}</td>
+                                    {fields.map(field => {
+                                        const itemValue = item[field.key] || '';
 
                                         if (field.key === 'employeeName' && item.employeeId) {
                                             const employee = data.employees.find(e => e.id === item.employeeId);
@@ -1251,21 +2765,48 @@ const DataPageComponent = React.memo(({ 
                                         );
                                     })}
                                     
-                                    {collectionName === 'expenses' && (
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
-                                            {item.vendor && <span className="font-semibold">{highlightText(item.vendor, globalSearch)}</span>}
-                                            {item.vendor && item.representative && <span className="text-gray-400 dark:text-gray-500"> (</span>}
-                                            {item.representative && <span className="text-sm italic">{highlightText(item.representative, globalSearch)}</span>}
-                                            {item.vendor && item.representative && <span className="text-gray-400 dark:text-gray-500">)</span>}
-                                            {!item.vendor && <span className="text-gray-400 dark:text-gray-500">N/A</span>}
-                                        </td>
-                                    )}
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300 font-mono">{highlightText(item.invoiceNumber || 'N/A', globalSearch)}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium" onClick={(e) => e.stopPropagation()}>
-                                        <div className="flex space-x-3 space-x-reverse">
-                                            {(type === 'expense' || type === 'advance') && (
-                                                <button onClick={() => handlePrint(item)} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100">
-                                                    <Printer className="w-5 h-5" />
+                                    {collectionName === 'expenses' && (
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                                            {item.vendor && <span className="font-semibold">{highlightText(item.vendor, globalSearch)}</span>}
+                                            {item.vendor && item.representative && <span className="text-gray-400 dark:text-gray-500"> (</span>}
+                                            {item.representative && <span className="text-sm italic">{highlightText(item.representative, globalSearch)}</span>}
+                                            {item.vendor && item.representative && <span className="text-gray-400 dark:text-gray-500">)</span>}
+                                            {!item.vendor && <span className="text-gray-400 dark:text-gray-500">N/A</span>}
+                                        </td>
+                                    )}
+                                    {collectionName !== 'revenues' && (
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300 font-mono">{highlightText(item.invoiceNumber || 'N/A', globalSearch)}</td>
+                                    )}
+                                    {collectionName === 'expenses' && (
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm" onClick={(e) => e.stopPropagation()}>
+                                            {(() => {
+                                                const attachments = normalizeAttachmentList(item.attachments, item.invoiceImageUrl, 'مرفق');
+                                                if (attachments.length === 0) {
+                                                    return <span className="text-gray-400 dark:text-gray-500 text-xs">لا توجد</span>;
+                                                }
+
+                                                return (
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {attachments.map(attachment => (
+                                                            <button
+                                                                key={attachment.id}
+                                                                type="button"
+                                                                onClick={() => handleAttachmentPreview(attachment, attachments, item.invoiceImageUrl, 'مرفق')}
+                                                                className="px-3 py-1 rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800/60 text-xs font-semibold transition"
+                                                            >
+                                                                {attachment.name || 'مرفق'}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                );
+                                            })()}
+                                        </td>
+                                    )}
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium" onClick={(e) => e.stopPropagation()}>
+                                        <div className="flex space-x-3 space-x-reverse">
+                                            {(type === 'expense' || type === 'advance') && (
+                                                <button onClick={() => handlePrint(item)} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100">
+                                                    <Printer className="w-5 h-5" />
                                                 </button>
                                             )}
                                             <button onClick={() => openModal(item)} className="text-indigo-600 hover:text-indigo-900">
@@ -1280,11 +2821,20 @@ const DataPageComponent = React.memo(({ 
                             ))
                         )}
                     </tbody>
-                </table>
-            </div>
+                </table>
+            </div>
 
-            {isModalOpen && (
-                <Modal title={currentItem ? 'تعديل السجل' : 'إضافة سجل جديد'} onClose={() => setIsModalOpen(false)}>
+            <PaginationControls
+                pageSize={listPageSize}
+                onPageSizeChange={changeListPageSize}
+                currentPage={listCurrentPage}
+                totalPages={listTotalPages}
+                onPageChange={goToListPage}
+                totalItems={totalFilteredItems}
+            />
+
+            {isModalOpen && (
+                <Modal title={currentItem ? 'تعديل السجل' : 'إضافة سجل جديد'} onClose={() => setIsModalOpen(false)}>
                     <form onSubmit={handleSubmit} className="space-y-5">
                         <InputField
                             label="تاريخ ووقت العملية"
@@ -1319,11 +2869,11 @@ const DataPageComponent = React.memo(({ 
                                     </select>
                                 </div>
                                 
-                                <div className="flex flex-col space-y-1 text-right">
-                                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">المندوب المسؤول</label>
-                                    <select
-                                        value={formState.representative || ''}
-                                        onChange={(e) => setFormState({ ...formState, representative: e.target.value })}
+                        <div className="flex flex-col space-y-1 text-right">
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">المندوب المسؤول</label>
+                            <select
+                                value={formState.representative || ''}
+                                onChange={(e) => setFormState({ ...formState, representative: e.target.value })}
                                         required
                                         disabled={!selectedVendor || (!!initialExpenseState && !currentItem)}
                                         className={`w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl transition duration-150 text-right ${!!initialExpenseState && !currentItem ? 'bg-gray-100 dark:bg-gray-600' : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 focus:ring-teal-500 focus:border-teal-500'}`}
@@ -1333,16 +2883,27 @@ const DataPageComponent = React.memo(({ 
                                             <option key={rep.name} value={rep.name}>{rep.name}</option>
                                         ))}
                                     </select>
-                                    {!selectedVendor && <p className="text-xs text-red-500 mt-1">يجب اختيار الشركة أولاً.</p>}
-                                </div>
-                            </>
-                        )}
-                        
-                        {fields.map(field => {
-                            const isAutoFilled = collectionName === 'expenses' && initialExpenseState && !currentItem &&
-                                (field.key === 'amount' || field.key === 'description' || field.key === 'category');
-                            
-                            // Check if field is category selection for expense/revenue
+                            {!selectedVendor && <p className="text-xs text-red-500 mt-1">يجب اختيار الشركة أولاً.</p>}
+                        </div>
+
+                        <InputField
+                            label="رقم فاتورة المورد"
+                            type="text"
+                            value={formState.invoiceNumber || ''}
+                            onChange={(e) => setFormState({
+                                ...formState,
+                                invoiceNumber: convertArabicToEnglish(e.target.value || ''),
+                            })}
+                            required
+                        />
+                    </>
+                )}
+
+        {fields.map(field => {
+            const isAutoFilled = collectionName === 'expenses' && initialExpenseState && !currentItem &&
+                (field.key === 'amount' || field.key === 'description' || field.key === 'category');
+
+            // Check if field is category selection for expense/revenue
                             if (field.type === 'select' && categories && field.key !== 'employeeName') {
                                 return (
                                     <div key={field.key} className="flex flex-col space-y-1 text-right">
@@ -1411,12 +2972,65 @@ const DataPageComponent = React.memo(({ 
                                     readOnly={isAutoFilled}
                                 />
                             );
-                        })}
-                        
-                        {initialExpenseState && collectionName === 'expenses' && !currentItem && (
-                            <div className="p-3 bg-indigo-50 dark:bg-indigo-900/50 border border-indigo-200 dark:border-indigo-700 rounded-xl text-indigo-800 dark:text-indigo-200 font-semibold text-center">
-                                تم تعبئة جميع الحقول تلقائياً من فاتورة الإدخال. يرجى الضغط على **إضافة** للتأكيد وإتمام الصرف.
-                            </div>
+        })}
+
+        {collectionName === 'expenses' && (
+            <div className="space-y-2 text-right">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">مرفقات الصرفية (صور / مستندات)</label>
+                <div className="flex flex-col sm:flex-row gap-2">
+                    <input
+                        type="file"
+                        accept="image/*,application/pdf"
+                        multiple
+                        onChange={handleAttachmentsUpload}
+                        className="flex-1 p-3 border border-dashed border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 focus:ring-teal-500 focus:border-teal-500"
+                    />
+                    <button
+                        type="button"
+                        onClick={handleScanAttachment}
+                        disabled={!scannerAvailable}
+                        className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl transition shadow ${scannerAvailable ? 'bg-emerald-500 hover:bg-emerald-600 text-white' : 'bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'}`}
+                        title={scannerAvailable ? 'التقاط صورة عبر السكنر' : 'السكنر غير متاح في هذا الجهاز'}
+                    >
+                        <Scan className="w-5 h-5" />
+                        مسح عبر السكنر
+                    </button>
+                </div>
+                {attachmentsList.length > 0 && (
+                    <div className="space-y-2">
+                        {attachmentsList.map(attachment => (
+                            <div
+                                key={attachment.id}
+                                className="flex items-center justify-between gap-3 p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-sm text-gray-800 dark:text-gray-100"
+                            >
+                                <span className="flex-1 truncate font-medium">{attachment.name}</span>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => handleAttachmentPreview(attachment, attachmentsList, formState.invoiceImageUrl, 'مرفق')}
+                                        className="px-3 py-1 text-xs rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800/60"
+                                    >
+                                        معاينة
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => removeAttachment(attachment.id)}
+                                        className="px-3 py-1 text-xs rounded-lg bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-200 hover:bg-red-200 dark:hover:bg-red-800/60"
+                                    >
+                                        حذف
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        )}
+
+        {initialExpenseState && collectionName === 'expenses' && !currentItem && (
+            <div className="p-3 bg-indigo-50 dark:bg-indigo-900/50 border border-indigo-200 dark:border-indigo-700 rounded-xl text-indigo-800 dark:text-indigo-200 font-semibold text-center">
+                تم تعبئة جميع الحقول تلقائياً من فاتورة الإدخال. يرجى الضغط على **إضافة** للتأكيد وإتمام الصرف.
+            </div>
                         )}
 
                         <ActionButton type="submit" className="w-full bg-teal-600 hover:bg-teal-700">
@@ -1496,14 +3110,1067 @@ const DataPageComponent = React.memo(({ 
 
 
 
+
+
+/**
+ * 3.2.b DebtsPage Component (إدارة الديون)
+ */
+const DebtsPageComponent = React.memo(({ data, handleDataAction, handleDelete, showToast, setInitialExpenseState, navigateWithGuards, currentUser, handleRefresh, openScanner }) => {
+    const initialRange = useMemo(() => getCurrentMonthRange(), []);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+    const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+    const [editingDebt, setEditingDebt] = useState(null);
+    const [activeDebt, setActiveDebt] = useState(null);
+    const [paymentAmount, setPaymentAmount] = useState('');
+    const [filterDateFrom, setFilterDateFrom] = useState(initialRange.start);
+    const [filterDateTo, setFilterDateTo] = useState(initialRange.end);
+    const [filterCategory, setFilterCategory] = useState('الكل');
+    const [globalSearch, setGlobalSearch] = useState('');
+    const [originFilter, setOriginFilter] = useState('all');
+    const {
+        isOpen: isDebtAttachmentPreviewOpen,
+        attachments: debtAttachmentPreviewList,
+        initialIndex: debtAttachmentPreviewIndex,
+        openPreview: openDebtAttachmentPreview,
+        closePreview: closeDebtAttachmentPreview,
+    } = useAttachmentPreviewState('مرفق الدين');
+    const scannerAvailable = typeof openScanner === 'function';
+
+    const resolveDebtType = useCallback((debt) => {
+        if (!debt) {
+            return DEBT_TYPES.MANUAL;
+        }
+        if (debt.debtType) {
+            return debt.debtType;
+        }
+        if (debt.linkedInvoiceId || debt.debtSource === DEBT_TYPES.INVENTORY || debt.source === DEBT_TYPES.INVENTORY) {
+            return DEBT_TYPES.INVENTORY;
+        }
+        return DEBT_TYPES.MANUAL;
+    }, []);
+
+    const defaultForm = useMemo(() => ({
+        companyName: data.settings.vendors[0] || '',
+        vendorName: '',
+        category: data.settings.expenseCategories[0] || '',
+        totalAmount: '',
+        description: '',
+        attachmentUrl: '',
+    }), [data.settings.vendors, data.settings.expenseCategories]);
+
+    const [debtForm, setDebtForm] = useState(defaultForm);
+
+    const importInputRef = useRef(null);
+
+    const canAddDebt = !!currentUser?.permissions?.debts?.add;
+    const canEditDebt = !!currentUser?.permissions?.debts?.edit;
+    const canDeleteDebt = !!currentUser?.permissions?.debts?.delete;
+    const canPayDebt = !!currentUser?.permissions?.debts?.pay;
+
+    const handlePrintDebts = useCallback(() => {
+        window.print();
+    }, []);
+
+    const triggerImportDialog = () => {
+        importInputRef.current?.click();
+    };
+
+    const handleImportDebts = async (event) => {
+        const file = event.target.files?.[0];
+        if (!file) {
+            return;
+        }
+
+        try {
+            const buffer = await file.arrayBuffer();
+            const workbook = XLSX.read(buffer, { type: 'array' });
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const rows = XLSX.utils.sheet_to_json(sheet);
+
+            if (!Array.isArray(rows) || rows.length === 0) {
+                showToast('الملف لا يحتوي على بيانات صالحة.', 'error');
+                event.target.value = '';
+                return;
+            }
+
+            let addedCount = 0;
+
+            rows.forEach((row, index) => {
+                const companyName = row['اسم الشركة'] || row['الشركة'] || row['Company'] || '';
+                const vendorName = row['اسم المورد'] || row['المورد'] || row['Vendor'] || '';
+                const category = row['الفئة'] || row['Category'] || '';
+                const totalAmountRaw = row['المبلغ الكلي'] || row['Total'] || row['TotalAmount'] || '';
+                const remainingRaw = row['المتبقي'] || row['Remaining'] || '';
+                const description = row['التفاصيل'] || row['الوصف'] || row['Description'] || '';
+
+                if (!companyName || !totalAmountRaw) {
+                    return;
+                }
+
+                const totalAmountValue = normalizeAmount(totalAmountRaw);
+                const remainingAmountValue = remainingRaw ? normalizeAmount(remainingRaw) : totalAmountValue;
+
+                if (Number.isNaN(totalAmountValue) || totalAmountValue <= 0) {
+                    return;
+                }
+
+                const payload = {
+                    companyName,
+                    vendorName,
+                    category: category || data.settings.expenseCategories[0] || '',
+                    totalAmount: totalAmountValue,
+                    remainingAmount: Math.max(0, remainingAmountValue),
+                    description,
+                    payments: [],
+                    status: remainingAmountValue <= 0 ? 'settled' : 'active',
+                    date: getDefaultDateTime(),
+                    createdAt: getDefaultDateTime(),
+                    updatedAt: getDefaultDateTime(),
+                    debtType: DEBT_TYPES.MANUAL,
+                };
+
+                handleDataAction('debts', payload, true, false, { silent: addedCount > 0 });
+                addedCount += 1;
+            });
+
+            if (addedCount === 0) {
+                showToast('لم يتم العثور على سجلات ديون صالحة في الملف.', 'warning');
+            } else {
+                showToast(`تم استيراد ${addedCount} من سجلات الديون بنجاح.`, 'success');
+            }
+        } catch (error) {
+            console.error('Debt import failed', error);
+            showToast('تعذّر قراءة ملف الديون. يرجى التحقق من التنسيق.', 'error');
+        } finally {
+            event.target.value = '';
+        }
+    };
+
+    useEffect(() => {
+        if (editingDebt) {
+            setDebtForm({
+                companyName: editingDebt.companyName || defaultForm.companyName,
+                vendorName: editingDebt.vendorName || '',
+                category: editingDebt.category || defaultForm.category,
+                totalAmount: editingDebt.totalAmount?.toString() || editingDebt.totalAmount || '',
+                description: editingDebt.description || '',
+                attachmentUrl: editingDebt.attachmentUrl || '',
+            });
+        } else {
+            setDebtForm(defaultForm);
+        }
+    }, [editingDebt, defaultForm]);
+
+    const normalizeAmount = useCallback((value) => {
+        const normalized = convertArabicToEnglish((value ?? '').toString());
+        const cleaned = normalized.replace(/[^0-9.]/g, '');
+        const numeric = parseFloat(cleaned);
+        return Number.isFinite(numeric) ? numeric : 0;
+    }, []);
+
+    const debts = useMemo(() => Array.isArray(data.debts) ? data.debts : [], [data.debts]);
+
+    const representativesForVendor = useMemo(() => {
+        return data.settings.representatives.filter(rep => rep.vendor === debtForm.companyName);
+    }, [data.settings.representatives, debtForm.companyName]);
+
+    useEffect(() => {
+        if (!debtForm.companyName && data.settings.vendors[0]) {
+            setDebtForm(prev => ({ ...prev, companyName: data.settings.vendors[0] }));
+        }
+    }, [data.settings.vendors, debtForm.companyName]);
+
+    useEffect(() => {
+        if (representativesForVendor.length === 0 && debtForm.vendorName) {
+            setDebtForm(prev => ({ ...prev, vendorName: '' }));
+            return;
+        }
+
+        if (representativesForVendor.length > 0) {
+            const hasMatch = representativesForVendor.some(rep => rep.name === debtForm.vendorName);
+            if (!hasMatch) {
+                setDebtForm(prev => ({ ...prev, vendorName: representativesForVendor[0].name }));
+            }
+        }
+    }, [representativesForVendor, debtForm.vendorName]);
+
+    const baseFilteredDebts = useMemo(() => {
+        let list = debts.slice().sort((a, b) => new Date(b.updatedAt || b.date || 0) - new Date(a.updatedAt || a.date || 0));
+
+        if (filterDateFrom) {
+            list = list.filter(item => {
+                const recordDate = (item.date || item.createdAt || '').slice(0, 10);
+                return recordDate ? recordDate >= filterDateFrom : true;
+            });
+        }
+
+        if (filterDateTo) {
+            list = list.filter(item => {
+                const recordDate = (item.date || item.createdAt || '').slice(0, 10);
+                return recordDate ? recordDate <= filterDateTo : true;
+            });
+        }
+
+        if (filterCategory !== 'الكل') {
+            list = list.filter(item => (item.category || '') === filterCategory);
+        }
+
+        if (globalSearch) {
+            const searchLower = normalizeTextForSearch(globalSearch);
+            const numericSearch = normalizeTextForSearch(globalSearch, true);
+            const hasTextSearch = searchLower.length > 0;
+            const hasNumericSearch = numericSearch.length > 0;
+
+            list = list.filter(item => {
+                let textMatch = false;
+                if (hasTextSearch) {
+                    const matchesCompany = item.companyName && normalizeTextForSearch(item.companyName).includes(searchLower);
+                    const matchesVendor = item.vendorName && normalizeTextForSearch(item.vendorName).includes(searchLower);
+                    const matchesCategory = item.category && normalizeTextForSearch(item.category).includes(searchLower);
+                    const matchesDescription = item.description && normalizeTextForSearch(item.description).includes(searchLower);
+                    textMatch = matchesCompany || matchesVendor || matchesCategory || matchesDescription;
+                }
+
+                const numericMatch = hasNumericSearch ? (
+                    (!!item.totalAmount && normalizeTextForSearch(item.totalAmount.toString(), true).includes(numericSearch)) ||
+                    (!!item.remainingAmount && normalizeTextForSearch(item.remainingAmount.toString(), true).includes(numericSearch))
+                ) : false;
+
+                return textMatch || numericMatch;
+            });
+        }
+
+        return list;
+    }, [debts, filterDateFrom, filterDateTo, filterCategory, globalSearch]);
+
+    const sourceBreakdown = useMemo(() => {
+        const initial = {
+            [DEBT_TYPES.MANUAL]: { total: 0, remaining: 0, count: 0 },
+            [DEBT_TYPES.INVENTORY]: { total: 0, remaining: 0, count: 0 },
+        };
+
+        baseFilteredDebts.forEach(debt => {
+            const type = resolveDebtType(debt);
+            const total = normalizeAmount(debt.totalAmount ?? 0);
+            const remaining = normalizeAmount(debt.remainingAmount ?? total);
+            if (!initial[type]) {
+                initial[type] = { total: 0, remaining: 0, count: 0 };
+            }
+            initial[type].total += total;
+            initial[type].remaining += remaining;
+            initial[type].count += 1;
+        });
+
+        return initial;
+    }, [baseFilteredDebts, normalizeAmount, resolveDebtType]);
+
+    const filteredDebts = useMemo(() => {
+        if (originFilter === 'all') {
+            return baseFilteredDebts;
+        }
+        return baseFilteredDebts.filter(debt => resolveDebtType(debt) === originFilter);
+    }, [baseFilteredDebts, originFilter, resolveDebtType]);
+
+    const handleExportDebts = useCallback(() => {
+        if (filteredDebts.length === 0) {
+            showToast('لا توجد بيانات للتصدير.', 'error');
+            return;
+        }
+
+        const exportRows = filteredDebts.map(debt => ({
+            'اسم الشركة': debt.companyName || '---',
+            'اسم المورد': debt.vendorName || '---',
+            'الفئة': debt.category || '---',
+            'المبلغ الكلي': normalizeAmount(debt.totalAmount ?? 0),
+            'المتبقي': normalizeAmount(debt.remainingAmount ?? debt.totalAmount ?? 0),
+            'آخر تحديث': formatDateTimeDDMMYYYY(debt.updatedAt || debt.date || getDefaultDateTime()),
+        }));
+
+        exportToCsv(exportRows, `تقرير_الديون_${new Date().toISOString().slice(0, 10)}`);
+        showToast('تم تصدير الديون بنجاح.', 'success');
+    }, [filteredDebts, normalizeAmount, showToast]);
+
+    const categoryTotals = useMemo(() => {
+        const totals = {};
+        filteredDebts.forEach(debt => {
+            const key = debt.category || 'غير مصنف';
+            totals[key] = (totals[key] || 0) + normalizeAmount(debt.remainingAmount ?? debt.totalAmount ?? 0);
+        });
+        return Object.entries(totals).map(([category, total]) => ({ category, total }));
+    }, [filteredDebts, normalizeAmount]);
+
+    const overviewTotals = useMemo(() => {
+        return filteredDebts.reduce((acc, debt) => {
+            const total = normalizeAmount(debt.totalAmount ?? 0);
+            const remaining = normalizeAmount(debt.remainingAmount ?? total);
+            acc.totalAmount += total;
+            acc.totalRemaining += remaining;
+            acc.count += 1;
+            return acc;
+        }, { totalAmount: 0, totalRemaining: 0, count: 0 });
+    }, [filteredDebts, normalizeAmount]);
+
+    const totalPaidValue = overviewTotals.totalAmount - overviewTotals.totalRemaining;
+
+    const {
+        paginatedItems: paginatedDebts,
+        totalItems: totalFilteredDebts,
+        pageSize: debtsPageSize,
+        currentPage: debtsCurrentPage,
+        totalPages: debtsTotalPages,
+        changePageSize: changeDebtsPageSize,
+        goToPage: goToDebtsPage,
+    } = usePagination(filteredDebts);
+
+    const resetFilters = useCallback(() => {
+        setFilterCategory('الكل');
+        setFilterDateFrom(initialRange.start);
+        setFilterDateTo(initialRange.end);
+        setGlobalSearch('');
+        setOriginFilter('all');
+    }, [initialRange]);
+
+    const handleToolbarRefresh = useCallback(() => {
+        if (typeof handleRefresh === 'function') {
+            handleRefresh();
+        }
+        resetFilters();
+    }, [handleRefresh, resetFilters]);
+
+    const handleOriginFilterToggle = (type) => {
+        setOriginFilter(prev => (prev === type ? 'all' : type));
+    };
+
+    const isOriginActive = (type) => originFilter === type;
+
+    const handleCategoryCardClick = (category) => {
+        setFilterCategory(prev => (prev === category ? 'الكل' : category));
+    };
+
+    const isCategoryActive = (category) => filterCategory === category;
+
+    const handleAttachmentChange = (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            setDebtForm(prev => ({ ...prev, attachmentUrl: e.target?.result || '' }));
+            showToast('تم تحميل الملف بنجاح.', 'success');
+        };
+        reader.onerror = () => {
+            showToast('تعذّر قراءة الملف. يرجى المحاولة مرة أخرى.', 'error');
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const handleScanDebtAttachment = useCallback(() => {
+        if (typeof openScanner !== 'function') {
+            return;
+        }
+
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+
+        openScanner({
+            title: 'مسح مستند الدين',
+            defaultFileName: `دين-${timestamp}`,
+            onCapture: (attachment) => {
+                if (!attachment) {
+                    return;
+                }
+
+                const sourceUrl = attachment.dataUrl || attachment.url || attachment.attachmentUrl || '';
+                if (!sourceUrl) {
+                    return;
+                }
+
+                setDebtForm(prev => ({ ...prev, attachmentUrl: sourceUrl }));
+                showToast('تم التقاط المستند وإضافته إلى الدين.', 'success');
+            },
+        });
+    }, [openScanner, showToast]);
+
+    const previewDebtAttachment = useCallback((attachment, options = {}) => {
+        const { fallbackName = 'مرفق الدين', collection = [], fallbackUrl = '' } = options || {};
+
+        if (!attachment && (!Array.isArray(collection) || collection.length === 0) && !fallbackUrl) {
+            showToast('لا يوجد مرفق متاح للعرض.', 'warning');
+            return;
+        }
+
+        let targetAttachment = attachment;
+
+        if (typeof targetAttachment === 'string') {
+            targetAttachment = ensureAttachmentShape({ dataUrl: targetAttachment, name: fallbackName }, fallbackName);
+        } else if (!targetAttachment && fallbackUrl) {
+            targetAttachment = ensureAttachmentShape({ dataUrl: fallbackUrl, name: fallbackName }, fallbackName);
+        } else if (targetAttachment) {
+            targetAttachment = ensureAttachmentShape(targetAttachment, targetAttachment?.name || fallbackName);
+        }
+
+        if (!targetAttachment) {
+            showToast('تعذر تحديد المرفق المطلوب.', 'warning');
+            return;
+        }
+
+        const attachmentsCollection = Array.isArray(collection) && collection.length > 0
+            ? collection
+            : [targetAttachment];
+
+        const sourceUrl = fallbackUrl || getAttachmentSource(targetAttachment);
+        const opened = openDebtAttachmentPreview(targetAttachment, attachmentsCollection, sourceUrl, fallbackName);
+
+        if (!opened) {
+            showToast('تعذر فتح المرفق لعدم توفر بيانات صالحة.', 'warning');
+        }
+    }, [openDebtAttachmentPreview, showToast]);
+
+    const handleDebtSubmit = (e) => {
+        e.preventDefault();
+
+        if (!debtForm.companyName) {
+            showToast('يرجى اختيار اسم الشركة.', 'error');
+            return;
+        }
+
+        const totalAmountValue = normalizeAmount(debtForm.totalAmount);
+        if (totalAmountValue <= 0) {
+            showToast('يرجى إدخال مبلغ إجمالي صحيح.', 'error');
+            return;
+        }
+
+        const existingPayments = Array.isArray(editingDebt?.payments) ? editingDebt.payments : [];
+        const totalPaid = existingPayments.reduce((sum, payment) => sum + normalizeAmount(payment.amount), 0);
+        if (!editingDebt && totalPaid > 0) {
+            showToast('لا يمكن إدخال دفعات مسبقة لدين جديد.', 'error');
+            return;
+        }
+
+        if (totalPaid > totalAmountValue) {
+            showToast('إجمالي الدفعات أكبر من المبلغ الكلي للدين.', 'error');
+            return;
+        }
+
+        const remainingAmount = Math.max(0, totalAmountValue - totalPaid);
+
+        const debtType = editingDebt ? resolveDebtType(editingDebt) : DEBT_TYPES.MANUAL;
+        const createdAt = editingDebt?.createdAt || editingDebt?.date || getDefaultDateTime();
+
+        const payload = {
+            ...(editingDebt || {}),
+            companyName: debtForm.companyName,
+            vendorName: debtForm.vendorName,
+            category: debtForm.category,
+            totalAmount: totalAmountValue,
+            remainingAmount,
+            description: debtForm.description,
+            attachmentUrl: debtForm.attachmentUrl || '',
+            payments: existingPayments,
+            status: remainingAmount <= 0 ? 'settled' : 'active',
+            date: editingDebt?.date || getDefaultDateTime(),
+            createdAt,
+            updatedAt: getDefaultDateTime(),
+            debtType,
+        };
+
+        handleDataAction('debts', payload, !editingDebt);
+        setIsModalOpen(false);
+        setEditingDebt(null);
+    };
+
+    const openNewDebtModal = () => {
+        if (!canAddDebt) {
+            showToast('لا تملك صلاحية إضافة دين جديد.', 'error');
+            return;
+        }
+        setEditingDebt(null);
+        setIsModalOpen(true);
+    };
+
+    const openEditModal = (debt) => {
+        if (!canEditDebt) {
+            showToast('لا تملك صلاحية تعديل هذا الدين.', 'error');
+            return;
+        }
+        setIsDetailsModalOpen(false);
+        setEditingDebt(debt);
+        setIsModalOpen(true);
+    };
+
+    const openDetailsModal = (debt) => {
+        setActiveDebt(debt);
+        setIsDetailsModalOpen(true);
+    };
+
+    const openPaymentModal = (debt) => {
+        if (!canPayDebt) {
+            showToast('لا تملك صلاحية تسجيل دفعة.', 'error');
+            return;
+        }
+        setActiveDebt(debt);
+        setPaymentAmount('');
+        setIsDetailsModalOpen(false);
+        setIsPaymentModalOpen(true);
+    };
+
+    const handleDeleteDebt = (debt) => {
+        if (!canDeleteDebt) {
+            showToast('لا تملك صلاحية حذف الدين.', 'error');
+            return;
+        }
+        handleDelete('debts', debt.id);
+        setIsDetailsModalOpen(false);
+    };
+
+    const handlePaymentSubmit = (e) => {
+        e.preventDefault();
+        if (!activeDebt) return;
+
+        const amountValue = normalizeAmount(paymentAmount);
+        if (amountValue <= 0) {
+            showToast('يرجى إدخال مبلغ دفعة صالح.', 'error');
+            return;
+        }
+
+        const remaining = normalizeAmount(activeDebt.remainingAmount ?? activeDebt.totalAmount ?? 0);
+        if (amountValue > remaining) {
+            showToast('لا يمكن أن تتجاوز الدفعة المبلغ المتبقي.', 'error');
+            return;
+        }
+
+        const canDirectExpense = !!currentUser?.permissions?.expenses?.add && !!currentUser?.permissions?.expenses?.view;
+        const canPendingExpense = !!currentUser?.permissions?.pendingExpenses?.add && !!currentUser?.permissions?.pendingExpenses?.view;
+
+        if (!canDirectExpense && !canPendingExpense) {
+            showToast('لا تملك صلاحية تسجيل الدفعة كمصروف.', 'error');
+            return;
+        }
+
+        const paymentId = crypto.randomUUID();
+        const targetCollection = canDirectExpense ? 'expenses' : 'pendingExpenses';
+        const vendorCompany = activeDebt.companyName || '';
+        const representatives = Array.isArray(data.settings?.representatives)
+            ? data.settings.representatives
+            : [];
+        const matchedRepresentative = representatives.find(
+            (rep) => rep.vendor === vendorCompany && rep.name === activeDebt.vendorName
+        );
+        const defaultRepresentative = matchedRepresentative
+            ? matchedRepresentative.name
+            : representatives.find((rep) => rep.vendor === vendorCompany)?.name || activeDebt.vendorName || '';
+
+        const expenseDraft = {
+            id: paymentId,
+            type: 'expense',
+            status: 'pending',
+            date: getDefaultDateTime(),
+            invoiceNumber: convertArabicToEnglish((activeDebt.sourceInvoiceNumber || activeDebt.invoiceNumber || activeDebt.withdrawalNumber || '').toString()),
+            amount: amountValue.toString(),
+            category: activeDebt.category || data.settings.expenseCategories[0] || '',
+            description: `دفعة على دين ${activeDebt.companyName}`,
+            vendor: vendorCompany,
+            representative: defaultRepresentative,
+            notes: activeDebt.description || '',
+            invoiceImageUrl: activeDebt.attachmentUrl || '',
+            linkedDebtId: activeDebt.id,
+            linkedDebtPaymentId: paymentId,
+        };
+
+        const navigated = navigateWithGuards(targetCollection, { preserveInitialExpenseState: true });
+        if (!navigated) {
+            return;
+        }
+
+        setInitialExpenseState(expenseDraft);
+        setIsPaymentModalOpen(false);
+        setIsDetailsModalOpen(false);
+
+        showToast(
+            canDirectExpense
+                ? 'تم تجهيز بيانات الدفعة. يرجى اعتمادها من صفحة الصرفيات.'
+                : 'تم تجهيز بيانات الدفعة. يرجى اعتمادها من صفحة الصرفيات المعلقة.',
+            'info'
+        );
+    };
+
+    return (
+        <div className="space-y-6">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl md:text-3xl font-extrabold text-gray-800 dark:text-gray-100">إدارة الديون</h1>
+                    <p className="text-sm md:text-base text-gray-500 dark:text-gray-400">متابعة الديون وتسجيل الدفعات وفق الصلاحيات.</p>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                <FilterStatCard
+                    title="إجمالي الديون"
+                    value={formatCurrencyDisplay(overviewTotals.totalAmount)}
+                    subtitle="القيمة الكلية"
+                    icon={FileText}
+                />
+                <FilterStatCard
+                    title="إجمالي المدفوع"
+                    value={formatCurrencyDisplay(Math.max(totalPaidValue, 0))}
+                    subtitle="مجموع الدفعات"
+                    icon={DollarSign}
+                    variant="success"
+                />
+                <FilterStatCard
+                    title="المتبقي"
+                    value={formatCurrencyDisplay(Math.max(overviewTotals.totalRemaining, 0))}
+                    subtitle="مبالغ لم تُسدّد"
+                    icon={AlertTriangle}
+                    variant="warning"
+                />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+                <FilterStatCard
+                    title={DEBT_TYPE_LABELS[DEBT_TYPES.MANUAL]}
+                    value={formatCurrencyDisplay(sourceBreakdown[DEBT_TYPES.MANUAL]?.total || 0)}
+                    subtitle={`المتبقي: ${formatCurrencyDisplay(Math.max(sourceBreakdown[DEBT_TYPES.MANUAL]?.remaining || 0, 0))}`}
+                    meta={`عدد السجلات: ${sourceBreakdown[DEBT_TYPES.MANUAL]?.count || 0}`}
+                    icon={Briefcase}
+                    onClick={() => handleOriginFilterToggle(DEBT_TYPES.MANUAL)}
+                    active={isOriginActive(DEBT_TYPES.MANUAL)}
+                    themeKey="blue"
+                />
+                <FilterStatCard
+                    title={DEBT_TYPE_LABELS[DEBT_TYPES.INVENTORY]}
+                    value={formatCurrencyDisplay(sourceBreakdown[DEBT_TYPES.INVENTORY]?.total || 0)}
+                    subtitle={`المتبقي: ${formatCurrencyDisplay(Math.max(sourceBreakdown[DEBT_TYPES.INVENTORY]?.remaining || 0, 0))}`}
+                    meta={`عدد السجلات: ${sourceBreakdown[DEBT_TYPES.INVENTORY]?.count || 0}`}
+                    icon={Truck}
+                    onClick={() => handleOriginFilterToggle(DEBT_TYPES.INVENTORY)}
+                    active={isOriginActive(DEBT_TYPES.INVENTORY)}
+                    themeKey="emerald"
+                />
+            </div>
+
+            {categoryTotals.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {categoryTotals.map(item => (
+                        <FilterStatCard
+                            key={item.category}
+                            title={item.category}
+                            value={formatCurrencyDisplay(item.total)}
+                            subtitle="مبالغ متبقية"
+                            icon={FolderOpen}
+                            onClick={() => handleCategoryCardClick(item.category)}
+                            active={isCategoryActive(item.category)}
+                            themeKey="gray"
+                        />
+                    ))}
+                </div>
+            )}
+
+            <div className="grid grid-cols-1 xl:grid-cols-4 gap-4 items-end">
+                <div className="flex flex-col space-y-1">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">من تاريخ</label>
+                    <input
+                        type="date"
+                        value={filterDateFrom}
+                        onChange={(e) => setFilterDateFrom(e.target.value)}
+                        className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                    />
+                </div>
+                <div className="flex flex-col space-y-1">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">إلى تاريخ</label>
+                    <input
+                        type="date"
+                        value={filterDateTo}
+                        onChange={(e) => setFilterDateTo(e.target.value)}
+                        className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                    />
+                </div>
+                <div className="flex flex-col space-y-1">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">الفئة</label>
+                    <select
+                        value={filterCategory}
+                        onChange={(e) => setFilterCategory(e.target.value)}
+                        className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                    >
+                        <option value="الكل">الكل</option>
+                        {data.settings.expenseCategories.map(category => (
+                            <option key={category} value={category}>{category}</option>
+                        ))}
+                    </select>
+                </div>
+                <div className="flex flex-col space-y-1">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">بحث</label>
+                    <div className="relative">
+                        <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+                        <input
+                            type="text"
+                            placeholder="ابحث باسم الشركة، المورد أو المبلغ"
+                            value={globalSearch}
+                            onChange={(e) => setGlobalSearch(e.target.value)}
+                            className="w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                        />
+                    </div>
+                </div>
+            </div>
+
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 py-2">
+                <div className="flex flex-wrap gap-2 order-1 md:order-1 justify-start md:justify-start">
+                    <ActionButton onClick={openNewDebtModal} disabled={!canAddDebt}>
+                        <Plus className="w-5 h-5 ml-2" />
+                        إضافة دين
+                    </ActionButton>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 order-2 md:order-2 justify-center md:justify-end">
+                    <button
+                        type="button"
+                        onClick={handleToolbarRefresh}
+                        className="p-2 rounded-full bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 transition"
+                        title="تحديث"
+                    >
+                        <RotateCcw className="w-5 h-5" />
+                    </button>
+                    <button
+                        type="button"
+                        onClick={handlePrintDebts}
+                        className="p-2 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white transition"
+                        title="طباعة"
+                    >
+                        <Printer className="w-5 h-5" />
+                    </button>
+                    <button
+                        type="button"
+                        onClick={triggerImportDialog}
+                        className="p-2 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white transition"
+                        title="استيراد"
+                    >
+                        <Upload className="w-5 h-5" />
+                    </button>
+                    <button
+                        type="button"
+                        onClick={handleExportDebts}
+                        className="p-2 rounded-full bg-amber-500 hover:bg-amber-600 text-white transition"
+                        title="تصدير"
+                    >
+                        <FileDown className="w-5 h-5" />
+                    </button>
+                    <input
+                        ref={importInputRef}
+                        type="file"
+                        accept=".xlsx,.xls"
+                        className="hidden"
+                        onChange={handleImportDebts}
+                    />
+                </div>
+            </div>
+
+            <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                        <thead className="bg-gradient-to-l from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">
+                            <tr>
+                                <th className="px-6 py-3 text-right text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">الشركة</th>
+                                <th className="px-6 py-3 text-right text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">المورد</th>
+                                <th className="px-6 py-3 text-right text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">الفئة</th>
+                                <th className="px-6 py-3 text-right text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">المبلغ الكلي</th>
+                                <th className="px-6 py-3 text-right text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">المتبقي</th>
+                                <th className="px-6 py-3 text-right text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">آخر تحديث</th>
+                                <th className="px-6 py-3 text-right text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                            {paginatedDebts.map(debt => {
+                                const remaining = normalizeAmount(debt.remainingAmount ?? debt.totalAmount ?? 0);
+                                const total = normalizeAmount(debt.totalAmount ?? 0);
+                                const lastUpdate = formatDateTimeDDMMYYYY(debt.updatedAt || debt.date || getDefaultDateTime());
+                                return (
+                                    <tr key={debt.id} className="hover:bg-amber-50 dark:hover:bg-amber-900/30 transition" onClick={() => openDetailsModal(debt)}>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-gray-100">{debt.companyName || 'غير محدد'}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{debt.vendorName || '---'}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{debt.category || '---'}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{formatCurrencyDisplay(total)}</td>
+                                        <td className={`px-6 py-4 whitespace-nowrap text-sm font-bold ${remaining > 0 ? 'text-amber-600 dark:text-amber-300' : 'text-green-600 dark:text-green-300'}`}>{formatCurrencyDisplay(remaining)}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">{lastUpdate}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                                            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                                <button
+                                                    onClick={() => openDetailsModal(debt)}
+                                                    className="px-3 py-1 rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-200"
+                                                >
+                                                    عرض
+                                                </button>
+                                                <button
+                                                    onClick={() => openPaymentModal(debt)}
+                                                    disabled={!canPayDebt}
+                                                    className={`px-3 py-1 rounded-lg ${canPayDebt ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-200' : 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400 cursor-not-allowed'}`}
+                                                >
+                                                    إعطاء دفعة
+                                                </button>
+                                                <button
+                                                    onClick={() => openEditModal(debt)}
+                                                    disabled={!canEditDebt}
+                                                    className={`p-2 rounded-lg ${canEditDebt ? 'text-amber-600 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-900/30' : 'text-gray-400 cursor-not-allowed'}`}
+                                                >
+                                                    <Edit className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteDebt(debt)}
+                                                    disabled={!canDeleteDebt}
+                                                    className={`p-2 rounded-lg ${canDeleteDebt ? 'text-red-600 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-900/30' : 'text-gray-400 cursor-not-allowed'}`}
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                            {paginatedDebts.length === 0 && (
+                                <tr>
+                                    <td colSpan={7} className="px-6 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+                                        لا توجد سجلات مطابقة للبحث المحدد.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+                <div className="px-4">
+                    <PaginationControls
+                        pageSize={debtsPageSize}
+                        onPageSizeChange={changeDebtsPageSize}
+                        currentPage={debtsCurrentPage}
+                        totalPages={debtsTotalPages}
+                        onPageChange={goToDebtsPage}
+                        totalItems={totalFilteredDebts}
+                    />
+                </div>
+            </div>
+
+            {isModalOpen && (
+                <Modal title={editingDebt ? 'تعديل الدين' : 'إضافة دين جديد'} onClose={() => { setIsModalOpen(false); setEditingDebt(null); }}>
+                    <form onSubmit={handleDebtSubmit} className="space-y-5">
+                        <div className="space-y-2 text-right">
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">اسم الشركة</label>
+                            <select
+                                value={debtForm.companyName}
+                                onChange={(e) => setDebtForm(prev => ({ ...prev, companyName: e.target.value }))}
+                                required
+                                className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                            >
+                                <option value="" disabled>اختر الشركة</option>
+                                {data.settings.vendors.map(vendor => (
+                                    <option key={vendor} value={vendor}>{vendor}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="space-y-2 text-right">
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">اسم المورد</label>
+                            <select
+                                value={debtForm.vendorName}
+                                onChange={(e) => setDebtForm(prev => ({ ...prev, vendorName: e.target.value }))}
+                                className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                            >
+                                <option value="">لا يوجد</option>
+                                {representativesForVendor.map(rep => (
+                                    <option key={rep.name} value={rep.name}>{rep.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="space-y-2 text-right">
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">الصنف</label>
+                            <select
+                                value={debtForm.category}
+                                onChange={(e) => setDebtForm(prev => ({ ...prev, category: e.target.value }))}
+                                required
+                                className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                            >
+                                {data.settings.expenseCategories.map(category => (
+                                    <option key={category} value={category}>{category}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <InputField
+                            label="المبلغ الكلي"
+                            type="number"
+                            value={debtForm.totalAmount}
+                            onChange={(e) => setDebtForm(prev => ({ ...prev, totalAmount: e.target.value }))}
+                            required
+                        />
+                        <InputField
+                            label="التفاصيل"
+                            textarea
+                            value={debtForm.description}
+                            onChange={(e) => setDebtForm(prev => ({ ...prev, description: e.target.value }))}
+                            placeholder="أدخل تفاصيل الدين أو شروطه"
+                        />
+                        <div className="space-y-2 text-right">
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">رفع ملف مرفق</label>
+                            <div className="flex flex-col sm:flex-row gap-2">
+                                <input
+                                    type="file"
+                                    accept="image/*,application/pdf"
+                                    onChange={handleAttachmentChange}
+                                    className="flex-1 p-2 border border-dashed border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={handleScanDebtAttachment}
+                                    disabled={!scannerAvailable}
+                                    className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl shadow transition ${scannerAvailable ? 'bg-emerald-500 hover:bg-emerald-600 text-white' : 'bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'}`}
+                                    title={scannerAvailable ? 'التقاط صورة عبر السكنر' : 'السكنر غير متاح في هذا الجهاز'}
+                                >
+                                    <Scan className="w-5 h-5" />
+                                    مسح عبر السكنر
+                                </button>
+                            </div>
+                            {debtForm.attachmentUrl && (
+                                <button
+                                    type="button"
+                                    className="text-sm text-blue-600 dark:text-blue-300 underline"
+                                    onClick={() => previewDebtAttachment(debtForm.attachmentUrl, { fallbackUrl: debtForm.attachmentUrl, fallbackName: 'مرفق الدين' })}
+                                >
+                                    معاينة المرفق
+                                </button>
+                            )}
+                        </div>
+                        <ActionButton type="submit" className="w-full">
+                            <Save className="w-5 h-5 ml-2" />
+                            حفظ
+                        </ActionButton>
+                    </form>
+                </Modal>
+            )}
+
+            {isDetailsModalOpen && activeDebt && (
+                <Modal title={`تفاصيل دين ${activeDebt.companyName || ''}`} onClose={() => setIsDetailsModalOpen(false)} size="xl">
+                    <div className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="p-4 rounded-2xl bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700">
+                                <p className="text-sm text-blue-800 dark:text-blue-200">المبلغ الكلي</p>
+                                <p className="text-xl font-bold text-blue-900 dark:text-blue-100">{formatCurrencyDisplay(normalizeAmount(activeDebt.totalAmount ?? 0))}</p>
+                            </div>
+                            <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-600">
+                                <p className="text-sm text-amber-800 dark:text-amber-200">المتبقي</p>
+                                <p className="text-xl font-bold text-amber-900 dark:text-amber-100">{formatCurrencyDisplay(normalizeAmount(activeDebt.remainingAmount ?? activeDebt.totalAmount ?? 0))}</p>
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <p className="text-sm text-gray-600 dark:text-gray-300">التفاصيل:</p>
+                            <p className="text-base text-gray-800 dark:text-gray-200 whitespace-pre-line">{activeDebt.description || 'لا توجد تفاصيل إضافية.'}</p>
+                        </div>
+
+                        {activeDebt.attachmentUrl && (
+                            <div className="space-y-2">
+                                <p className="text-sm text-gray-600 dark:text-gray-300">المرفقات:</p>
+                                <button
+                                    onClick={() => {
+                                        const attachments = normalizeAttachmentList(activeDebt?.attachments, activeDebt?.attachmentUrl, 'مرفق الدين');
+                                        const primaryAttachment = attachments[0] || activeDebt?.attachmentUrl;
+                                        previewDebtAttachment(primaryAttachment, {
+                                            collection: attachments,
+                                            fallbackUrl: activeDebt?.attachmentUrl,
+                                            fallbackName: 'مرفق الدين'
+                                        });
+                                    }}
+                                    className="px-4 py-2 rounded-xl bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-200"
+                                >
+                                    عرض المرفق
+                                </button>
+                            </div>
+                        )}
+
+                        <div className="flex flex-wrap gap-3">
+                            <ActionButton onClick={() => openPaymentModal(activeDebt)} disabled={!canPayDebt} className="bg-green-600 hover:bg-green-700">
+                                <Coins className="w-5 h-5 ml-2" />
+                                إعطاء دفعة
+                            </ActionButton>
+                            <ActionButton onClick={() => openEditModal(activeDebt)} disabled={!canEditDebt} className="bg-amber-500 hover:bg-amber-600">
+                                <Edit2 className="w-5 h-5 ml-2" />
+                                تعديل
+                            </ActionButton>
+                            <ActionButton onClick={() => handleDeleteDebt(activeDebt)} disabled={!canDeleteDebt} className="bg-red-600 hover:bg-red-700">
+                                <Trash2 className="w-5 h-5 ml-2" />
+                                حذف
+                            </ActionButton>
+                        </div>
+
+                        <div>
+                            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3">سجل الدفعات</h3>
+                            <div className="space-y-3">
+                                {Array.isArray(activeDebt.payments) && activeDebt.payments.length > 0 ? (
+                                    activeDebt.payments
+                                        .slice()
+                                        .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+                                        .map(payment => (
+                                            <div key={payment.id} className="p-4 rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60">
+                                                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                                                    <div>
+                                                        <p className="text-sm text-gray-500 dark:text-gray-400">تاريخ الدفع</p>
+                                                        <p className="text-base font-semibold text-gray-800 dark:text-gray-200">{formatDateTimeDDMMYYYY(payment.date || getDefaultDateTime())}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm text-gray-500 dark:text-gray-400">المبلغ المدفوع</p>
+                                                        <p className="text-base font-semibold text-green-700 dark:text-green-300">{formatCurrencyDisplay(normalizeAmount(payment.amount))}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm text-gray-500 dark:text-gray-400">المتبقي بعد الدفع</p>
+                                                        <p className="text-base font-semibold text-amber-600 dark:text-amber-300">{formatCurrencyDisplay(normalizeAmount(payment.remainingAfter ?? activeDebt.remainingAmount ?? 0))}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))
+                                ) : (
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">لم يتم تسجيل أي دفعات لهذا الدين بعد.</p>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </Modal>
+            )}
+
+            {isPaymentModalOpen && activeDebt && (
+                <Modal title={`تسجيل دفعة على دين ${activeDebt.companyName || ''}`} onClose={() => setIsPaymentModalOpen(false)}>
+                    <form onSubmit={handlePaymentSubmit} className="space-y-5">
+                        <p className="text-sm text-gray-600 dark:text-gray-300">
+                            المتبقي الحالي: <span className="font-semibold text-amber-600 dark:text-amber-300">{formatCurrencyDisplay(normalizeAmount(activeDebt.remainingAmount ?? activeDebt.totalAmount ?? 0))}</span>
+                        </p>
+                        <InputField
+                            label="مبلغ الدفعة"
+                            type="number"
+                            value={paymentAmount}
+                            onChange={(e) => setPaymentAmount(e.target.value)}
+                            required
+                        />
+                        <ActionButton type="submit" className="w-full">
+                            <Save className="w-5 h-5 ml-2" />
+                            إضافة الدفعة
+                        </ActionButton>
+                    </form>
+                </Modal>
+            )}
+
+            {isDebtAttachmentPreviewOpen && (
+                <AttachmentPreviewModal
+                    attachments={debtAttachmentPreviewList}
+                    initialIndex={debtAttachmentPreviewIndex}
+                    onClose={closeDebtAttachmentPreview}
+                    title="معاينة مرفقات الدين"
+                />
+            )}
+        </div>
+    );
+});
+
 /**
  * 3.3. PendingExpenses Component - الصرفيات المعلقة
  */
-const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDelete, showToast, setCurrentPage, setInitialExpenseState, handleRefresh }) => {
+const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDelete, showToast, setCurrentPage, setInitialExpenseState, handleRefresh, initialExpenseState, currentUser, openScanner }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [currentItem, setCurrentItem] = useState(null);
     const [viewItem, setViewItem] = useState(null);
     const [formState, setFormState] = useState({
+        id: null,
         type: 'expense',
         date: getDefaultDateTime(),
         amount: '',
@@ -1514,26 +4181,53 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
         employeeId: '',
         notes: '',
         status: 'pending',
-        invoiceImageUrl: ''
+        invoiceImageUrl: '',
+        inventoryItems: [],
+        linkedInvoiceId: null,
+        fromInventoryEntry: false,
+        invoiceNumber: '',
+        attachments: [],
     });
     const [selectedVendor, setSelectedVendor] = useState('');
     const [globalSearch, setGlobalSearch] = useState('');
+    const isSearchActive = useMemo(() => globalSearch.trim().length > 0, [globalSearch]);
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+    const [selectedFile, setSelectedFile] = useState(null);
     const [filterTypes, setFilterTypes] = useState([]); // مصفوفة للسماح باختيار متعدد: ['expense', 'advance']
     const [filterStatuses, setFilterStatuses] = useState([]); // مصفوفة للسماح باختيار متعدد: ['pending', 'cancelled', 'paid']
-    const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
-    
+    const {
+        isOpen: isAttachmentPreviewOpen,
+        attachments: attachmentPreviewList,
+        initialIndex: attachmentPreviewIndex,
+        openPreview: openPendingAttachmentPreview,
+        closePreview: closePendingAttachmentPreview,
+    } = useAttachmentPreviewState('مرفق');
+    const attachmentsList = Array.isArray(formState.attachments) ? formState.attachments : [];
+    const scannerAvailable = typeof openScanner === 'function';
+
+    const canAddPending = !!currentUser?.permissions?.pendingExpenses?.add;
+    const canEditPending = !!currentUser?.permissions?.pendingExpenses?.edit;
+    const canApprovePending = !!currentUser?.permissions?.pendingExpenses?.approve;
+    const canCancelPending = !!currentUser?.permissions?.pendingExpenses?.cancel;
+
     const initialRange = useMemo(() => getCurrentMonthRange(), []);
     const [filterDateFrom, setFilterDateFrom] = useState(initialRange.start);
     const [filterDateTo, setFilterDateTo] = useState(initialRange.end);
 
     useEffect(() => {
         if (currentItem) {
-            setFormState(currentItem);
+            const normalizedAttachments = normalizeAttachmentList(currentItem.attachments, currentItem.invoiceImageUrl, 'مرفق');
+            setFormState({
+                ...currentItem,
+                attachments: normalizedAttachments,
+                invoiceImageUrl: getPrimaryAttachmentDataUrl(normalizedAttachments) || currentItem.invoiceImageUrl || '',
+            });
             if (currentItem.type === 'expense') {
                 setSelectedVendor(currentItem.vendor || '');
             }
         } else {
             setFormState({
+                id: currentItem?.id || null,
                 type: 'expense',
                 date: getDefaultDateTime(),
                 amount: '',
@@ -1544,11 +4238,50 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                 employeeId: data.employees[0]?.id || '',
                 notes: '',
                 status: 'pending',
-                invoiceImageUrl: ''
+                invoiceImageUrl: '',
+                inventoryItems: [],
+                linkedInvoiceId: null,
+                fromInventoryEntry: false,
+                invoiceNumber: '',
+                linkedDebtId: '',
+                linkedDebtPaymentId: '',
+                attachments: [],
             });
             setSelectedVendor('');
         }
     }, [currentItem, data.employees]);
+
+    useEffect(() => {
+        if (initialExpenseState) {
+            const normalizedAmount = convertArabicToEnglish((initialExpenseState.amount ?? '').toString());
+            const normalizedAttachments = normalizeAttachmentList(initialExpenseState.attachments, initialExpenseState.invoiceImageUrl, 'مرفق');
+            setFormState({
+                id: initialExpenseState.id || null,
+                type: 'expense',
+                date: initialExpenseState.date || getDefaultDateTime(),
+                amount: normalizedAmount || initialExpenseState.amount?.toString() || '',
+                category: initialExpenseState.category || data.settings.expenseCategories[0] || '',
+                description: initialExpenseState.description || '',
+                vendor: initialExpenseState.vendor || '',
+                representative: initialExpenseState.representative || '',
+                employeeId: data.employees[0]?.id || '',
+                notes: initialExpenseState.notes || '',
+                status: 'pending',
+                invoiceImageUrl: getPrimaryAttachmentDataUrl(normalizedAttachments) || initialExpenseState.invoiceImageUrl || '',
+                inventoryItems: initialExpenseState.inventoryItems || [],
+                linkedInvoiceId: initialExpenseState.linkedInvoiceId || null,
+                fromInventoryEntry: initialExpenseState.fromInventoryEntry || false,
+                invoiceNumber: initialExpenseState.invoiceNumber || '',
+                linkedDebtId: initialExpenseState.linkedDebtId || '',
+                linkedDebtPaymentId: initialExpenseState.linkedDebtPaymentId || '',
+                attachments: normalizedAttachments,
+            });
+            setSelectedVendor(initialExpenseState.vendor || '');
+            setCurrentItem(null);
+            setIsModalOpen(true);
+            setInitialExpenseState(null);
+        }
+    }, [initialExpenseState, data.settings.expenseCategories, data.employees, setInitialExpenseState]);
 
     const filteredList = useMemo(() => {
         let list = data.pendingExpenses.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -1572,16 +4305,27 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
         if (globalSearch) {
             const searchLower = normalizeTextForSearch(globalSearch);
             const searchNumeric = normalizeTextForSearch(globalSearch, true);
-            
+            const hasTextSearch = searchLower.length > 0;
+            const hasNumericSearch = searchNumeric.length > 0;
+
             list = list.filter(item => {
-                const matchesCategory = item.category && normalizeTextForSearch(item.category).includes(searchLower);
-                const matchesDescription = item.description && normalizeTextForSearch(item.description).includes(searchLower);
-                const matchesNotes = item.notes && normalizeTextForSearch(item.notes).includes(searchLower);
-                const matchesAmount = item.amount && normalizeTextForSearch(item.amount.toString(), true).includes(searchNumeric);
-                const matchesVendor = item.vendor && normalizeTextForSearch(item.vendor).includes(searchLower);
-                const matchesEmployee = item.employeeId && data.employees.find(e => e.id === item.employeeId)?.name && normalizeTextForSearch(data.employees.find(e => e.id === item.employeeId).name).includes(searchLower);
-                
-                return matchesCategory || matchesDescription || matchesNotes || matchesAmount || matchesVendor || matchesEmployee;
+                let textMatches = false;
+                if (hasTextSearch) {
+                    const matchesCategory = item.category && normalizeTextForSearch(item.category).includes(searchLower);
+                    const matchesDescription = item.description && normalizeTextForSearch(item.description).includes(searchLower);
+                    const matchesNotes = item.notes && normalizeTextForSearch(item.notes).includes(searchLower);
+                    const matchesVendor = item.vendor && normalizeTextForSearch(item.vendor).includes(searchLower);
+                    const employeeName = item.employeeId ? data.employees.find(e => e.id === item.employeeId)?.name : '';
+                    const matchesEmployee = employeeName && normalizeTextForSearch(employeeName).includes(searchLower);
+
+                    textMatches = matchesCategory || matchesDescription || matchesNotes || matchesVendor || matchesEmployee;
+                }
+
+                const numericMatches = hasNumericSearch
+                    ? !!(item.amount && normalizeTextForSearch(item.amount.toString(), true).includes(searchNumeric))
+                    : false;
+
+                return textMatches || numericMatches;
             });
         }
         return list;
@@ -1605,50 +4349,220 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
         return totals;
     }, [filteredList]);
 
+    const {
+        paginatedItems: paginatedPendingList,
+        totalItems: totalPendingItems,
+        pageSize: pendingPageSize,
+        currentPage: pendingCurrentPage,
+        totalPages: pendingTotalPages,
+        changePageSize: changePendingPageSize,
+        goToPage: goToPendingPage,
+    } = usePagination(filteredList);
+
+    const handleShowAllPending = useCallback(() => {
+        setFilterDateFrom('');
+        setFilterDateTo('');
+        setFilterTypes([]);
+        setFilterStatuses([]);
+        setGlobalSearch('');
+    }, []);
+
+    const handleResetPendingFilters = useCallback(() => {
+        setFilterDateFrom(initialRange.start);
+        setFilterDateTo(initialRange.end);
+        setFilterTypes([]);
+        setFilterStatuses([]);
+        setGlobalSearch('');
+    }, [initialRange.start, initialRange.end]);
+
+    const handleAttachmentsUpload = async (event) => {
+        if (formState.type !== 'expense') {
+            showToast('يمكن إضافة مرفقات فقط للصرفيات.', 'warning');
+            event.target.value = '';
+            return;
+        }
+
+        const files = Array.from(event.target.files || []);
+        if (files.length === 0) {
+            return;
+        }
+
+        try {
+            const newAttachments = await Promise.all(files.map(createAttachmentFromFile));
+            setFormState(prev => {
+                const existing = Array.isArray(prev.attachments) ? prev.attachments : [];
+                const updated = [...existing, ...newAttachments];
+                return {
+                    ...prev,
+                    attachments: updated,
+                    invoiceImageUrl: getPrimaryAttachmentDataUrl(updated),
+                };
+            });
+            showToast('تم تحميل المرفقات بنجاح.', 'success');
+        } catch (error) {
+            console.error('Failed to upload attachments for pending expense', error);
+            showToast('تعذر تحميل المرفقات. يرجى المحاولة مرة أخرى.', 'error');
+        } finally {
+            event.target.value = '';
+        }
+    };
+
+    const handleScanAttachment = useCallback(() => {
+        if (typeof openScanner !== 'function') {
+            return;
+        }
+
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+
+        openScanner({
+            title: 'مسح مرفق الصرفية المعلقة',
+            defaultFileName: `صرفية-معلقة-${timestamp}`,
+            onCapture: (attachment) => {
+                if (!attachment) {
+                    return;
+                }
+
+                setFormState(prev => {
+                    const existing = Array.isArray(prev.attachments) ? prev.attachments : [];
+                    const updated = [...existing, attachment];
+                    return {
+                        ...prev,
+                        attachments: updated,
+                        invoiceImageUrl: getPrimaryAttachmentDataUrl(updated) || prev.invoiceImageUrl,
+                    };
+                });
+
+                showToast('تم التقاط المرفق عبر السكنر وإضافته للصرفية المعلقة.', 'success');
+            },
+        });
+    }, [openScanner, setFormState, showToast]);
+
+    const removeAttachment = (attachmentId) => {
+        setFormState(prev => {
+            const existing = Array.isArray(prev.attachments) ? prev.attachments : [];
+            const updated = existing.filter(att => att.id !== attachmentId);
+            return {
+                ...prev,
+                attachments: updated,
+                invoiceImageUrl: getPrimaryAttachmentDataUrl(updated),
+            };
+        });
+    };
+
+    const handleAttachmentPreview = (attachment, collection = [], fallbackUrl = '', fallbackName = 'مرفق') => {
+        if (!attachment) {
+            return;
+        }
+
+        const opened = openPendingAttachmentPreview(attachment, collection, fallbackUrl, fallbackName);
+        if (!opened) {
+            showToast('تعذر فتح المرفق لعدم توفر بيانات صالحة.', 'warning');
+        }
+    };
+
     const handleSubmit = (e) => {
         e.preventDefault();
-        
-        const itemToSave = formState.type === 'expense' ? {
+
+        const isNew = !currentItem;
+
+        if (isNew && !canAddPending) {
+            showToast('ليس لديك صلاحية إضافة صرفيات معلقة.', 'error');
+            return;
+        }
+
+        if (!isNew && !canEditPending) {
+            showToast('ليس لديك صلاحية تعديل الصرفيات المعلقة.', 'error');
+            return;
+        }
+
+        let itemToSave = formState.type === 'expense' ? {
             ...formState,
             vendor: selectedVendor
         } : formState;
-        
+
+        if (formState.type === 'expense') {
+            const normalizedAttachments = normalizeAttachmentList(itemToSave.attachments, itemToSave.invoiceImageUrl, 'مرفق');
+            itemToSave = {
+                ...itemToSave,
+                attachments: normalizedAttachments,
+                invoiceImageUrl: getPrimaryAttachmentDataUrl(normalizedAttachments),
+            };
+
+            const normalizedInvoiceNumber = convertArabicToEnglish((itemToSave.invoiceNumber || '').trim());
+            itemToSave = {
+                ...itemToSave,
+                invoiceNumber: normalizedInvoiceNumber,
+            };
+        } else {
+            itemToSave = {
+                ...itemToSave,
+                attachments: Array.isArray(itemToSave.attachments) ? itemToSave.attachments : [],
+            };
+        }
+
         // vendor اختياري، لكن إذا تم اختياره، يجب اختيار representative
         if (formState.type === 'expense' && selectedVendor && !itemToSave.representative) {
             showToast('يجب اختيار المندوب عند اختيار المورد.', 'error');
             return;
         }
-        
+
         if (formState.type === 'advance' && !itemToSave.employeeId) {
             showToast('يجب اختيار الموظف للسلفة.', 'error');
             return;
         }
 
-        handleDataAction('pendingExpenses', itemToSave, !currentItem);
+        const effectiveId = currentItem?.id || formState.id || crypto.randomUUID();
+        const parsedAmount = parseFloat(convertArabicToEnglish(itemToSave.amount || '0')) || 0;
+
+        const normalizedInvoiceNumber = convertArabicToEnglish((itemToSave.invoiceNumber || '').toString().trim());
+
+        const pendingItem = {
+            ...itemToSave,
+            id: effectiveId,
+            amount: parsedAmount,
+            status: currentItem?.status || 'pending',
+            inventoryItems: itemToSave.inventoryItems || [],
+            linkedInvoiceId: itemToSave.linkedInvoiceId || null,
+            fromInventoryEntry: itemToSave.fromInventoryEntry || false,
+            invoiceNumber: normalizedInvoiceNumber,
+            attachments: Array.isArray(itemToSave.attachments) ? itemToSave.attachments : [],
+        };
+
+        handleDataAction('pendingExpenses', pendingItem, isNew);
+
         setIsModalOpen(false);
         setCurrentItem(null);
+        setSelectedVendor('');
     };
 
-    const handleApprove = (item) => {
-        if (!window.confirm('هل أنت متأكد من الموافقة على هذا الطلب؟')) {
+    const handleApprove = (item, { bypassPermissionCheck = false, silent = false } = {}) => {
+        if (!bypassPermissionCheck && !canApprovePending) {
+            showToast('ليس لديك صلاحية اعتماد الصرفيات المعلقة.', 'error');
             return;
         }
-        
-        // إنشاء نسخة محدثة من البيانات
+
         const updatedData = { ...data };
-        
-        // إضافة العنصر إلى الصرفيات أو السلف
-        if (item.type === 'expense') {
-            const expenseData = {
-                id: crypto.randomUUID(),
-                invoiceNumber: generateInvoiceNumber(),
-                date: item.date,
-                amount: item.amount,
-                category: item.category,
-                description: item.description || '',
-                vendor: item.vendor || '',
+
+        if (!updatedData.pendingExpenses.find(p => p.id === item.id)) {
+            updatedData.pendingExpenses = [...updatedData.pendingExpenses, item];
+        }
+
+            if (item.type === 'expense') {
+                const expenseAttachments = normalizeAttachmentList(item.attachments, item.invoiceImageUrl, 'مرفق');
+                const primaryAttachment = getPrimaryAttachmentDataUrl(expenseAttachments);
+                const expenseData = {
+                    id: crypto.randomUUID(),
+                    invoiceNumber: convertArabicToEnglish((item.invoiceNumber || '').trim()) || generateInvoiceNumber(),
+                    date: item.date,
+                    amount: item.amount,
+                    category: item.category,
+                    description: item.description || '',
+                    vendor: item.vendor || '',
                 representative: item.representative || '',
-                invoiceImageUrl: item.invoiceImageUrl || ''
+                invoiceImageUrl: primaryAttachment || '',
+                attachments: expenseAttachments,
+                linkedDebtId: item.linkedDebtId || null,
+                linkedDebtPaymentId: item.linkedDebtPaymentId || null,
             };
             updatedData.expenses = [...updatedData.expenses, expenseData];
         } else {
@@ -1663,25 +4577,34 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
             };
             updatedData.advances = [...updatedData.advances, advanceData];
         }
-        
-        // تغيير حالة العنصر إلى "مصروفة" بدلاً من حذفه
-        updatedData.pendingExpenses = updatedData.pendingExpenses.map(p => 
-            p.id === item.id ? { ...p, status: 'paid' } : p
+
+        updatedData.pendingExpenses = updatedData.pendingExpenses.map(p =>
+            p.id === item.id
+                ? {
+                    ...p,
+                    status: 'paid',
+                    attachments: Array.isArray(item.attachments) ? item.attachments : [],
+                    invoiceImageUrl: item.invoiceImageUrl || p.invoiceImageUrl || '',
+                }
+                : p
         );
-        
-        // حفظ البيانات المحدثة مرة واحدة
+
         handleDataAction('___FULL_DATA_UPDATE___', updatedData, false);
-        
-        showToast(`تمت الموافقة وإضافة ${item.type === 'expense' ? 'الصرفية' : 'السلفة'} بنجاح!`, 'success');
+
+        if (!silent) {
+            showToast(`تمت الموافقة وإضافة ${item.type === 'expense' ? 'الصرفية' : 'السلفة'} بنجاح!`, 'success');
+        }
     };
 
     const handleCancel = (item) => {
-        if (window.confirm('هل أنت متأكد من إلغاء هذا الطلب؟')) {
-            // تغيير حالة العنصر إلى ملغي بدلاً من حذفه
-            const updatedItem = { ...item, status: 'cancelled' };
-            handleDataAction('pendingExpenses', updatedItem, false);
-            showToast('تم إلغاء الطلب بنجاح!', 'success');
+        if (!canCancelPending) {
+            showToast('ليس لديك صلاحية إلغاء الصرفيات المعلقة.', 'error');
+            return;
         }
+
+        const updatedItem = { ...item, status: 'cancelled' };
+        handleDataAction('pendingExpenses', updatedItem, false);
+        showToast('تم إلغاء الطلب بنجاح!', 'success');
     };
 
     const totalFilteredAmount = filteredList.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
@@ -1746,128 +4669,95 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                             />
                         </div>
 
-                        <button
-                            onClick={() => {
-                                setFilterDateFrom(initialRange.start);
-                                setFilterDateTo(initialRange.end);
-                                setGlobalSearch('');
-                                setFilterTypes([]);
-                                setFilterStatuses([]);
-                            }}
-                            className="flex items-center justify-center gap-2 px-4 py-3 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors duration-200 font-semibold"
-                            data-testid="button-reset-filters"
-                        >
-                            <RotateCcw className="w-5 h-5" />
-                            إعادة تعيين
-                        </button>
+                        <div className="md:col-span-3 flex flex-wrap gap-2">
+                            <button
+                                type="button"
+                                onClick={handleShowAllPending}
+                                className="flex items-center justify-center gap-2 px-4 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-semibold shadow-sm transition-colors duration-200"
+                            >
+                                <Eye className="w-4 h-4" />
+                                عرض الكل
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleResetPendingFilters}
+                                className="flex items-center justify-center gap-2 px-4 py-3 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors duration-200 font-semibold"
+                                data-testid="button-reset-filters"
+                            >
+                                <RotateCcw className="w-5 h-5" />
+                                إعادة تعيين
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
 
             {/* بطاقات فلتر النوع */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div
-                    onClick={() => setFilterTypes(prev => 
-                        prev.includes('expense') 
-                            ? prev.filter(t => t !== 'expense')
-                            : [...prev, 'expense']
-                    )}
-                    className={`p-6 rounded-2xl shadow-lg cursor-pointer transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl border-r-4
-                        ${filterTypes.includes('expense')
-                            ? 'bg-red-200 dark:bg-red-800 border-red-600 ring-4 ring-red-500 ring-opacity-60'
-                            : 'bg-red-50 dark:bg-red-900 border-red-600'
-                        }
-                    `}
-                    data-testid="filter-card-expenses"
-                >
-                    <div className="flex items-center justify-between gap-3">
-                        <div className="flex-1">
-                            <p className="text-sm font-semibold text-red-800 dark:text-red-200 mb-1">الصرفيات</p>
-                            <p className="text-2xl font-extrabold text-red-900 dark:text-red-100">{formatCurrencyDisplay(typeTotals.expense)}</p>
-                        </div>
-                        <div className="p-2 rounded-lg bg-white/20 dark:bg-black/20">
-                            <TrendingDown className="w-5 h-5 text-red-800 dark:text-red-200" />
-                        </div>
-                    </div>
-                </div>
-
-                <div
-                    onClick={() => setFilterTypes(prev => 
-                        prev.includes('advance') 
-                            ? prev.filter(t => t !== 'advance')
-                            : [...prev, 'advance']
-                    )}
-                    className={`p-6 rounded-2xl shadow-lg cursor-pointer transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl border-r-4
-                        ${filterTypes.includes('advance')
-                            ? 'bg-purple-200 dark:bg-purple-800 border-purple-600 ring-4 ring-purple-500 ring-opacity-60'
-                            : 'bg-purple-50 dark:bg-purple-900 border-purple-600'
-                        }
-                    `}
-                    data-testid="filter-card-advances"
-                >
-                    <div className="flex items-center justify-between gap-3">
-                        <div className="flex-1">
-                            <p className="text-sm font-semibold text-purple-800 dark:text-purple-200 mb-1">السلف</p>
-                            <p className="text-2xl font-extrabold text-purple-900 dark:text-purple-100">{formatCurrencyDisplay(typeTotals.advance)}</p>
-                        </div>
-                        <div className="p-2 rounded-lg bg-white/20 dark:bg-black/20">
-                            <Coins className="w-5 h-5 text-purple-800 dark:text-purple-200" />
-                        </div>
-                    </div>
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <FilterStatCard
+                    title="الصرفيات"
+                    value={formatCurrencyDisplay(typeTotals.expense)}
+                    icon={TrendingDown}
+                    onClick={() => setFilterTypes(prev => (
+                        prev.includes('expense') ? prev.filter(t => t !== 'expense') : [...prev, 'expense']
+                    ))}
+                    active={filterTypes.includes('expense')}
+                    themeKey="rose"
+                    size="md"
+                    dataTestId="filter-card-expenses"
+                />
+                <FilterStatCard
+                    title="السلف"
+                    value={formatCurrencyDisplay(typeTotals.advance)}
+                    icon={Coins}
+                    onClick={() => setFilterTypes(prev => (
+                        prev.includes('advance') ? prev.filter(t => t !== 'advance') : [...prev, 'advance']
+                    ))}
+                    active={filterTypes.includes('advance')}
+                    themeKey="purple"
+                    size="md"
+                    dataTestId="filter-card-advances"
+                />
             </div>
 
             {/* بطاقات فلتر الحالة */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div
-                    onClick={() => setFilterStatuses(prev => 
-                        prev.includes('pending') 
-                            ? prev.filter(s => s !== 'pending')
-                            : [...prev, 'pending']
-                    )}
-                    className={`p-6 rounded-2xl shadow-lg cursor-pointer transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl border-r-4
-                        ${filterStatuses.includes('pending')
-                            ? 'bg-amber-200 dark:bg-amber-800 border-amber-600 ring-4 ring-amber-500 ring-opacity-60'
-                            : 'bg-amber-50 dark:bg-amber-900 border-amber-600'
-                        }
-                    `}
-                    data-testid="filter-status-pending"
-                >
-                    <div className="flex items-center justify-between gap-3">
-                        <div className="flex-1">
-                            <p className="text-sm font-semibold text-amber-800 dark:text-amber-200 mb-1">الطلبات المعلقة</p>
-                            <p className="text-2xl font-extrabold text-amber-900 dark:text-amber-100">{formatCurrencyDisplay(statusTotals.pending)}</p>
-                        </div>
-                        <div className="p-2 rounded-lg bg-white/20 dark:bg-black/20">
-                            <Clock className="w-5 h-5 text-amber-800 dark:text-amber-200" />
-                        </div>
-                    </div>
-                </div>
-
-                <div
-                    onClick={() => setFilterStatuses(prev => 
-                        prev.includes('cancelled') 
-                            ? prev.filter(s => s !== 'cancelled')
-                            : [...prev, 'cancelled']
-                    )}
-                    className={`p-6 rounded-2xl shadow-lg cursor-pointer transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl border-r-4
-                        ${filterStatuses.includes('cancelled')
-                            ? 'bg-rose-200 dark:bg-rose-800 border-rose-600 ring-4 ring-rose-500 ring-opacity-60'
-                            : 'bg-rose-50 dark:bg-rose-900 border-rose-600'
-                        }
-                    `}
-                    data-testid="filter-status-cancelled"
-                >
-                    <div className="flex items-center justify-between gap-3">
-                        <div className="flex-1">
-                            <p className="text-sm font-semibold text-rose-800 dark:text-rose-200 mb-1">الطلبات الملغاة</p>
-                            <p className="text-2xl font-extrabold text-rose-900 dark:text-rose-100">{formatCurrencyDisplay(statusTotals.cancelled)}</p>
-                        </div>
-                        <div className="p-2 rounded-lg bg-white/20 dark:bg-black/20">
-                            <XCircle className="w-5 h-5 text-rose-800 dark:text-rose-200" />
-                        </div>
-                    </div>
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <FilterStatCard
+                    title="الطلبات المعلقة"
+                    value={formatCurrencyDisplay(statusTotals.pending)}
+                    icon={Clock}
+                    onClick={() => setFilterStatuses(prev => (
+                        prev.includes('pending') ? prev.filter(s => s !== 'pending') : [...prev, 'pending']
+                    ))}
+                    active={filterStatuses.includes('pending')}
+                    themeKey="amber"
+                    size="md"
+                    dataTestId="filter-status-pending"
+                />
+                <FilterStatCard
+                    title="الطلبات المعتمدة"
+                    value={formatCurrencyDisplay(statusTotals.paid)}
+                    icon={CheckCircle}
+                    onClick={() => setFilterStatuses(prev => (
+                        prev.includes('paid') ? prev.filter(s => s !== 'paid') : [...prev, 'paid']
+                    ))}
+                    active={filterStatuses.includes('paid')}
+                    themeKey="emerald"
+                    size="md"
+                    dataTestId="filter-status-paid"
+                />
+                <FilterStatCard
+                    title="الطلبات الملغاة"
+                    value={formatCurrencyDisplay(statusTotals.cancelled)}
+                    icon={XCircle}
+                    onClick={() => setFilterStatuses(prev => (
+                        prev.includes('cancelled') ? prev.filter(s => s !== 'cancelled') : [...prev, 'cancelled']
+                    ))}
+                    active={filterStatuses.includes('cancelled')}
+                    themeKey="rose"
+                    size="md"
+                    dataTestId="filter-status-cancelled"
+                />
             </div>
 
 
@@ -1877,7 +4767,8 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                         setCurrentItem(null);
                         setIsModalOpen(true);
                     }}
-                    className="flex items-center px-6 py-3 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-xl hover:from-green-600 hover:to-teal-600 shadow-lg transition duration-200"
+                    disabled={!canAddPending}
+                    className={`flex items-center px-6 py-3 rounded-xl shadow-lg transition duration-200 ${canAddPending ? 'bg-gradient-to-r from-green-500 to-teal-500 text-white hover:from-green-600 hover:to-teal-600' : 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-300 cursor-not-allowed'}`}
                     data-testid="button-add-pending"
                 >
                     <Plus className="w-5 h-5 ml-2" />
@@ -1905,7 +4796,7 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                             <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">المبلغ</th>
                             <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">التفاصيل</th>
                             <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">الحالة</th>
-                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">الفاتورة</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">المرفقات</th>
                             <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">الإجراءات</th>
                         </tr>
                     </thead>
@@ -1917,11 +4808,11 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                                 </td>
                             </tr>
                         ) : (
-                            filteredList.map(item => {
+                            paginatedPendingList.map(item => {
                                 const employee = item.employeeId ? data.employees.find(e => e.id === item.employeeId) : null;
                                 return (
-                                    <tr 
-                                        key={item.id} 
+                                    <tr
+                                        key={item.id}
                                         className="hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150 cursor-pointer"
                                         onClick={() => setViewItem(item)}
                                         data-testid={`row-${item.id}`}
@@ -1973,49 +4864,65 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm" onClick={(e) => e.stopPropagation()}>
-                                            {item.invoiceImageUrl ? (
-                                                <button
-                                                    onClick={() => setImagePreviewUrl(item.invoiceImageUrl)}
-                                                    className="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
-                                                    data-testid={`button-view-invoice-${item.id}`}
-                                                >
-                                                    <FileImage className="w-4 h-4" />
-                                                    معاينة
-                                                </button>
-                                            ) : (
-                                                <span className="text-gray-400 text-xs">لا توجد</span>
-                                            )}
+                                            {(() => {
+                                                const attachments = normalizeAttachmentList(item.attachments, item.invoiceImageUrl, 'مرفق');
+                                                if (attachments.length === 0) {
+                                                    return <span className="text-gray-400 text-xs">لا توجد</span>;
+                                                }
+
+                                                return (
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {attachments.map(attachment => (
+                                                            <button
+                                                                key={attachment.id}
+                                                                type="button"
+                                                                onClick={() => handleAttachmentPreview(attachment, attachments, item.invoiceImageUrl, 'مرفق')}
+                                                                className="px-3 py-1 rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800/60 text-xs font-semibold transition"
+                                                                data-testid={`button-view-invoice-${item.id}-${attachment.id}`}
+                                                            >
+                                                                {attachment.name || 'مرفق'}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                );
+                                            })()}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm" onClick={(e) => e.stopPropagation()}>
                                             {item.status === 'pending' && (
                                                 <div className="flex gap-2">
-                                                    <button
-                                                        onClick={() => {
-                                                            setCurrentItem(item);
-                                                            setIsModalOpen(true);
-                                                        }}
-                                                        className="px-3 py-1 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors flex items-center gap-1 text-xs font-semibold"
-                                                        data-testid={`button-edit-${item.id}`}
-                                                    >
-                                                        <Edit2 className="w-4 h-4" />
-                                                        تعديل
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleApprove(item)}
-                                                        className="px-3 py-1 bg-green-600 dark:bg-green-500 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-600 transition-colors flex items-center gap-1 text-xs font-semibold"
-                                                        data-testid={`button-approve-${item.id}`}
-                                                    >
-                                                        <CheckCircle className="w-4 h-4" />
-                                                        موافقة
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleCancel(item)}
-                                                        className="px-3 py-1 bg-red-600 dark:bg-red-500 text-white rounded-lg hover:bg-red-700 dark:hover:bg-red-600 transition-colors flex items-center gap-1 text-xs font-semibold"
-                                                        data-testid={`button-cancel-${item.id}`}
-                                                    >
-                                                        <XCircle className="w-4 h-4" />
-                                                        إلغاء
-                                                    </button>
+                                                    {canEditPending && (
+                                                        <button
+                                                            onClick={() => {
+                                                                setCurrentItem(item);
+                                                                setIsModalOpen(true);
+                                                            }}
+                                                            className="px-3 py-1 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors flex items-center gap-1 text-xs font-semibold"
+                                                            data-testid={`button-edit-${item.id}`}
+                                                        >
+                                                            <Edit2 className="w-4 h-4" />
+                                                            تعديل
+                                                        </button>
+                                                    )}
+                                                    {canApprovePending && (
+                                                        <button
+                                                            onClick={() => handleApprove(item)}
+                                                            className="px-3 py-1 bg-green-600 dark:bg-green-500 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-600 transition-colors flex items-center gap-1 text-xs font-semibold"
+                                                            data-testid={`button-approve-${item.id}`}
+                                                        >
+                                                            <CheckCircle className="w-4 h-4" />
+                                                            موافقة
+                                                        </button>
+                                                    )}
+                                                    {canCancelPending && (
+                                                        <button
+                                                            onClick={() => handleCancel(item)}
+                                                            className="px-3 py-1 bg-red-600 dark:bg-red-500 text-white rounded-lg hover:bg-red-700 dark:hover:bg-red-600 transition-colors flex items-center gap-1 text-xs font-semibold"
+                                                            data-testid={`button-cancel-${item.id}`}
+                                                        >
+                                                            <XCircle className="w-4 h-4" />
+                                                            إلغاء
+                                                        </button>
+                                                    )}
                                                 </div>
                                             )}
                                         </td>
@@ -2027,11 +4934,21 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                 </table>
             </div>
 
+            <PaginationControls
+                pageSize={pendingPageSize}
+                onPageSizeChange={changePendingPageSize}
+                currentPage={pendingCurrentPage}
+                totalPages={pendingTotalPages}
+                onPageChange={goToPendingPage}
+                totalItems={totalPendingItems}
+            />
+
             {/* Modal */}
             {isModalOpen && (
-                <Modal 
-                    title={currentItem ? 'تعديل صرفية معلقة' : 'إضافة صرفية معلقة جديدة'} 
-                    onClose={() => setIsModalOpen(false)}
+                <Modal
+                    title={currentItem ? 'تعديل صرفية معلقة' : 'إضافة صرفية معلقة جديدة'}
+                    onClose={() => { setIsModalOpen(false); setPendingAutoApprove(false); }}
+                    size="xl"
                 >
                     <form onSubmit={handleSubmit} className="space-y-5">
                         <InputField
@@ -2046,15 +4963,18 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">نوع الصرف</label>
                             <select
                                 value={formState.type}
-                                onChange={(e) => setFormState({ 
-                                    ...formState, 
+                                onChange={(e) => setFormState({
+                                    ...formState,
                                     type: e.target.value,
                                     category: '',
                                     description: '',
                                     vendor: '',
                                     representative: '',
                                     employeeId: e.target.value === 'advance' ? (data.employees[0]?.id || '') : '',
-                                    notes: ''
+                                    notes: '',
+                                    attachments: [],
+                                    invoiceImageUrl: '',
+                                    invoiceNumber: '',
                                 })}
                                 required
                                 className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500 transition duration-150 text-right"
@@ -2153,6 +5073,17 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                                     required
                                     textarea
                                 />
+
+                                <InputField
+                                    label="رقم فاتورة المورد"
+                                    type="text"
+                                    value={formState.invoiceNumber || ''}
+                                    onChange={(e) => setFormState({
+                                        ...formState,
+                                        invoiceNumber: convertArabicToEnglish(e.target.value || ''),
+                                    })}
+                                    required
+                                />
                             </>
                         ) : (
                             <>
@@ -2211,28 +5142,58 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                             </>
                         )}
 
-                        {/* حقل رفع صورة الفاتورة */}
-                        <div className="flex flex-col space-y-1 text-right">
-                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">صورة الفاتورة</label>
-                            <input
-                                type="url"
-                                placeholder="أدخل رابط الصورة"
-                                value={formState.invoiceImageUrl || ''}
-                                onChange={(e) => setFormState({ ...formState, invoiceImageUrl: e.target.value })}
-                                className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500 transition duration-150 text-right"
-                                data-testid="input-invoice-image"
-                            />
-                            {formState.invoiceImageUrl && (
+                    {formState.type === 'expense' && (
+                        <div className="space-y-2 text-right">
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">مرفقات الصرفية (صور / مستندات)</label>
+                            <div className="flex flex-col sm:flex-row gap-2">
+                                <input
+                                    type="file"
+                                    accept="image/*,application/pdf"
+                                    multiple
+                                    onChange={handleAttachmentsUpload}
+                                    className="flex-1 p-3 border border-dashed border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500 transition duration-150"
+                                />
                                 <button
                                     type="button"
-                                    onClick={() => setImagePreviewUrl(formState.invoiceImageUrl)}
-                                    className="text-blue-600 dark:text-blue-400 text-sm hover:underline flex items-center gap-1 justify-end mt-1"
+                                    onClick={handleScanAttachment}
+                                    disabled={!scannerAvailable}
+                                    className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl shadow transition ${scannerAvailable ? 'bg-emerald-500 hover:bg-emerald-600 text-white' : 'bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'}`}
+                                    title={scannerAvailable ? 'التقاط صورة عبر السكنر' : 'السكنر غير متاح في هذا الجهاز'}
                                 >
-                                    <FileImage className="w-4 h-4" />
-                                    معاينة الصورة
+                                    <Scan className="w-5 h-5" />
+                                    مسح عبر السكنر
                                 </button>
+                            </div>
+                            {attachmentsList.length > 0 && (
+                                <div className="space-y-2">
+                                    {attachmentsList.map(attachment => (
+                                        <div key={attachment.id} className="flex items-center justify-between gap-3 p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100">
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-medium truncate">{attachment.name}</p>
+                                                {attachment.type && <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{attachment.type}</p>}
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleAttachmentPreview(attachment, attachmentsList, formState.invoiceImageUrl, 'مرفق')}
+                                                    className="px-3 py-1 text-xs rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800/50"
+                                                >
+                                                    معاينة
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeAttachment(attachment.id)}
+                                                    className="px-2 py-1 text-xs rounded-lg bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-200 hover:bg-red-200 dark:hover:bg-red-800/50"
+                                                >
+                                                    إزالة
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
                             )}
                         </div>
+                    )}
 
                         <ActionButton type="submit" className="w-full bg-teal-600 hover:bg-teal-700">
                             <Save className="w-5 h-5 ml-2" />
@@ -2242,27 +5203,13 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                 </Modal>
             )}
 
-            {/* Modal معاينة الصورة */}
-            {imagePreviewUrl && (
-                <Modal 
-                    title="معاينة صورة الفاتورة" 
-                    onClose={() => setImagePreviewUrl(null)}
-                >
-                    <div className="flex justify-center items-center p-4">
-                        <img 
-                            src={imagePreviewUrl} 
-                            alt="صورة الفاتورة" 
-                            className="max-w-full max-h-96 rounded-lg shadow-lg"
-                            onError={(e) => {
-                                e.target.style.display = 'none';
-                                e.target.nextSibling.style.display = 'block';
-                            }}
-                        />
-                        <div style={{display: 'none'}} className="text-red-600 text-center">
-                            فشل تحميل الصورة. يرجى التحقق من الرابط.
-                        </div>
-                    </div>
-                </Modal>
+            {isAttachmentPreviewOpen && (
+                <AttachmentPreviewModal
+                    attachments={attachmentPreviewList}
+                    initialIndex={attachmentPreviewIndex}
+                    onClose={closePendingAttachmentPreview}
+                    title="معاينة مرفقات الصرفية"
+                />
             )}
 
             {/* Modal معاينة التفاصيل */}
@@ -2347,18 +5294,30 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                                         </>
                                     )}
 
-                                    {viewItem.invoiceImageUrl && (
-                                        <div className="col-span-2">
-                                            <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">صورة الفاتورة</p>
-                                            <button
-                                                onClick={() => setImagePreviewUrl(viewItem.invoiceImageUrl)}
-                                                className="flex items-center gap-2 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
-                                            >
-                                                <FileImage className="w-5 h-5" />
-                                                عرض الصورة
-                                            </button>
-                                        </div>
-                                    )}
+                                    <div className="col-span-2">
+                                        <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">المرفقات</p>
+                                        {(() => {
+                                            const attachments = normalizeAttachmentList(viewItem.attachments, viewItem.invoiceImageUrl, 'مرفق');
+                                            if (attachments.length === 0) {
+                                                return <span className="text-xs text-gray-400">لا توجد مرفقات</span>;
+                                            }
+
+                                            return (
+                                                <div className="flex flex-wrap gap-2">
+                                                    {attachments.map(attachment => (
+                                                        <button
+                                                            key={attachment.id}
+                                                            type="button"
+                                                            onClick={() => handleAttachmentPreview(attachment, attachments, viewItem.invoiceImageUrl, 'مرفق')}
+                                                            className="px-3 py-1 text-xs rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800/60"
+                                                        >
+                                                            {attachment.name || 'مرفق'}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            );
+                                        })()}
+                                    </div>
                                 </>
                             ) : (
                                 <>
@@ -2422,6 +5381,14 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                     </div>
                 </Modal>
             )}
+
+            {isAttachmentPreviewOpen && (
+                <AttachmentPreviewModal
+                    attachments={attachmentPreviewList}
+                    initialIndex={attachmentPreviewIndex}
+                    onClose={closeAttachmentPreview}
+                />
+            )}
         </div>
     );
 });
@@ -2431,12 +5398,23 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
 /**
  * 3.3. EmployeePage Component
  */
-const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete, setPrintReportData, setIsReportModalOpen, showToast, handleRefresh }) => {
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
-    const [currentEmployee, setCurrentEmployee] = useState(null);
-    const [formState, setFormState] = useState({});
-    const [globalSearch, setGlobalSearch] = useState(''); 
+const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete, setPrintReportData, setIsReportModalOpen, showToast, handleRefresh, openScanner }) => {
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+    const [currentEmployee, setCurrentEmployee] = useState(null);
+    const [formState, setFormState] = useState({});
+    const [globalSearch, setGlobalSearch] = useState('');
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const searchActive = useMemo(() => globalSearch.trim().length > 0, [globalSearch]);
+    const {
+        isOpen: isEmployeePreviewOpen,
+        attachments: employeePreviewList,
+        initialIndex: employeePreviewIndex,
+        openPreview: openEmployeePreview,
+        closePreview: closeEmployeePreview,
+    } = useAttachmentPreviewState('مستند الموظف');
+    const scannerAvailable = typeof openScanner === 'function';
 
     
     const formatDOB = (dateString) => {
@@ -2444,61 +5422,185 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
         return formatDateDDMMYYYY(dateString);
     };
 
-    const filteredList = useMemo(() => {
-        let list = data.employees.slice().sort((a, b) => a.name.localeCompare(b.name, 'ar'));
-        
-        if (globalSearch) {
-            const searchLower = normalizeTextForSearch(globalSearch); 
-            const searchNumeric = normalizeTextForSearch(globalSearch, true); 
-            
-            list = list.filter(item => {
-                const matchesName = item.name && normalizeTextForSearch(item.name).includes(searchLower);
-                const matchesSalary = item.salary && normalizeTextForSearch(item.salary.toString(), true).includes(searchNumeric);
-                const matchesDept = item.department && normalizeTextForSearch(item.department).includes(searchLower);
-                const matchesJob = item.jobTitle && normalizeTextForSearch(item.jobTitle).includes(searchLower);
-                
-                return matchesName || matchesSalary || matchesDept || matchesJob;
-            });
-        }
-        return list;
-    }, [data.employees, globalSearch]);
+    const filteredList = useMemo(() => {
+        let list = data.employees.slice().sort((a, b) => a.name.localeCompare(b.name, 'ar'));
 
-    useEffect(() => {
-        if (currentEmployee) {
-            setFormState(currentEmployee);
-        } else {
-            setFormState({ 
-                name: '', phone: '', salary: '', 
-                department: data.settings.departments[0] || '', 
-                jobTitle: data.settings.jobTitles[0] || '', 
-                docUrl: '', dateOfBirth: '', id: null 
-            });
-        }
-    }, [currentEmployee, data.settings.departments, data.settings.jobTitles]);
+        if (globalSearch) {
+            const searchLower = normalizeTextForSearch(globalSearch);
+            const searchNumeric = normalizeTextForSearch(globalSearch, true);
+            const hasTextSearch = searchLower.length > 0;
+            const hasNumericSearch = searchNumeric.length > 0;
+
+            list = list.filter(item => {
+                let textMatches = false;
+                if (hasTextSearch) {
+                    const matchesName = item.name && normalizeTextForSearch(item.name).includes(searchLower);
+                    const matchesDept = item.department && normalizeTextForSearch(item.department).includes(searchLower);
+                    const matchesJob = item.jobTitle && normalizeTextForSearch(item.jobTitle).includes(searchLower);
+
+                    textMatches = matchesName || matchesDept || matchesJob;
+                }
+
+                const numericMatches = hasNumericSearch
+                    ? !!(item.salary && normalizeTextForSearch(item.salary.toString(), true).includes(searchNumeric))
+                    : false;
+
+                return textMatches || numericMatches;
+            });
+        }
+        return list;
+    }, [data.employees, globalSearch]);
+
+    const {
+        paginatedItems: paginatedEmployees,
+        totalItems: totalEmployees,
+        pageSize: employeePageSize,
+        currentPage: employeeCurrentPage,
+        totalPages: employeeTotalPages,
+        changePageSize: changeEmployeePageSize,
+        goToPage: goToEmployeePage,
+    } = usePagination(filteredList);
+
+    useEffect(() => {
+        if (currentEmployee) {
+            setFormState({
+                ...currentEmployee,
+                docUrl: currentEmployee.docUrl || '',
+                docName: currentEmployee.docName || '',
+                docType: currentEmployee.docType || '',
+            });
+        } else {
+            setFormState({
+                name: '',
+                phone: '',
+                salary: '',
+                department: data.settings.departments[0] || '',
+                jobTitle: data.settings.jobTitles[0] || '',
+                docUrl: '',
+                docName: '',
+                docType: '',
+                dateOfBirth: '',
+                id: null,
+            });
+        }
+    }, [currentEmployee, data.settings.departments, data.settings.jobTitles]);
 
     const openModal = (employee = null) => {
         setCurrentEmployee(employee);
         setIsModalOpen(true);
     };
 
-    const openDetailsModal = (employee) => {
-        setCurrentEmployee(employee);
-        setIsDetailsModalOpen(true);
-        setFormState(employee); 
-    };
+    const openDetailsModal = (employee) => {
+        setCurrentEmployee(employee);
+        setIsDetailsModalOpen(true);
+        setFormState({
+            ...employee,
+            docUrl: employee.docUrl || '',
+            docName: employee.docName || '',
+            docType: employee.docType || '',
+        });
+    };
 
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        
-        const processedSalary = convertArabicToEnglish(formState.salary);
-        
-        handleDataAction('employees', { 
-            ...formState, 
-            salary: parseFloat(processedSalary || 0),
-        }, !currentEmployee);
-        setIsModalOpen(false);
-        setCurrentEmployee(null); 
-    };
+    const handleSubmit = (e) => {
+        e.preventDefault();
+
+        const processedSalary = convertArabicToEnglish(formState.salary);
+
+        handleDataAction('employees', {
+            ...formState,
+            salary: parseFloat(processedSalary || 0),
+        }, !currentEmployee);
+        setIsModalOpen(false);
+        setCurrentEmployee(null);
+    };
+
+    const handleEmployeeDocUpload = async (event) => {
+        const file = event.target.files?.[0];
+        if (!file) {
+            return;
+        }
+
+        try {
+            const attachment = await createAttachmentFromFile(file);
+            setFormState(prev => ({
+                ...prev,
+                docUrl: attachment.dataUrl,
+                docName: attachment.name,
+                docType: attachment.type,
+            }));
+            showToast('تم تحميل المستند الشخصي بنجاح.', 'success');
+        } catch (error) {
+            console.error('Failed to upload employee document', error);
+            showToast('تعذر تحميل المستند. يرجى المحاولة مرة أخرى.', 'error');
+        } finally {
+            event.target.value = '';
+        }
+    };
+
+    const handleScanEmployeeDoc = useCallback(() => {
+        if (typeof openScanner !== 'function') {
+            return;
+        }
+
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+
+        openScanner({
+            title: 'مسح مستند الموظف',
+            defaultFileName: `مستند-موظف-${timestamp}`,
+            onCapture: (attachment) => {
+                if (!attachment) {
+                    return;
+                }
+
+                const sourceUrl = attachment.dataUrl || attachment.url || attachment.attachmentUrl || '';
+                if (!sourceUrl) {
+                    return;
+                }
+
+                setFormState(prev => ({
+                    ...prev,
+                    docUrl: sourceUrl,
+                    docName: attachment.name || `مستند-${timestamp}`,
+                    docType: attachment.type || 'image/jpeg',
+                }));
+                showToast('تم التقاط المستند الشخصي عبر السكنر.', 'success');
+            },
+        });
+    }, [openScanner, showToast]);
+
+    const handleRemoveEmployeeDoc = () => {
+        setFormState(prev => ({ ...prev, docUrl: '', docName: '', docType: '' }));
+    };
+
+    const previewEmployeeDoc = () => {
+        if (!formState.docUrl) {
+            return;
+        }
+        const attachment = {
+            dataUrl: formState.docUrl,
+            name: formState.docName || 'المستند الشخصي',
+            type: formState.docType || '',
+        };
+        const opened = openEmployeePreview(attachment, [attachment], formState.docUrl, 'المستند الشخصي');
+        if (!opened) {
+            showToast('تعذر فتح المستند الشخصي.', 'warning');
+        }
+    };
+
+    const previewEmployeeDocFromDetails = () => {
+        if (!currentEmployee?.docUrl) {
+            return;
+        }
+        const attachment = {
+            dataUrl: currentEmployee.docUrl,
+            name: currentEmployee.docName || 'المستند الشخصي',
+            type: currentEmployee.docType || '',
+        };
+        const opened = openEmployeePreview(attachment, [attachment], currentEmployee.docUrl, 'المستند الشخصي');
+        if (!opened) {
+            showToast('تعذر فتح المستند الشخصي.', 'warning');
+        }
+    };
 
     const handlePrintAll = () => {
              if (filteredList.length === 0) {
@@ -2519,28 +5621,133 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
         setIsReportModalOpen(true);
     };
     
-    const handleExportAll = () => {
-        if (filteredList.length === 0) {
-             showToast('لا توجد بيانات للتصدير.', "error");
-             return;
-           }
-            
-        const exportContent = filteredList.map(item => ({
-            'الاسم': item.name,
-            'تاريخ الميلاد': formatDOB(item.dateOfBirth),
-            'القسم': item.department,
-            'المنصب': item.jobTitle,
-            'الراتب': parseFloat(item.salary || 0),
-            'رقم الهاتف': item.phone || 'N/A',
-            'رابط المستندات': item.docUrl || 'N/A',
-        }));
+    const handleExportAll = () => {
+        if (filteredList.length === 0) {
+      showToast('لا توجد بيانات للتصدير.', "error");
+      return;
+    }
 
-        exportToCsv(exportContent, `تقرير_الموظفين`);
-        showToast('تم تصدير البيانات إلى Excel بنجاح!', "success");
-    };
+        const exportContent = filteredList.map(item => ({
+            'الاسم': item.name,
+            'تاريخ الميلاد': formatDOB(item.dateOfBirth),
+            'القسم': item.department,
+            'المنصب': item.jobTitle,
+            'الراتب': parseFloat(item.salary || 0),
+            'رقم الهاتف': item.phone || 'N/A',
+            'رابط المستندات': item.docUrl || 'N/A',
+        }));
+
+        exportToCsv(exportContent, `تقرير_الموظفين`);
+        showToast('تم تصدير البيانات إلى Excel بنجاح!', "success");
+    };
+
+    const downloadEmployeeTemplate = () => {
+        const template = [{
+            'اسم الموظف': 'محمد علي',
+            'تاريخ الميلاد (yyyy-mm-dd)': '1990-05-12',
+            'القسم': data.settings.departments[0] || 'الإدارة',
+            'المنصب': data.settings.jobTitles[0] || 'موظف',
+            'الراتب الشهري': 750000,
+            'رقم الهاتف': '07701234567',
+            'رابط المستندات': 'https://example.com/docs.pdf'
+        }];
+
+        const worksheet = XLSX.utils.json_to_sheet(template);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'الموظفون');
+        XLSX.writeFile(workbook, `نموذج_الموظفين_${new Date().toISOString().split('T')[0]}.xlsx`);
+        showToast('تم تحميل نموذج Excel بنجاح!', 'success');
+    };
+
+    const handleEmployeeFileUpload = (event) => {
+        const file = event.target.files?.[0];
+        if (!file) {
+            return;
+        }
+        setSelectedFile(file);
+        showToast('تم اختيار الملف، اضغط على "استيراد البيانات" للمتابعة.', 'info');
+    };
+
+    const importEmployeesFromExcel = () => {
+        if (!selectedFile) {
+            showToast('يرجى اختيار ملف Excel أولاً', 'error');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                if (!e.target?.result) {
+                    showToast('تعذر قراءة ملف Excel', 'error');
+                    return;
+                }
+
+                const fileData = new Uint8Array(e.target.result as ArrayBuffer);
+                const workbook = XLSX.read(fileData, { type: 'array' });
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+                if (jsonData.length === 0) {
+                    showToast('الملف فارغ أو غير صالح', 'error');
+                    return;
+                }
+
+                let successCount = 0;
+                let errorCount = 0;
+
+                jsonData.forEach((row, index) => {
+                    try {
+                        const nameCell = row['اسم الموظف'] || row['الاسم'];
+                        if (!nameCell) {
+                            errorCount++;
+                            return;
+                        }
+
+                        const processedSalary = convertArabicToEnglish(row['الراتب الشهري'] || row['الراتب'] || '0');
+                        const employeeId = crypto.randomUUID();
+                        const dateOfBirth = row['تاريخ الميلاد (yyyy-mm-dd)'] || row['تاريخ الميلاد'] || '';
+
+                        const newEmployee = {
+                            id: employeeId,
+                            name: nameCell.toString().trim(),
+                            dateOfBirth: dateOfBirth ? dateOfBirth.toString().trim() : '',
+                            department: (row['القسم'] || data.settings.departments[0] || '').toString(),
+                            jobTitle: (row['المنصب'] || row['الوظيفة'] || data.settings.jobTitles[0] || '').toString(),
+                            salary: parseFloat(processedSalary || 0) || 0,
+                            phone: convertArabicToEnglish((row['رقم الهاتف'] || '').toString()),
+                            docUrl: row['رابط المستندات'] ? row['رابط المستندات'].toString() : '',
+                        };
+
+                        handleDataAction('employees', newEmployee, true);
+                        successCount++;
+                    } catch (error) {
+                        console.error(`فشل استيراد السطر ${index + 1}:`, error);
+                        errorCount++;
+                    }
+                });
+
+                showToast(`تم استيراد ${successCount} موظف${errorCount ? ` (أخطاء: ${errorCount})` : ''}`, successCount ? 'success' : 'error');
+                setIsImportModalOpen(false);
+                setSelectedFile(null);
+                if (typeof handleRefresh === 'function') {
+                    handleRefresh();
+                }
+            } catch (error) {
+                console.error('خطأ في قراءة ملف Excel:', error);
+                showToast('حدث خطأ في قراءة ملف Excel', 'error');
+            }
+        };
+
+        reader.onerror = () => {
+            showToast('تعذر قراءة ملف Excel', 'error');
+        };
+
+        reader.readAsArrayBuffer(selectedFile);
+    };
 
 
-    return (
+    return (
         <div className="p-6 space-y-6 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl">
             <h2 className="text-4xl font-extrabold text-gray-800 dark:text-gray-200 border-b-2 border-teal-500 pb-3">إدارة الموظفين </h2>
             
@@ -2594,11 +5801,14 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
                         </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
-                        {filteredList.length === 0 ? (
-                            <tr><td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">لا يوجد موظفين مسجلين.</td></tr>
-                        ) : (
-                            filteredList.map(emp => (
-                                <tr key={emp.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150">
+                        {filteredList.length === 0 ? (
+                            <tr><td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">لا يوجد موظفين مسجلين.</td></tr>
+                        ) : (
+                            paginatedEmployees.map(emp => (
+                                <tr
+                                    key={emp.id}
+                                    className={`hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150 ${searchActive ? 'bg-amber-50 dark:bg-amber-900/40 border-r-4 border-amber-400' : ''}`}
+                                >
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600 cursor-pointer" onClick={() => openDetailsModal(emp)}>{highlightText(emp.name, globalSearch)}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{highlightText(formatDOB(emp.dateOfBirth), globalSearch)}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{highlightText(emp.department, globalSearch)}</td>
@@ -2681,13 +5891,51 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
                             currency 
                         />
                         
-                        <InputField 
-                            label="رابط المستندات الشخصية (صورة/PDF)" 
-                            type="url" 
-                            placeholder="http://example.com/file.pdf"
-                            value={formState.docUrl || ''} 
-                            onChange={(e) => setFormState({ ...formState, docUrl: e.target.value })} 
-                        />
+                        <div className="space-y-2 text-right">
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">المستندات الشخصية (صورة / PDF)</label>
+                            <div className="flex flex-col sm:flex-row gap-2">
+                                <input
+                                    type="file"
+                                    accept="image/*,application/pdf"
+                                    onChange={handleEmployeeDocUpload}
+                                    className="flex-1 p-3 border border-dashed border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500 transition duration-150"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={handleScanEmployeeDoc}
+                                    disabled={!scannerAvailable}
+                                    className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl shadow transition ${scannerAvailable ? 'bg-emerald-500 hover:bg-emerald-600 text-white' : 'bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'}`}
+                                    title={scannerAvailable ? 'التقاط صورة عبر السكنر' : 'السكنر غير متاح في هذا الجهاز'}
+                                >
+                                    <Scan className="w-5 h-5" />
+                                    مسح عبر السكنر
+                                </button>
+                            </div>
+                            {formState.docUrl && (
+                                <div className="flex items-center justify-between gap-3 p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100">
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium truncate">{formState.docName || 'مستند مرفوع'}</p>
+                                        {formState.docType && <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{formState.docType}</p>}
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={previewEmployeeDoc}
+                                            className="px-3 py-1 text-xs rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800/50"
+                                        >
+                                            معاينة
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={handleRemoveEmployeeDoc}
+                                            className="px-2 py-1 text-xs rounded-lg bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-200 hover:bg-red-200 dark:hover:bg-red-800/50"
+                                        >
+                                            إزالة
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                         
                         <ActionButton type="submit" className="w-full bg-teal-600 hover:bg-teal-700">
                             <Save className="w-5 h-5 ml-2" />
@@ -2697,28 +5945,88 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
                 </Modal>
             )}
 
-            {isDetailsModalOpen && currentEmployee && (
-                <Modal title={`تفاصيل الموظف: ${currentEmployee.name}`} onClose={() => setIsDetailsModalOpen(false)} size="sm">
-                    <div className="space-y-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl">
-                        <h4 className="text-xl font-bold text-gray-800 dark:text-gray-200 border-b pb-2 mb-4">معلومات أساسية</h4>
-                        <p className="flex items-center text-lg dark:text-gray-200"><CalendarCheck className="w-5 h-5 ml-2 text-indigo-500" /> **تاريخ الميلاد:** {formatDOB(currentEmployee.dateOfBirth)}</p>
+            {isDetailsModalOpen && currentEmployee && (
+                <Modal title={`تفاصيل الموظف: ${currentEmployee.name}`} onClose={() => setIsDetailsModalOpen(false)} size="sm">
+                    <div className="space-y-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl">
+                        <h4 className="text-xl font-bold text-gray-800 dark:text-gray-200 border-b pb-2 mb-4">معلومات أساسية</h4>
+                        <p className="flex items-center text-lg dark:text-gray-200"><CalendarCheck className="w-5 h-5 ml-2 text-indigo-500" /> **تاريخ الميلاد:** {formatDOB(currentEmployee.dateOfBirth)}</p>
                         <p className="flex items-center text-lg dark:text-gray-200"><Briefcase className="w-5 h-5 ml-2 text-indigo-500" /> **القسم:** {currentEmployee.department}</p>
                         <p className="flex items-center text-lg dark:text-gray-200"><List className="w-5 h-5 ml-2 text-indigo-500" /> **المنصب:** {currentEmployee.jobTitle}</p>
                         <p className="flex items-center text-lg dark:text-gray-200"><Phone className="w-5 h-5 ml-2 text-indigo-500" /> **الهاتف:** {currentEmployee.phone || 'غير متوفر'}</p>
                         
-                        {currentEmployee.docUrl && (
-                            <a href={currentEmployee.docUrl} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center p-3 text-white bg-indigo-600 dark:bg-indigo-700 rounded-xl hover:bg-indigo-700 dark:hover:bg-indigo-600 transition space-x-2 space-x-reverse font-semibold mt-4">
-                                <ExternalLink className="w-5 h-5 ml-2" />
-                                عرض المستندات الشخصية
-                            </a>
-                        )}
+                        {currentEmployee.docUrl && (
+                            <button
+                                onClick={previewEmployeeDocFromDetails}
+                                className="flex items-center justify-center w-full p-3 text-white bg-indigo-600 dark:bg-indigo-700 rounded-xl hover:bg-indigo-700 dark:hover:bg-indigo-600 transition space-x-2 space-x-reverse font-semibold mt-4"
+                            >
+                                <ExternalLink className="w-5 h-5 ml-2" />
+                                عرض المستندات الشخصية
+                            </button>
+                        )}
 
                         
                     </div>
-                </Modal>
-            )}
-        </div>
-    );
+                </Modal>
+            )}
+
+            {isImportModalOpen && (
+                <Modal title="استيراد الموظفين من Excel" onClose={() => { setIsImportModalOpen(false); setSelectedFile(null); }}>
+                    <div className="space-y-6">
+                        <div className="p-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-xl">
+                            <h3 className="font-bold text-blue-800 dark:text-blue-200 mb-2 flex items-center gap-2">
+                                <Info className="w-5 h-5" />
+                                خطوات الاستيراد:
+                            </h3>
+                            <ol className="list-decimal list-inside space-y-1 text-sm text-blue-700 dark:text-blue-300">
+                                <li>قم بتحميل نموذج Excel الفارغ.</li>
+                                <li>أضف بيانات الموظفين مع الالتزام بالتنسيق.</li>
+                                <li>ارفع الملف ثم اضغط على "استيراد البيانات".</li>
+                            </ol>
+                        </div>
+
+                        <div className="flex flex-col gap-4">
+                            <button
+                                onClick={downloadEmployeeTemplate}
+                                className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-xl hover:from-blue-600 hover:to-cyan-600 shadow-lg transition duration-200"
+                            >
+                                <FileDown className="w-5 h-5" />
+                                تحميل نموذج Excel
+                            </button>
+
+                            <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-6">
+                                <label className="flex flex-col items-center justify-center cursor-pointer">
+                                    <Upload className="w-12 h-12 text-gray-400 dark:text-gray-500 mb-2" />
+                                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                        {selectedFile ? selectedFile.name : 'اضغط لاختيار ملف Excel'}
+                                    </span>
+                                    <span className="text-xs text-gray-500 dark:text-gray-400">(xlsx, xls)</span>
+                                    <input type="file" accept=".xlsx,.xls" onChange={handleEmployeeFileUpload} className="hidden" />
+                                </label>
+                            </div>
+
+                            <button
+                                onClick={importEmployeesFromExcel}
+                                disabled={!selectedFile}
+                                className={`flex items-center justify-center gap-2 px-6 py-3 rounded-xl shadow-lg transition duration-200 ${selectedFile ? 'bg-gradient-to-r from-green-500 to-teal-500 text-white hover:from-green-600 hover:to-teal-600' : 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'}`}
+                            >
+                                <Upload className="w-5 h-5" />
+                                استيراد البيانات
+                            </button>
+                        </div>
+                    </div>
+                </Modal>
+            )}
+
+            {isEmployeePreviewOpen && (
+                <AttachmentPreviewModal
+                    attachments={employeePreviewList}
+                    initialIndex={employeePreviewIndex}
+                    onClose={closeEmployeePreview}
+                    title="معاينة مستند الموظف"
+                />
+            )}
+        </div>
+    );
 });
 
 /**
@@ -2730,7 +6038,7 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     const [currentEmployee, setCurrentEmployee] = useState(null);
     const [isAddAdjustmentOpen, setIsAddAdjustmentOpen] = useState(false);
-    const [adjustmentForm, setAdjustmentForm] = useState({ type: 'bonus', amount: '', description: '', date: new Date().toISOString().slice(0, 10) });
+    const [adjustmentForm, setAdjustmentForm] = useState({ type: 'bonus', amount: '', description: '', date: new Date().toISOString().slice(0, 10), absenceDays: '' });
     const [globalSearch, setGlobalSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('الكل');
     const [payslipToPrint, setPayslipToPrint] = useState(null);
@@ -2789,7 +6097,7 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
     // فلترة الموظفين
     const filteredEmployees = useMemo(() => {
         let list = data.employees.slice();
-        
+
         if (globalSearch) {
             const searchLower = normalizeTextForSearch(globalSearch);
             list = list.filter(emp => 
@@ -2809,12 +6117,22 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
         return list.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
     }, [data.employees, globalSearch, statusFilter, selectedMonth, selectedYear, calculateEmployeeSalary]);
 
+    const {
+        paginatedItems: paginatedPayrollEmployees,
+        totalItems: totalPayrollEmployees,
+        pageSize: payrollPageSize,
+        currentPage: payrollCurrentPage,
+        totalPages: payrollTotalPages,
+        changePageSize: changePayrollPageSize,
+        goToPage: goToPayrollPage,
+    } = usePagination(filteredEmployees);
+
     // حساب مجاميع الرواتب للكارتات
     const salaryTotals = useMemo(() => {
         let totalAll = 0;
         let totalPaid = 0;
         let totalUnpaid = 0;
-        
+
         filteredEmployees.forEach(emp => {
             const salaryData = calculateEmployeeSalary(emp, selectedMonth, selectedYear);
             totalAll += salaryData.netSalary;
@@ -2824,22 +6142,100 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                 totalUnpaid += salaryData.netSalary;
             }
         });
-        
+
         return { totalAll, totalPaid, totalUnpaid };
     }, [filteredEmployees, selectedMonth, selectedYear, calculateEmployeeSalary]);
+
+    const computeAbsenceDeduction = useCallback((daysValue) => {
+        const baseSalaryValue = parseFloat(convertArabicToEnglish(currentEmployee?.salary || '0')) || 0;
+        const normalizedDays = parseFloat(convertArabicToEnglish(daysValue || '')) || 0;
+
+        if (!baseSalaryValue || !normalizedDays) {
+            return '';
+        }
+
+        const deduction = (baseSalaryValue / 30) * normalizedDays;
+        return deduction.toFixed(2);
+    }, [currentEmployee]);
+
+    const getAdvancesForPeriod = useCallback((employeeId, month, year) => {
+        return data.advances
+            .filter(adv => {
+                const advDate = new Date(adv.date);
+                return adv.employeeId === employeeId &&
+                    advDate.getMonth() + 1 === month &&
+                    advDate.getFullYear() === year;
+            })
+            .map(adv => ({ ...adv }));
+    }, [data.advances]);
+
+    const payslipPaymentDate = useMemo(() => {
+        if (!payslipToPrint) {
+            return '';
+        }
+        const paidDate = payslipToPrint.salaryData?.paidDate;
+        if (paidDate) {
+            return formatDateDDMMYYYY(paidDate);
+        }
+        return 'لم يتم الدفع بعد';
+    }, [payslipToPrint]);
 
     // دالة إضافة تعديل
     const handleAddAdjustment = (e) => {
         e.preventDefault();
-        
+
         if (!currentEmployee) return;
+
+        let description = (adjustmentForm.description || '').trim();
+        const baseSalary = parseFloat(convertArabicToEnglish(currentEmployee.salary || '0')) || 0;
+        let amountValue = parseFloat(convertArabicToEnglish(adjustmentForm.amount || '0')) || 0;
+        let absenceDaysValue = null;
+
+        if (adjustmentForm.type === 'absence') {
+            const rawDays = convertArabicToEnglish(adjustmentForm.absenceDays || '');
+            const daysValue = parseFloat(rawDays);
+
+            if (!daysValue || daysValue <= 0) {
+                showToast('يرجى إدخال عدد أيام الغياب بصورة صحيحة.', 'error');
+                return;
+            }
+
+            if (!baseSalary) {
+                showToast('لا يمكن احتساب خصم الغياب بدون تحديد الراتب الأساسي للموظف.', 'error');
+                return;
+            }
+
+            const dailyRate = baseSalary / 30;
+            const computedAmount = dailyRate * daysValue;
+            amountValue = parseFloat(computedAmount.toFixed(2));
+            absenceDaysValue = parseFloat(daysValue.toFixed(2));
+
+            if (!description) {
+                description = `خصم غياب (${daysValue} يوم${daysValue !== 1 ? 'اً' : ''})`;
+            }
+        } else {
+            if (!amountValue || amountValue <= 0) {
+                showToast('يرجى إدخال مبلغ صالح للتعديل.', 'error');
+                return;
+            }
+        }
+
+        if (!description) {
+            const fallbackDescriptions = {
+                bonus: 'مكافأة إضافية',
+                deduction: 'خصم على الراتب',
+                overtime: 'أجر ساعات إضافية',
+            };
+            description = fallbackDescriptions[adjustmentForm.type] || 'تعديل على الراتب';
+        }
 
         const newAdjustment = {
             id: Date.now().toString(),
             type: adjustmentForm.type,
-            amount: parseFloat(convertArabicToEnglish(adjustmentForm.amount)) || 0,
-            description: adjustmentForm.description,
-            date: adjustmentForm.date
+            amount: amountValue,
+            description,
+            date: adjustmentForm.date,
+            ...(absenceDaysValue !== null ? { absenceDays: absenceDaysValue } : {}),
         };
 
         let payrollRecord = data.payroll.find(p => 
@@ -2864,10 +6260,37 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
             handleDataAction('payroll', payrollRecord, true);
         }
 
-        setAdjustmentForm({ type: 'bonus', amount: '', description: '', date: new Date().toISOString().slice(0, 10) });
+        setAdjustmentForm({ type: 'bonus', amount: '', description: '', date: new Date().toISOString().slice(0, 10), absenceDays: '' });
         setIsAddAdjustmentOpen(false);
         showToast('تم إضافة التعديل بنجاح!', 'success');
     };
+
+    const handleDeleteAdjustment = useCallback((adjustmentId) => {
+        if (!currentEmployee) {
+            return;
+        }
+
+        const payrollRecord = data.payroll.find(p =>
+            p.employeeId === currentEmployee.id &&
+            p.month === selectedMonth &&
+            p.year === selectedYear
+        );
+
+        if (!payrollRecord || !Array.isArray(payrollRecord.adjustments)) {
+            showToast('لا يوجد سجل تعديلات لحذفه.', 'warning');
+            return;
+        }
+
+        const filteredAdjustments = payrollRecord.adjustments.filter(adj => adj.id !== adjustmentId);
+        if (filteredAdjustments.length === payrollRecord.adjustments.length) {
+            showToast('التعديل المطلوب غير موجود.', 'warning');
+            return;
+        }
+
+        const updatedRecord = { ...payrollRecord, adjustments: filteredAdjustments };
+        handleDataAction('payroll', updatedRecord, false);
+        showToast('تم حذف التعديل بنجاح.', 'success');
+    }, [currentEmployee, data.payroll, handleDataAction, selectedMonth, selectedYear, showToast]);
 
     // دالة دفع الراتب
     const handlePaySalary = (employeeId) => {
@@ -2950,7 +6373,8 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
 
     // دالة طباعة كشف الراتب
     const handlePrintPayslip = (employee, salaryData) => {
-        setPayslipToPrint({ employee, salaryData });
+        const advancesForPeriod = getAdvancesForPeriod(employee.id, selectedMonth, selectedYear);
+        setPayslipToPrint({ employee, salaryData, advances: advancesForPeriod });
     };
 
     return (
@@ -2996,76 +6420,38 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                 </div>
             </div>
 
-            {/* كارتات مجاميع الرواتب - قابلة للضغط للفلترة */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {/* الكل */}
-                <div 
+            {/* كروت مجاميع الرواتب */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                <FilterStatCard
+                    title="الكل"
+                    value={formatCurrencyDisplay(salaryTotals.totalAll)}
+                    icon={Calculator}
                     onClick={() => setStatusFilter('الكل')}
-                    className={`cursor-pointer p-6 rounded-2xl shadow-xl border-r-4 transition-all duration-300 transform hover:scale-[1.02] ${
-                        statusFilter === 'الكل'
-                            ? 'bg-gradient-to-br from-teal-100 to-teal-200 dark:from-teal-900 dark:to-teal-800 border-r-8 border-teal-600 dark:border-teal-300 shadow-2xl ring-4 ring-teal-300 dark:ring-teal-600'
-                            : 'bg-gradient-to-br from-teal-50 to-teal-100 dark:from-teal-950/50 dark:to-teal-900/50 border-teal-500 dark:border-teal-400 hover:shadow-2xl'
-                    }`}
-                    data-testid="card-total-all"
-                >
-                    <div className="flex items-center justify-between">
-                        <div className="space-y-2">
-                            <p className="text-lg font-bold text-gray-700 dark:text-gray-300">الكل</p>
-                            <p className="text-3xl font-extrabold text-teal-600 dark:text-teal-400">
-                                {formatCurrencyDisplay(salaryTotals.totalAll)}
-                            </p>
-                        </div>
-                        <div className="p-4 bg-teal-500/20 dark:bg-teal-500/30 rounded-2xl">
-                            <Calculator className="w-8 h-8 text-teal-600 dark:text-teal-400" />
-                        </div>
-                    </div>
-                </div>
-
-                {/* المدفوع */}
-                <div 
+                    active={statusFilter === 'الكل'}
+                    themeKey="teal"
+                    size="md"
+                    dataTestId="card-total-all"
+                />
+                <FilterStatCard
+                    title="المدفوع"
+                    value={formatCurrencyDisplay(salaryTotals.totalPaid)}
+                    icon={CheckCircle}
                     onClick={() => setStatusFilter('مدفوعة')}
-                    className={`cursor-pointer p-6 rounded-2xl shadow-xl border-r-4 transition-all duration-300 transform hover:scale-[1.02] ${
-                        statusFilter === 'مدفوعة'
-                            ? 'bg-gradient-to-br from-green-100 to-green-200 dark:from-green-900 dark:to-green-800 border-r-8 border-green-600 dark:border-green-300 shadow-2xl ring-4 ring-green-300 dark:ring-green-600'
-                            : 'bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950/50 dark:to-green-900/50 border-green-500 dark:border-green-400 hover:shadow-2xl'
-                    }`}
-                    data-testid="card-total-paid"
-                >
-                    <div className="flex items-center justify-between">
-                        <div className="space-y-2">
-                            <p className="text-lg font-bold text-gray-700 dark:text-gray-300">المدفوع</p>
-                            <p className="text-3xl font-extrabold text-green-600 dark:text-green-400">
-                                {formatCurrencyDisplay(salaryTotals.totalPaid)}
-                            </p>
-                        </div>
-                        <div className="p-4 bg-green-500/20 dark:bg-green-500/30 rounded-2xl">
-                            <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
-                        </div>
-                    </div>
-                </div>
-
-                {/* الغير مدفوع */}
-                <div 
+                    active={statusFilter === 'مدفوعة'}
+                    themeKey="emerald"
+                    size="md"
+                    dataTestId="card-total-paid"
+                />
+                <FilterStatCard
+                    title="الغير مدفوع"
+                    value={formatCurrencyDisplay(salaryTotals.totalUnpaid)}
+                    icon={XCircle}
                     onClick={() => setStatusFilter('غير مدفوعة')}
-                    className={`cursor-pointer p-6 rounded-2xl shadow-xl border-r-4 transition-all duration-300 transform hover:scale-[1.02] ${
-                        statusFilter === 'غير مدفوعة'
-                            ? 'bg-gradient-to-br from-orange-100 to-orange-200 dark:from-orange-900 dark:to-orange-800 border-r-8 border-orange-600 dark:border-orange-300 shadow-2xl ring-4 ring-orange-300 dark:ring-orange-600'
-                            : 'bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950/50 dark:to-orange-900/50 border-orange-500 dark:border-orange-400 hover:shadow-2xl'
-                    }`}
-                    data-testid="card-total-unpaid"
-                >
-                    <div className="flex items-center justify-between">
-                        <div className="space-y-2">
-                            <p className="text-lg font-bold text-gray-700 dark:text-gray-300">الغير مدفوع</p>
-                            <p className="text-3xl font-extrabold text-orange-600 dark:text-orange-400">
-                                {formatCurrencyDisplay(salaryTotals.totalUnpaid)}
-                            </p>
-                        </div>
-                        <div className="p-4 bg-orange-500/20 dark:bg-orange-500/30 rounded-2xl">
-                            <XCircle className="w-8 h-8 text-orange-600 dark:text-orange-400" />
-                        </div>
-                    </div>
-                </div>
+                    active={statusFilter === 'غير مدفوعة'}
+                    themeKey="orange"
+                    size="md"
+                    dataTestId="card-total-unpaid"
+                />
             </div>
 
             {/* البحث */}
@@ -3112,12 +6498,12 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                         {filteredEmployees.length === 0 ? (
                             <tr><td colSpan="10" className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">لا يوجد موظفين.</td></tr>
                         ) : (
-                            filteredEmployees.map(emp => {
+                            paginatedPayrollEmployees.map(emp => {
                                 const salaryData = calculateEmployeeSalary(emp, selectedMonth, selectedYear);
                                 return (
-                                    <tr 
-                                        key={emp.id} 
-                                        className="hover:bg-gray-50 dark:hover:bg-gray-700 transition cursor-pointer" 
+                                    <tr
+                                        key={emp.id}
+                                        className="hover:bg-gray-50 dark:hover:bg-gray-700 transition cursor-pointer"
                                         onClick={() => { setCurrentEmployee(emp); setIsDetailsModalOpen(true); }}
                                         data-testid={`row-employee-${emp.id}`}
                                     >
@@ -3174,6 +6560,15 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                 </table>
             </div>
 
+            <PaginationControls
+                pageSize={payrollPageSize}
+                onPageSizeChange={changePayrollPageSize}
+                currentPage={payrollCurrentPage}
+                totalPages={payrollTotalPages}
+                onPageChange={goToPayrollPage}
+                totalItems={totalPayrollEmployees}
+            />
+
             {/* مودال التفاصيل */}
             {isDetailsModalOpen && currentEmployee && (
                 <Modal title={`تفاصيل راتب: ${currentEmployee.name}`} onClose={() => setIsDetailsModalOpen(false)} size="xl">
@@ -3191,7 +6586,10 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                             <div className="flex justify-between items-center mb-3">
                                 <h4 className="text-lg font-bold text-gray-800 dark:text-gray-200">التعديلات</h4>
                                 <button
-                                    onClick={() => setIsAddAdjustmentOpen(true)}
+                                    onClick={() => {
+                                        setAdjustmentForm({ type: 'bonus', amount: '', description: '', date: new Date().toISOString().slice(0, 10), absenceDays: '' });
+                                        setIsAddAdjustmentOpen(true);
+                                    }}
                                     className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
                                     data-testid="button-add-adjustment"
                                 >
@@ -3212,20 +6610,33 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                                         <p className="text-gray-500 dark:text-gray-400 text-center py-4">لا توجد تعديلات</p>
                                     ) : (
                                         adjustments.map(adj => (
-                                            <div key={adj.id} className="p-3 bg-gray-50 rounded-lg flex justify-between items-center">
-                                                <div>
+                                            <div key={adj.id} className="p-3 bg-gray-50 rounded-lg flex justify-between items-center gap-4">
+                                                <div className="space-y-1">
                                                     <p className="font-semibold">
                                                         {adj.type === 'bonus' && '🎁 مكافأة'}
                                                         {adj.type === 'deduction' && '⚠️ خصم'}
                                                         {adj.type === 'absence' && '❌ غياب'}
                                                         {adj.type === 'overtime' && '⏰ أوفرتايم'}
                                                     </p>
-                                                    <p className="text-sm text-gray-600 dark:text-gray-400">{adj.description}</p>
+                                                    <p className="text-sm text-gray-600 dark:text-gray-400">{adj.description || '---'}</p>
+                                                    {adj.type === 'absence' && adj.absenceDays !== undefined && (
+                                                        <p className="text-xs text-amber-600 dark:text-amber-300">أيام الغياب: {adj.absenceDays}</p>
+                                                    )}
                                                     <p className="text-xs text-gray-400 dark:text-gray-500">{formatDateDDMMYYYY(adj.date)}</p>
                                                 </div>
-                                                <p className={`font-bold ${adj.type === 'bonus' || adj.type === 'overtime' ? 'text-green-600' : 'text-red-600'}`}>
-                                                    {adj.type === 'bonus' || adj.type === 'overtime' ? '+' : '-'}{formatCurrencyDisplay(adj.amount)}
-                                                </p>
+                                                <div className="flex items-center gap-3">
+                                                    <p className={`font-bold ${adj.type === 'bonus' || adj.type === 'overtime' ? 'text-green-600' : 'text-red-600'}`}>
+                                                        {adj.type === 'bonus' || adj.type === 'overtime' ? '+' : '-'}{formatCurrencyDisplay(adj.amount)}
+                                                    </p>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleDeleteAdjustment(adj.id)}
+                                                        className="p-2 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 transition"
+                                                        title="حذف التعديل"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
                                             </div>
                                         ))
                                     );
@@ -3274,7 +6685,26 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                             <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1">نوع التعديل</label>
                             <select
                                 value={adjustmentForm.type}
-                                onChange={(e) => setAdjustmentForm({ ...adjustmentForm, type: e.target.value })}
+                                onChange={(e) => {
+                                    const nextType = e.target.value;
+                                    setAdjustmentForm(prev => {
+                                        if (nextType === 'absence') {
+                                            const computed = computeAbsenceDeduction(prev.absenceDays);
+                                            return {
+                                                ...prev,
+                                                type: nextType,
+                                                amount: computed,
+                                            };
+                                        }
+
+                                        return {
+                                            ...prev,
+                                            type: nextType,
+                                            absenceDays: '',
+                                            amount: '',
+                                        };
+                                    });
+                                }}
                                 className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-purple-500 focus:border-purple-500"
                                 data-testid="select-adjustment-type"
                             >
@@ -3284,6 +6714,25 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                                 <option value="overtime">أوفرتايم</option>
                             </select>
                         </div>
+                        {adjustmentForm.type === 'absence' && (
+                            <InputField
+                                label="عدد أيام الغياب"
+                                type="text"
+                                value={adjustmentForm.absenceDays || ''}
+                                onChange={(e) => {
+                                    const sanitized = convertArabicToEnglish((e.target.value || '').toString())
+                                        .replace(/[^0-9.]/g, '')
+                                        .replace(/(\..*)\./g, '$1');
+                                    const computedAmount = computeAbsenceDeduction(sanitized);
+                                    setAdjustmentForm(prev => ({
+                                        ...prev,
+                                        absenceDays: sanitized,
+                                        amount: computedAmount,
+                                    }));
+                                }}
+                                required
+                            />
+                        )}
                         <InputField
                             label="المبلغ"
                             type="number"
@@ -3291,13 +6740,13 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                             onChange={(e) => setAdjustmentForm({ ...adjustmentForm, amount: e.target.value })}
                             required
                             currency
+                            readOnly={adjustmentForm.type === 'absence'}
                         />
                         <InputField
                             label="الوصف"
                             type="text"
                             value={adjustmentForm.description}
                             onChange={(e) => setAdjustmentForm({ ...adjustmentForm, description: e.target.value })}
-                            required
                         />
                         <InputField
                             label="التاريخ"
@@ -3355,6 +6804,7 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                                 <h3 style={{ textAlign: 'center', color: '#000', fontSize: '14px' }}>كشف راتب</h3>
                                 <p style={{ color: '#000', margin: '5px 0' }}><strong>الموظف:</strong> {payslipToPrint.employee.name}</p>
                                 <p style={{ color: '#000', margin: '5px 0' }}><strong>الشهر:</strong> {monthNames[selectedMonth - 1]} {selectedYear}</p>
+                                <p style={{ color: '#000', margin: '5px 0' }}><strong>تاريخ الدفع:</strong> {payslipPaymentDate}</p>
                                 <hr style={{ border: '1px solid #000', margin: '10px 0' }} />
                                 <table style={{ width: '100%', borderCollapse: 'collapse', color: '#000' }}>
                                     <tbody>
@@ -3367,7 +6817,43 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                                         <tr style={{ fontWeight: 'bold', fontSize: '14px' }}><td style={{ padding: '5px', borderBottom: '1px solid #000' }}>الراتب الصافي:</td><td style={{ padding: '5px', borderBottom: '1px solid #000' }}>{payslipToPrint.salaryData.netSalary.toLocaleString()} د.ع.</td></tr>
                                     </tbody>
                                 </table>
-                                <p style={{ textAlign: 'center', marginTop: '20px', color: '#000' }}>التاريخ: {formatDateDDMMYYYY()}</p>
+                                <hr style={{ border: '0.5px solid #ccc', margin: '12px 0' }} />
+                                <h4 style={{ fontSize: '13px', margin: '8px 0', textAlign: 'center', color: '#000' }}>سجل السلف خلال الفترة</h4>
+                                {payslipToPrint.advances && payslipToPrint.advances.length > 0 ? (
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', color: '#000', fontSize: '11px' }}>
+                                        <thead>
+                                            <tr>
+                                                <th style={{ textAlign: 'right', padding: '4px', borderBottom: '1px solid #ddd' }}>التاريخ والوقت</th>
+                                                <th style={{ textAlign: 'right', padding: '4px', borderBottom: '1px solid #ddd' }}>فئة السلفة</th>
+                                                <th style={{ textAlign: 'right', padding: '4px', borderBottom: '1px solid #ddd' }}>المبلغ</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {payslipToPrint.advances.map((adv, index) => {
+                                                const amountValue = parseFloat(convertArabicToEnglish((adv.amount ?? 0).toString())) || 0;
+                                                return (
+                                                    <tr key={adv.id || `adv-${index}`}>
+                                                        <td style={{ padding: '4px', borderBottom: '1px dashed #eee' }}>{formatDateTimeDDMMYYYY(adv.date)}</td>
+                                                        <td style={{ padding: '4px', borderBottom: '1px dashed #eee' }}>{adv.category || '---'}</td>
+                                                        <td style={{ padding: '4px', borderBottom: '1px dashed #eee' }}>-{amountValue.toLocaleString()} د.ع.</td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                ) : (
+                                    <p style={{ color: '#555', fontSize: '11px', textAlign: 'center', margin: '8px 0' }}>لا توجد سلف خلال هذه الفترة.</p>
+                                )}
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px', gap: '10px' }}>
+                                    <div style={{ textAlign: 'center', fontSize: '12px', width: '48%' }}>
+                                        <div style={{ height: '30px', borderBottom: '1px solid #000', marginBottom: '6px' }}></div>
+                                        توقيع الموظف المستلم
+                                    </div>
+                                    <div style={{ textAlign: 'center', fontSize: '12px', width: '48%' }}>
+                                        <div style={{ height: '30px', borderBottom: '1px solid #000', marginBottom: '6px' }}></div>
+                                        توقيع المحاسب/الإدارة
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -3515,23 +7001,42 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
 
     const filteredList = useMemo(() => {
         let list = data.inventory.slice().sort((a, b) => a.name.localeCompare(b.name, 'ar'));
-        
-        if (globalSearch) {
-            const searchLower = normalizeTextForSearch(globalSearch); 
-            const searchNumeric = normalizeTextForSearch(globalSearch, true);
-            
-            list = list.filter(item => {
-                const matchesName = item.name && normalizeTextForSearch(item.name).includes(searchLower);
-                const matchesBarcode = item.barcode && normalizeTextForSearch(item.barcode).includes(searchLower);
-                const matchesCategory = item.category && normalizeTextForSearch(item.category).includes(searchLower);
-                const matchesPrice = item.price && normalizeTextForSearch(item.price.toString(), true).includes(searchNumeric);
 
-                
-                return matchesName || matchesBarcode || matchesCategory || matchesPrice;
+        if (globalSearch) {
+            const searchLower = normalizeTextForSearch(globalSearch);
+            const searchNumeric = normalizeTextForSearch(globalSearch, true);
+            const hasTextSearch = searchLower.length > 0;
+            const hasNumericSearch = searchNumeric.length > 0;
+
+            list = list.filter(item => {
+                let textMatches = false;
+                if (hasTextSearch) {
+                    const matchesName = item.name && normalizeTextForSearch(item.name).includes(searchLower);
+                    const matchesBarcode = item.barcode && normalizeTextForSearch(item.barcode).includes(searchLower);
+                    const matchesCategory = item.category && normalizeTextForSearch(item.category).includes(searchLower);
+
+                    textMatches = matchesName || matchesBarcode || matchesCategory;
+                }
+
+                const numericMatches = hasNumericSearch
+                    ? !!(item.price && normalizeTextForSearch(item.price.toString(), true).includes(searchNumeric))
+                    : false;
+
+                return textMatches || numericMatches;
             });
         }
         return list;
     }, [data.inventory, globalSearch]);
+
+    const {
+        paginatedItems: paginatedInventory,
+        totalItems: totalInventoryItems,
+        pageSize: inventoryPageSize,
+        currentPage: inventoryCurrentPage,
+        totalPages: inventoryTotalPages,
+        changePageSize: changeInventoryPageSize,
+        goToPage: goToInventoryPage,
+    } = usePagination(filteredList);
 
     const openDetailsModal = (item) => {
         setCurrentItem(item);
@@ -3629,7 +7134,7 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
                         {filteredList.length === 0 ? (
                             <tr><td colSpan="6" className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">لا توجد مواد مضافة في المخزن.</td></tr>
                         ) : (
-                            filteredList.map(item => (
+                            paginatedInventory.map(item => (
                                 <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150" data-testid={`row-inventory-${item.id}`}>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600 dark:text-blue-400 cursor-pointer" onClick={() => openDetailsModal(item)}>{highlightText(item.name, globalSearch)}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{highlightText(item.category, globalSearch)}</td>
@@ -3649,6 +7154,15 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
                     </tbody>
                 </table>
             </div>
+
+            <PaginationControls
+                pageSize={inventoryPageSize}
+                onPageSizeChange={changeInventoryPageSize}
+                currentPage={inventoryCurrentPage}
+                totalPages={inventoryTotalPages}
+                onPageChange={goToInventoryPage}
+                totalItems={totalInventoryItems}
+            />
             
             {/* Modal تفاصيل المادة */}
             {isDetailsModalOpen && currentItem && (
@@ -3783,36 +7297,45 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
 /**
  * 3.5. InventoryEntryComponent (الادخال المخزني)
  */
-const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDelete, setCurrentPage, showToast, setInitialExpenseState, handleRefresh }) => {
+const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDelete, setCurrentPage, showToast, setInitialExpenseState, handleRefresh, currentUser, setPendingInventoryAction, openScanner, ensureSettingsCanLeave, performNavigation }) => {
     const [isNewInvoiceModalOpen, setIsNewInvoiceModalOpen] = useState(false);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     const [isCancelModalOpen, setIsCancelModalOpen] = useState(false); 
     const [cancellationReason, setCancellationReason] = useState(''); 
-    const [currentInvoice, setCurrentInvoice] = useState(null);
-    const [globalSearch, setGlobalSearch] = useState(''); 
-    const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false); 
-    
-    // **جديد:** حالة فلترة الجدول حسب حالة الفاتورة (مصفوفة الآن لدعم الاختيار المتعدد)
-    const [statusFilter, setStatusFilter] = useState([]); 
-    
+    const [currentInvoice, setCurrentInvoice] = useState(null);
+    const [globalSearch, setGlobalSearch] = useState('');
+    const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
+
+    // **جديد:** حالة فلترة الجدول حسب حالة الفاتورة (مصفوفة الآن لدعم الاختيار المتعدد)
+    const [statusFilter, setStatusFilter] = useState([]);
+
     // حالة الـ autocomplete للمواد
     const [suggestions, setSuggestions] = useState([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [editingItemId, setEditingItemId] = useState(null); // لتتبع المادة قيد التعديل
 
-    // دالة للحصول على حالة نموذج الفاتورة الافتراضية
-    const getDefaultInvoiceForm = useCallback(() => ({
-        vendor: data.settings.vendors[0] || '',
-        representative: data.settings.representatives.find(r => r.vendor === (data.settings.vendors[0] || ''))?.name || '',
-        invoiceNumber: '', // رقم فاتورة المورد
-        invoiceImageUrl: '',
-        expenseCategory: data.settings.expenseCategories.find(c => c.includes('مواد')) || data.settings.expenseCategories[0] || '',
-        items: [], // المواد المضافة للفاتورة
-        status: 'Pending', 
-        totalAmount: 0,
-        date: getDefaultDateTime(),
-        id: null
-    }), [data.settings.vendors, data.settings.representatives, data.settings.expenseCategories]);
+    const canAddInvoice = !!currentUser?.permissions?.inventoryEntry?.add;
+    const canEditInvoice = !!currentUser?.permissions?.inventoryEntry?.edit;
+    const canApproveInventory = !!currentUser?.permissions?.inventoryEntry?.approve;
+    const canCancelInventory = !!currentUser?.permissions?.inventoryEntry?.cancel;
+
+    // دالة للحصول على حالة نموذج الفاتورة الافتراضية
+    const getDefaultInvoiceForm = useCallback(() => ({
+        vendor: data.settings.vendors[0] || '',
+        representative: data.settings.representatives.find(r => r.vendor === (data.settings.vendors[0] || ''))?.name || '',
+        invoiceNumber: '', // رقم فاتورة المورد
+        invoiceImageUrl: '',
+        attachments: [],
+        expenseCategory: data.settings.expenseCategories.find(c => c.includes('مواد')) || data.settings.expenseCategories[0] || '',
+        items: [], // المواد المضافة للفاتورة
+        status: 'Pending',
+        totalAmount: 0,
+        date: getDefaultDateTime(),
+        id: null,
+        inventoryApplied: false,
+        linkedCollection: null,
+        linkedRecordId: null
+    }), [data.settings.vendors, data.settings.representatives, data.settings.expenseCategories]);
     
     // دالة للحصول على حالة نموذج المادة الافتراضية
     const getDefaultItemForm = useCallback(() => ({ 
@@ -3823,14 +7346,72 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
         category: data.settings.expenseCategories.find(c => c.includes('مواد')) || data.settings.expenseCategories[0] || '' 
     }), [data.settings.expenseCategories]);
 
-    const [invoiceForm, setInvoiceForm] = useState(getDefaultInvoiceForm);
-    const [itemForm, setItemForm] = useState(getDefaultItemForm);
-    
-    
-    // فلترة المندوبين حسب الشركة المختارة
-    const filteredReps = useMemo(() => {
-        return data.settings.representatives.filter(rep => rep.vendor === invoiceForm.vendor);
-    }, [data.settings.representatives, invoiceForm.vendor]);
+    const [invoiceForm, setInvoiceForm] = useState(getDefaultInvoiceForm);
+    const [itemForm, setItemForm] = useState(getDefaultItemForm);
+
+
+    // فلترة المندوبين حسب الشركة المختارة
+    const filteredReps = useMemo(() => {
+        return data.settings.representatives.filter(rep => rep.vendor === invoiceForm.vendor);
+    }, [data.settings.representatives, invoiceForm.vendor]);
+
+    useEffect(() => {
+        if ((!Array.isArray(invoiceForm.attachments) || invoiceForm.attachments.length === 0) && invoiceForm.invoiceImageUrl) {
+            const normalized = normalizeAttachmentList(invoiceForm.attachments, invoiceForm.invoiceImageUrl, 'مرفق فاتورة');
+            if (normalized.length > 0) {
+                setInvoiceForm(prev => ({
+                    ...prev,
+                    attachments: normalized,
+                    invoiceImageUrl: getPrimaryAttachmentDataUrl(normalized),
+                }));
+            }
+        }
+    }, [invoiceForm.attachments, invoiceForm.invoiceImageUrl]);
+
+    const invoiceAttachments = Array.isArray(invoiceForm.attachments) ? invoiceForm.attachments : [];
+    const {
+        isOpen: isInvoicePreviewOpen,
+        attachments: invoicePreviewList,
+        initialIndex: invoicePreviewIndex,
+        openPreview: openInvoicePreview,
+        closePreview: closeInvoicePreview,
+    } = useAttachmentPreviewState('مرفق فاتورة');
+    const scannerAvailable = typeof openScanner === 'function';
+
+    const detailAttachments = useMemo(() => {
+        if (!currentInvoice) {
+            return [];
+        }
+        return normalizeAttachmentList(currentInvoice.attachments, currentInvoice.invoiceImageUrl, 'مرفق فاتورة');
+    }, [currentInvoice]);
+
+    const invoiceHasDebt = useMemo(() => {
+        if (!currentInvoice) {
+            return false;
+        }
+        if (currentInvoice.linkedDebtId) {
+            return true;
+        }
+        if (!Array.isArray(data.debts)) {
+            return false;
+        }
+        return data.debts.some(debt => debt.linkedInvoiceId === currentInvoice.id);
+    }, [currentInvoice, data.debts]);
+
+    const canLeaveSettings = useCallback((target) => {
+        if (typeof ensureSettingsCanLeave === 'function') {
+            return ensureSettingsCanLeave(target);
+        }
+        return true;
+    }, [ensureSettingsCanLeave]);
+
+    const navigateTo = useCallback((target, options = {}) => {
+        if (typeof performNavigation === 'function') {
+            performNavigation(target, options);
+        } else if (typeof setCurrentPage === 'function') {
+            setCurrentPage(target);
+        }
+    }, [performNavigation, setCurrentPage]);
     
     // حساب الإجمالي
     const calculateTotal = useCallback(() => {
@@ -3856,13 +7437,16 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                 } else {
                     newState.barcode = ''; // لا تولد تلقائيا
                 }
-            } else if (key === 'barcode') {
-                 const foundItem = inventory.find(i => i.barcode === value);
-                 if (foundItem) {
-                    newState.name = foundItem.name;
-                    newState.category = foundItem.category;
-                 }
-            }
+        } else if (key === 'barcode') {
+            const cleanBarcode = convertArabicToEnglish(value || '').trim();
+            newState.barcode = cleanBarcode;
+
+            const foundItem = inventory.find(i => i.barcode && convertArabicToEnglish(i.barcode).trim() === cleanBarcode);
+            if (foundItem) {
+                newState.name = foundItem.name;
+                newState.category = foundItem.category;
+            }
+        }
             // يجب أن يتم تصفية الأرقام
             if (key === 'price' || key === 'count') {
                 let cleanValue = convertArabicToEnglish(value);
@@ -3906,7 +7490,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
         setItemForm(prev => ({
             ...prev,
             name: item.name,
-            barcode: item.barcode || '',
+            barcode: item.barcode ? convertArabicToEnglish(item.barcode).trim() : '',
             price: lastPurchase ? lastPurchase.price.toString() : item.price.toString(),
             category: item.category
         }));
@@ -3932,6 +7516,11 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
     const handleAddItemToInvoice = (e) => {
         e.preventDefault();
         
+        if (!itemForm.barcode) {
+            showToast('يجب إدخال باركود المادة قبل الإضافة.', 'error');
+            return;
+        }
+
         if (!itemForm.name || !itemForm.price || !itemForm.count || itemForm.count <= 0 || !itemForm.category) {
             showToast('الرجاء ملء جميع حقول المادة بشكل صحيح (الاسم، السعر، الكمية، الفئة).', 'error');
             return;
@@ -3976,34 +7565,131 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
         setIsAddItemModalOpen(false); 
     };
 
-    const handleRemoveItemFromInvoice = (id) => {
-        setInvoiceForm(prev => ({
-            ...prev,
-            items: prev.items.filter(item => item.id !== id)
-        }));
-        showToast('تم حذف المادة بنجاح.', 'warning');
-    };
+    const handleRemoveItemFromInvoice = (id) => {
+        setInvoiceForm(prev => ({
+            ...prev,
+            items: prev.items.filter(item => item.id !== id)
+        }));
+        showToast('تم حذف المادة بنجاح.', 'warning');
+    };
 
-    // حفظ الفاتورة كمسودة/معلقة
-    const handleCreateInvoice = (e) => {
-        e.preventDefault();
-        
-        if (invoiceForm.items.length === 0) {
-            showToast('يجب إضافة مواد إلى الفاتورة أولاً.', 'error');
-            return;
-        }
-        if (!invoiceForm.vendor || !invoiceForm.representative || !invoiceForm.invoiceNumber) {
-            showToast('الرجاء ملء تفاصيل الفاتورة (المورد، المندوب، رقم فاتورة المورد).', 'error');
-            return;
-        }
+    const handleInvoiceAttachmentUpload = async (event) => {
+        const files = Array.from(event.target.files || []);
+        if (files.length === 0) {
+            return;
+        }
 
-        const invoiceToSave = {
-            ...invoiceForm,
-            id: invoiceForm.id || crypto.randomUUID(),
-            date: getDefaultDateTime(),
-            totalAmount: calculateTotal(),
-            status: 'Pending',
-        };
+        try {
+            const newAttachments = await Promise.all(files.map(createAttachmentFromFile));
+            setInvoiceForm(prev => {
+                const existing = Array.isArray(prev.attachments) ? prev.attachments : [];
+                const updated = [...existing, ...newAttachments];
+                return {
+                    ...prev,
+                    attachments: updated,
+                    invoiceImageUrl: getPrimaryAttachmentDataUrl(updated),
+                };
+            });
+            showToast('تم تحميل المرفقات بنجاح.', 'success');
+        } catch (error) {
+            console.error('Failed to upload invoice attachments', error);
+            showToast('تعذر تحميل المرفقات. يرجى المحاولة مرة أخرى.', 'error');
+        } finally {
+            event.target.value = '';
+        }
+    };
+
+    const handleScanInvoiceAttachment = useCallback(() => {
+        if (typeof openScanner !== 'function') {
+            return;
+        }
+
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+
+        openScanner({
+            title: 'مسح فاتورة المورد',
+            defaultFileName: `فاتورة-مورد-${timestamp}`,
+            onCapture: (attachment) => {
+                if (!attachment) {
+                    return;
+                }
+
+                setInvoiceForm(prev => {
+                    const existing = Array.isArray(prev.attachments) ? prev.attachments : [];
+                    const updated = [...existing, attachment];
+                    return {
+                        ...prev,
+                        attachments: updated,
+                        invoiceImageUrl: getPrimaryAttachmentDataUrl(updated) || prev.invoiceImageUrl,
+                    };
+                });
+
+                showToast('تم التقاط صورة الفاتورة عبر السكنر.', 'success');
+            },
+        });
+    }, [openScanner, setInvoiceForm, showToast]);
+
+    const handleRemoveInvoiceAttachment = (id) => {
+        setInvoiceForm(prev => {
+            const existing = Array.isArray(prev.attachments) ? prev.attachments : [];
+            const updated = existing.filter(att => att.id !== id);
+            return {
+                ...prev,
+                attachments: updated,
+                invoiceImageUrl: getPrimaryAttachmentDataUrl(updated),
+            };
+        });
+    };
+
+    const previewInvoiceAttachment = (attachment, collection = [], fallbackUrl = '', fallbackName = 'مرفق فاتورة') => {
+        if (!attachment) {
+            return;
+        }
+
+        const opened = openInvoicePreview(attachment, collection, fallbackUrl, fallbackName);
+        if (!opened) {
+            showToast('تعذر فتح مرفق الفاتورة.', 'warning');
+        }
+    };
+
+    // حفظ الفاتورة كمسودة/معلقة
+    const handleCreateInvoice = (e) => {
+        e.preventDefault();
+
+        if (invoiceForm.items.length === 0) {
+            showToast('يجب إضافة مواد إلى الفاتورة أولاً.', 'error');
+            return;
+        }
+        if (!invoiceForm.vendor || !invoiceForm.representative || !invoiceForm.invoiceNumber) {
+            showToast('الرجاء ملء تفاصيل الفاتورة (المورد، المندوب، رقم فاتورة المورد).', 'error');
+            return;
+        }
+
+        const isEdit = !!invoiceForm.id;
+        if (isEdit && !canEditInvoice) {
+            showToast('ليس لديك صلاحية تعديل فواتير الإدخال المخزني.', 'error');
+            return;
+        }
+
+        if (!isEdit && !canAddInvoice) {
+            showToast('ليس لديك صلاحية إضافة فواتير الإدخال المخزني.', 'error');
+            return;
+        }
+
+        const normalizedAttachments = normalizeAttachmentList(invoiceForm.attachments, invoiceForm.invoiceImageUrl, 'مرفق فاتورة');
+
+        const invoiceToSave = {
+            ...invoiceForm,
+            attachments: normalizedAttachments,
+            invoiceImageUrl: getPrimaryAttachmentDataUrl(normalizedAttachments),
+            id: invoiceForm.id || crypto.randomUUID(),
+            date: getDefaultDateTime(),
+            totalAmount: calculateTotal(),
+            status: 'Pending',
+            inventoryApplied: invoiceForm.inventoryApplied || false,
+            linkedCollection: invoiceForm.linkedCollection || null,
+            linkedRecordId: invoiceForm.linkedRecordId || null,
+        };
 
         handleDataAction('pendingInvoices', invoiceToSave, !invoiceForm.id);
         
@@ -4020,42 +7706,118 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
     };
     
     // فلترة الفواتير المعلقة (شاملة فلتر الحالة)
-    const filteredInvoices = useMemo(() => {
-        let list = data.pendingInvoices.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+    const filteredInvoices = useMemo(() => {
+        let list = data.pendingInvoices.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
         
         // الفلترة حسب البحث الشامل
-        if (globalSearch) {
-            const searchLower = normalizeTextForSearch(globalSearch); 
-            const searchNumeric = normalizeTextForSearch(globalSearch, true); 
-            
-            list = list.filter(inv => {
-                const matchesInvoiceNum = inv.invoiceNumber && normalizeTextForSearch(inv.invoiceNumber).includes(searchLower);
-                const matchesVendor = inv.vendor && normalizeTextForSearch(inv.vendor).includes(searchLower);
-                const matchesRep = inv.representative && normalizeTextForSearch(inv.representative).includes(searchLower);
-                const matchesItem = inv.items.some(item => normalizeTextForSearch(item.name).includes(searchLower));
-                
-                // البحث الرقمي عن المبلغ
-                const matchesAmount = inv.totalAmount && normalizeTextForSearch(inv.totalAmount.toString(), true).includes(searchNumeric);
-                
-                return matchesInvoiceNum || matchesVendor || matchesRep || matchesItem || matchesAmount;
-            });
-        }
+        if (globalSearch) {
+            const searchLower = normalizeTextForSearch(globalSearch);
+            const searchNumeric = normalizeTextForSearch(globalSearch, true);
+            const hasTextSearch = searchLower.length > 0;
+            const hasNumericSearch = searchNumeric.length > 0;
+
+            list = list.filter(inv => {
+                let textMatches = false;
+                if (hasTextSearch) {
+                    const matchesInvoiceNum = inv.invoiceNumber && normalizeTextForSearch(inv.invoiceNumber).includes(searchLower);
+                    const matchesVendor = inv.vendor && normalizeTextForSearch(inv.vendor).includes(searchLower);
+                    const matchesRep = inv.representative && normalizeTextForSearch(inv.representative).includes(searchLower);
+                    const matchesItem = inv.items.some(item => normalizeTextForSearch(item.name).includes(searchLower));
+
+                    textMatches = matchesInvoiceNum || matchesVendor || matchesRep || matchesItem;
+                }
+
+                const numericMatches = hasNumericSearch
+                    ? !!(inv.totalAmount && normalizeTextForSearch(inv.totalAmount.toString(), true).includes(searchNumeric))
+                    : false;
+
+                return textMatches || numericMatches;
+            });
+        }
         
         // الفلترة حسب حالة الكارت المختار (دعم الاختيار المتعدد)
         if (statusFilter.length > 0) {
              list = list.filter(inv => statusFilter.includes(inv.status));
         }
         
-        return list;
-    }, [data.pendingInvoices, globalSearch, statusFilter]); // الاعتماد على statusFilter
+        return list;
+    }, [data.pendingInvoices, globalSearch, statusFilter]); // الاعتماد على statusFilter
+
+    const {
+        paginatedItems: paginatedInvoices,
+        totalItems: totalInvoices,
+        pageSize: invoicePageSize,
+        currentPage: invoiceCurrentPage,
+        totalPages: invoiceTotalPages,
+        changePageSize: changeInvoicePageSize,
+        goToPage: goToInvoicePage,
+    } = usePagination(filteredInvoices);
 
     // الإجراء النهائي: الموافقة على الفاتورة (تسجيلها كمصروف وتحديث المخزون)
-    const handleApproveInvoice = (invoice, isCreditApproval = false) => {
-        // 1. تحديث المخزون
-        let updatedInventory = [...data.inventory];
+    const handleApproveInvoice = (invoice, isCreditApproval = false) => {
+        if (!canApproveInventory) {
+            showToast('ليس لديك صلاحية اعتماد الإدخال المخزني.', 'error');
+            return;
+        }
 
-        invoice.items.forEach(item => {
-            const existingItemIndex = updatedInventory.findIndex(i => i.name === item.name);
+        const normalizedInvoiceAttachments = normalizeAttachmentList(invoice.attachments, invoice.invoiceImageUrl, 'مرفق فاتورة');
+        const primaryInvoiceAttachment = getPrimaryAttachmentDataUrl(normalizedInvoiceAttachments);
+
+        if (!isCreditApproval) {
+            const canDirectExpense = !!currentUser?.permissions?.expenses?.add && !!currentUser?.permissions?.expenses?.view;
+            const targetCollection = canDirectExpense ? 'expenses' : 'pendingExpenses';
+            const recordId = crypto.randomUUID();
+            const shouldApplyInventory = !invoice.inventoryApplied && invoice.status !== 'CreditApproved' && invoice.status !== 'PartialPaid';
+
+            const expenseRecord = {
+                id: recordId,
+                type: 'expense',
+                status: 'pending',
+                date: invoice.date,
+                amount: invoice.totalAmount,
+                category: invoice.expenseCategory,
+                description: `فاتورة شراء مواد من ${invoice.vendor} (المواد: ${invoice.items.map(i => i.name).join(', ')})`,
+                vendor: invoice.vendor,
+                representative: invoice.representative,
+                notes: invoice.notes || '',
+                attachments: normalizedInvoiceAttachments,
+                invoiceImageUrl: primaryInvoiceAttachment || '',
+                inventoryItems: invoice.items,
+                invoiceNumber: invoice.invoiceNumber,
+                linkedInvoiceId: invoice.id,
+                fromInventoryEntry: true,
+            };
+
+            if (!canLeaveSettings(targetCollection)) {
+                return;
+            }
+
+            setPendingInventoryAction({
+                invoiceId: invoice.id,
+                recordId,
+                targetCollection,
+                applyInventory: shouldApplyInventory,
+                nextStatus: 'Dispatched',
+            });
+
+            setInitialExpenseState(expenseRecord);
+            navigateTo(targetCollection, { preserveInitialExpenseState: true });
+            setIsDetailsModalOpen(false);
+            setCurrentInvoice(null);
+            showToast(
+                canDirectExpense
+                    ? 'تم تجهيز بيانات المصروف. يرجى الضغط على زر "إضافة" في صفحة الصرفيات لإكمال العملية.'
+                    : 'تم تجهيز طلب الصرف المعلق. يرجى الضغط على زر "إضافة" في صفحة الصرفيات المعلقة لاعتماد العملية.',
+                'info'
+            );
+            return;
+        }
+
+        // 1. تحديث المخزون
+        let updatedInventory = [...data.inventory];
+
+        invoice.items.forEach(item => {
+            const existingItemIndex = updatedInventory.findIndex(i => i.name === item.name);
             
             // بيانات سجل الشراء الجديد
             const purchaseRecord = {
@@ -4075,50 +7837,150 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                 };
             } else {
                 // إضافة مادة جديدة للمخزون
-                updatedInventory.push({
-                    id: crypto.randomUUID(),
-                    name: item.name,
-                    barcode: item.barcode || generateBarcode(),
-                    price: item.price,
-                    count: item.count,
-                    category: item.category,
-                    purchaseHistory: [purchaseRecord],
-                    invoiceImageUrl: invoice.invoiceImageUrl,
-                });
+                updatedInventory.push({
+                    id: crypto.randomUUID(),
+                    name: item.name,
+                    barcode: item.barcode || generateBarcode(),
+                    price: item.price,
+                    count: item.count,
+                    category: item.category,
+                    purchaseHistory: [purchaseRecord],
+                    invoiceImageUrl: primaryInvoiceAttachment,
+                });
             }
         });
         
         // 2. تحديث حالة الفاتورة
         let updatedInvoice;
-        if (isCreditApproval) {
-            // اعتماد آجل (تحديث المخزون فقط، تغيير الحالة لـ CreditApproved)
-            updatedInvoice = { ...invoice, status: 'CreditApproved' };
-            handleDataAction('pendingInvoices', updatedInvoice, false); 
-            handleDataAction('inventory', updatedInventory, true, true);
-            setIsDetailsModalOpen(false);
-            setStatusFilter(prev => Array.isArray(prev) ? [...prev.filter(s => s !== 'Pending'), 'CreditApproved'] : ['CreditApproved']); // تحديث الفلتر فورا
-            showToast(`تم اعتماد الفاتورة #${invoice.invoiceNumber} كـ **آجل** وإضافة المواد للمخزون.`, 'success');
-            return;
-        }
+        if (isCreditApproval) {
+            // اعتماد آجل (تحديث المخزون فقط، تغيير الحالة لـ CreditApproved)
+            const parseAmount = (value) => {
+                const normalized = convertArabicToEnglish((value ?? '').toString());
+                const cleaned = normalized.replace(/[^0-9.]/g, '');
+                const numeric = parseFloat(cleaned);
+                return Number.isFinite(numeric) ? numeric : 0;
+            };
+
+            const invoiceTotalValue = parseAmount(invoice.totalAmount ?? 0);
+            const debtsList = Array.isArray(data.debts)
+                ? data.debts.map(debt => ({
+                    ...debt,
+                    payments: Array.isArray(debt.payments) ? debt.payments.map(payment => ({ ...payment })) : [],
+                }))
+                : [];
+            const existingDebtIndex = debtsList.findIndex(debt => debt.linkedInvoiceId === invoice.id);
+            const existingDebt = existingDebtIndex !== -1 ? debtsList[existingDebtIndex] : undefined;
+            const existingPayments = Array.isArray(existingDebt?.payments) ? existingDebt.payments : [];
+            const paymentsTotal = existingPayments.reduce((sum, payment) => sum + parseAmount(payment.amount), 0);
+            const remainingAmount = Math.max(0, invoiceTotalValue - paymentsTotal);
+            const debtId = existingDebt?.id || crypto.randomUUID();
+
+            const debtRecord = {
+                ...(existingDebt || {}),
+                id: debtId,
+                companyName: invoice.vendor || existingDebt?.companyName || '',
+                vendorName: invoice.representative || existingDebt?.vendorName || '',
+                category: invoice.expenseCategory || existingDebt?.category || '',
+                totalAmount: invoiceTotalValue,
+                remainingAmount,
+                description: invoice.notes || existingDebt?.description || '',
+                attachmentUrl: primaryInvoiceAttachment || existingDebt?.attachmentUrl || '',
+                payments: existingPayments,
+                status: remainingAmount <= 0 ? 'settled' : 'active',
+                date: existingDebt?.date || invoice.date || getDefaultDateTime(),
+                createdAt: existingDebt?.createdAt || invoice.date || getDefaultDateTime(),
+                updatedAt: getDefaultDateTime(),
+                debtType: DEBT_TYPES.INVENTORY,
+                linkedInvoiceId: invoice.id,
+                sourceInvoiceNumber: invoice.invoiceNumber || existingDebt?.sourceInvoiceNumber || '',
+            };
+
+            if (existingDebtIndex !== -1) {
+                debtsList[existingDebtIndex] = debtRecord;
+            } else {
+                debtsList.push(debtRecord);
+            }
+
+            const updatedInvoice = {
+                ...invoice,
+                status: 'CreditApproved',
+                inventoryApplied: true,
+                linkedDebtId: debtId,
+                debtType: DEBT_TYPES.INVENTORY,
+            };
+
+            const pendingInvoicesList = Array.isArray(data.pendingInvoices)
+                ? data.pendingInvoices.map(inv => (inv.id === invoice.id ? { ...updatedInvoice } : { ...inv }))
+                : [];
+
+            if (!pendingInvoicesList.some(inv => inv.id === invoice.id)) {
+                pendingInvoicesList.push({ ...updatedInvoice });
+            }
+
+            const existingActivityLog = Array.isArray(data.activityLog) ? data.activityLog.slice() : [];
+            const nowTimestamp = new Date().toISOString();
+            const username = currentUser?.username || 'المستخدم';
+            const debtLogEntry = {
+                id: crypto.randomUUID(),
+                timestamp: nowTimestamp,
+                username,
+                action: existingDebt ? 'تعديل' : 'إضافة',
+                module: 'الديون',
+                details: `فاتورة #${invoice.invoiceNumber || invoice.id} للمورد ${invoice.vendor || '---'}`,
+            };
+            const inventoryLogEntry = {
+                id: crypto.randomUUID(),
+                timestamp: nowTimestamp,
+                username,
+                action: 'تعديل',
+                module: 'الإدخال المخزني',
+                details: `اعتماد فاتورة الإدخال كـ آجل للمورد ${invoice.vendor || '---'}`,
+            };
+            const updatedActivityLog = [debtLogEntry, inventoryLogEntry, ...existingActivityLog].slice(0, 500);
+
+            handleDataAction('___FULL_DATA_UPDATE___', {
+                ...data,
+                debts: debtsList,
+                pendingInvoices: pendingInvoicesList,
+                inventory: updatedInventory,
+                activityLog: updatedActivityLog,
+            });
+
+            setIsDetailsModalOpen(false);
+            setCurrentInvoice(null);
+            setStatusFilter(prev => Array.isArray(prev) ? [...prev.filter(s => s !== 'Pending'), 'CreditApproved'] : ['CreditApproved']); // تحديث الفلتر فورا
+            showToast(`تم اعتماد الفاتورة #${invoice.invoiceNumber} كـ **آجل** وإضافة المواد للمخزون.`, 'success');
+            return;
+        }
         
         // 3. تسجيلها كمصروف وتغيير حالتها إلى "مصروفة" (كاش أو صرف الآجل)
-        const expenseRecord = {
-            id: crypto.randomUUID(),
-            date: invoice.date,
-            invoiceNumber: invoice.invoiceNumber, // رقم فاتورة المورد
-            amount: invoice.totalAmount,
-            category: invoice.expenseCategory,
-            description: `فاتورة شراء مواد من ${invoice.vendor} (المواد: ${invoice.items.map(i => i.name).join(', ')})`,
-            vendor: invoice.vendor,
-            representative: invoice.representative,
-            notes: invoice.notes || '',
-            invoiceImageUrl: invoice.invoiceImageUrl || '',
-            inventoryItems: invoice.items,
-        };
-        
-        // 4. إرسال بيانات المصروف إلى صفحة المصروفات وفتح المودال هناك
-        setInitialExpenseState(expenseRecord);
-        setCurrentPage('expenses'); // توجيه المستخدم لصفحة المصروفات
+        const linkedDebtId = invoice.linkedDebtId || (Array.isArray(data.debts) ? data.debts.find(debt => debt.linkedInvoiceId === invoice.id)?.id : null);
+        const linkedDebtPaymentId = linkedDebtId ? crypto.randomUUID() : null;
+
+        const expenseRecord = {
+            id: crypto.randomUUID(),
+            type: 'expense',
+            status: 'pending',
+            date: invoice.date,
+            invoiceNumber: invoice.invoiceNumber, // رقم فاتورة المورد
+            amount: invoice.totalAmount,
+            category: invoice.expenseCategory,
+            description: `فاتورة شراء مواد من ${invoice.vendor} (المواد: ${invoice.items.map(i => i.name).join(', ')})`,
+            vendor: invoice.vendor,
+            representative: invoice.representative,
+            notes: invoice.notes || '',
+            attachments: normalizedInvoiceAttachments,
+            invoiceImageUrl: primaryInvoiceAttachment || '',
+            inventoryItems: invoice.items,
+            ...(linkedDebtId ? { linkedDebtId, linkedDebtPaymentId } : {}),
+        };
+
+        // 4. إرسال بيانات المصروف إلى صفحة المصروفات وفتح المودال هناك
+        if (!canLeaveSettings('pendingExpenses')) {
+            return;
+        }
+        setInitialExpenseState(expenseRecord);
+        navigateTo('pendingExpenses', { preserveInitialExpenseState: true }); // توجيه المستخدم لصفحة الصرفيات المعلقة
 
         // 5. تغيير حالة الفاتورة في pendingInvoices إلى "مصروفة"
         updatedInvoice = { ...invoice, status: 'Dispatched' };
@@ -4138,40 +8000,59 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
     };
     
     // إلغاء الفاتورة المعلقة
-    const handleCancelInvoice = (invoice) => {
-        if (!cancellationReason.trim()) {
-            showToast('الرجاء كتابة سبب إلغاء الفاتورة.', 'error');
-            return;
-        }
-        
-        // تغيير حالة الفاتورة في pendingInvoices إلى "ملغاة" (بدلاً من الحذف الكامل)
-        const cancelledInvoice = {
-             ...invoice,
-             status: 'Cancelled',
-             cancellationDate: getDefaultDateTime(),
-             cancellationReason: cancellationReason,
-        };
-        
-        // إذا كانت الفاتورة معتمدة آجل، يجب خصم المواد من المخزون
-        if (invoice.status === 'CreditApproved') {
-            let updatedInventory = [...data.inventory];
-            invoice.items.forEach(item => {
-                 const existingItemIndex = updatedInventory.findIndex(i => i.name === item.name);
-                 if (existingItemIndex !== -1) {
-                    updatedInventory[existingItemIndex] = {
-                        ...updatedInventory[existingItemIndex],
-                        count: updatedInventory[existingItemIndex].count - item.count,
-                    };
-                }
-            });
-            handleDataAction('inventory', updatedInventory, true, true);
-        }
+    const handleCancelInvoice = (invoice) => {
+        if (!canCancelInventory) {
+            showToast('ليس لديك صلاحية إلغاء فواتير الإدخال.', 'error');
+            return;
+        }
 
-        handleDataAction('pendingInvoices', cancelledInvoice, false); // تعديل السجل بدلاً من حذفه
-        setIsCancelModalOpen(false);
-        setCurrentInvoice(null); 
-        setCancellationReason('');
-        
+        if (!cancellationReason.trim()) {
+            showToast('الرجاء كتابة سبب إلغاء الفاتورة.', 'error');
+            return;
+        }
+
+        // تغيير حالة الفاتورة في pendingInvoices إلى "ملغاة" (بدلاً من الحذف الكامل)
+        const cancelledInvoice = {
+            ...invoice,
+            status: 'Cancelled',
+            cancellationDate: getDefaultDateTime(),
+            cancellationReason: cancellationReason,
+            inventoryApplied: invoice.status === 'CreditApproved' ? false : invoice.inventoryApplied,
+            linkedCollection: invoice.linkedCollection || null,
+            linkedRecordId: invoice.linkedRecordId || null,
+        };
+
+        // إذا كانت الفاتورة معتمدة آجل، يجب خصم المواد من المخزون
+        if (invoice.status === 'CreditApproved') {
+            let updatedInventory = [...data.inventory];
+            invoice.items.forEach(item => {
+                const existingItemIndex = updatedInventory.findIndex(i => i.name === item.name);
+                if (existingItemIndex !== -1) {
+                    updatedInventory[existingItemIndex] = {
+                        ...updatedInventory[existingItemIndex],
+                        count: Math.max((parseFloat(convertArabicToEnglish(updatedInventory[existingItemIndex].count || '0')) || 0) - (parseFloat(convertArabicToEnglish(item.count || '0')) || 0), 0),
+                    };
+                }
+            });
+            handleDataAction('inventory', updatedInventory, true, true);
+            cancelledInvoice.linkedCollection = null;
+            cancelledInvoice.linkedRecordId = null;
+        }
+
+        if (invoice.linkedDebtId) {
+            handleDelete('debts', invoice.linkedDebtId, false, true);
+        } else {
+            const relatedDebt = Array.isArray(data.debts) ? data.debts.find(debt => debt.linkedInvoiceId === invoice.id) : null;
+            if (relatedDebt) {
+                handleDelete('debts', relatedDebt.id, false, true);
+            }
+        }
+
+        handleDataAction('pendingInvoices', cancelledInvoice, false); // تعديل السجل بدلاً من حذفه
+        setIsCancelModalOpen(false);
+        setCurrentInvoice(null);
+        setCancellationReason('');
+
         // **الإصلاح الجذري 1:** تحديث الفلتر مباشرة بعد الإلغاء
         setStatusFilter(prev => Array.isArray(prev) ? [...prev.filter(s => s !== invoice.status), 'Cancelled'] : ['Cancelled']);
         setGlobalSearch(''); 
@@ -4187,28 +8068,31 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
     
     // حساب الإحصائيات الجديدة
     const allInvoices = data.pendingInvoices;
-    const stats = useMemo(() => {
-        const initial = { pending: 0, dispatchedCash: 0, dispatchedCredit: 0, cancelled: 0 };
-        
-        const counts = allInvoices.reduce((acc, invoice) => {
-            if (invoice.status === 'Pending') acc.pending += invoice.totalAmount;
-            else if (invoice.status === 'Dispatched') acc.dispatchedCash += invoice.totalAmount;
-            else if (invoice.status === 'CreditApproved') acc.dispatchedCredit += invoice.totalAmount;
-            else if (invoice.status === 'Cancelled') acc.cancelled += invoice.totalAmount;
-            return acc;
-        }, initial);
-        
-        return {
-            pendingCount: allInvoices.filter(inv => inv.status === 'Pending').length,
-            cashCount: allInvoices.filter(inv => inv.status === 'Dispatched').length,
-            creditCount: allInvoices.filter(inv => inv.status === 'CreditApproved').length,
-            cancelledCount: allInvoices.filter(inv => inv.status === 'Cancelled').length,
-            totalPending: counts.pending,
-            totalCash: counts.dispatchedCash,
-            totalCredit: counts.dispatchedCredit,
-            totalCancelled: counts.cancelled,
-        };
-    }, [allInvoices]);
+    const stats = useMemo(() => {
+        const initial = { pending: 0, dispatchedCash: 0, dispatchedCredit: 0, partialCredit: 0, cancelled: 0 };
+
+        const counts = allInvoices.reduce((acc, invoice) => {
+            if (invoice.status === 'Pending') acc.pending += invoice.totalAmount;
+            else if (invoice.status === 'Dispatched') acc.dispatchedCash += invoice.totalAmount;
+            else if (invoice.status === 'CreditApproved') acc.dispatchedCredit += invoice.totalAmount;
+            else if (invoice.status === 'PartialPaid') acc.partialCredit += invoice.totalAmount;
+            else if (invoice.status === 'Cancelled') acc.cancelled += invoice.totalAmount;
+            return acc;
+        }, initial);
+
+        return {
+            pendingCount: allInvoices.filter(inv => inv.status === 'Pending').length,
+            cashCount: allInvoices.filter(inv => inv.status === 'Dispatched').length,
+            creditCount: allInvoices.filter(inv => inv.status === 'CreditApproved').length,
+            partialCount: allInvoices.filter(inv => inv.status === 'PartialPaid').length,
+            cancelledCount: allInvoices.filter(inv => inv.status === 'Cancelled').length,
+            totalPending: counts.pending,
+            totalCash: counts.dispatchedCash,
+            totalCredit: counts.dispatchedCredit,
+            totalPartial: counts.partialCredit,
+            totalCancelled: counts.cancelled,
+        };
+    }, [allInvoices]);
     
     const handleFilterClick = (status) => {
          setStatusFilter(prev => {
@@ -4233,45 +8117,58 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
         <div className="p-6 space-y-6 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl">
             <h2 className="text-4xl font-extrabold text-gray-800 dark:text-gray-200 border-b-2 border-teal-500 pb-3">إدارة الإدخال المخزني </h2>
 
-                <div className="flex flex-wrap gap-3">
-                    {/* الإحصائيات المحدثة */}
-                    <div 
-                        onClick={() => handleFilterClick('Pending')}
-                        className={`text-xl font-bold p-4 rounded-xl shadow-md border-r-4 cursor-pointer transition transform hover:scale-[1.03] min-w-[150px] flex flex-col items-center justify-center 
-                        ${isFilterActive('Pending') ? 'bg-yellow-200 dark:bg-yellow-700 text-yellow-900 dark:text-yellow-200 border-yellow-800 ring-4 ring-yellow-400' : 'bg-yellow-50 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 border-yellow-600'}`}
-                    >
-                        <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 ml-1">معلقة:</span>
-                        <span className="font-extrabold text-2xl">{stats.pendingCount}</span>
-                        <span className="text-xs text-gray-600 dark:text-gray-400">{formatCurrencyDisplay(stats.totalPending)}</span>
-                    </div>
-                    <div 
-                        onClick={() => handleFilterClick('Dispatched')}
-                        className={`text-xl font-bold p-4 rounded-xl shadow-md border-r-4 cursor-pointer transition transform hover:scale-[1.03] min-w-[150px] flex flex-col items-center justify-center 
-                         ${isFilterActive('Dispatched') ? 'bg-green-200 dark:bg-green-700 text-green-900 dark:text-green-200 border-green-800 ring-4 ring-green-400' : 'bg-green-50 dark:bg-green-900 text-green-800 dark:text-green-200 border-green-600'}`}
-                    >
-                         <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 ml-1">معتمدة كاش:</span>
-                        <span className="font-extrabold text-2xl">{stats.cashCount}</span>
-                         <span className="text-xs text-gray-600 dark:text-gray-400">{formatCurrencyDisplay(stats.totalCash)}</span>
-                    </div>
-                    <div 
-                        onClick={() => handleFilterClick('CreditApproved')}
-                        className={`text-xl font-bold p-4 rounded-xl shadow-md border-r-4 cursor-pointer transition transform hover:scale-[1.03] min-w-[150px] flex flex-col items-center justify-center 
-                         ${isFilterActive('CreditApproved') ? 'bg-blue-200 dark:bg-blue-700 text-blue-900 dark:text-blue-200 border-blue-800 ring-4 ring-blue-400' : 'bg-blue-50 dark:bg-blue-900 text-blue-800 dark:text-blue-200 border-blue-600'}`}
-                    >
-                         <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 ml-1">معتمدة آجل:</span>
-                        <span className="font-extrabold text-2xl">{stats.creditCount}</span>
-                         <span className="text-xs text-gray-600 dark:text-gray-400">{formatCurrencyDisplay(stats.totalCredit)}</span>
-                    </div>
-                    <div 
-                        onClick={() => handleFilterClick('Cancelled')}
-                        className={`text-xl font-bold p-4 rounded-xl shadow-md border-r-4 cursor-pointer transition transform hover:scale-[1.03] min-w-[150px] flex flex-col items-center justify-center 
-                         ${isFilterActive('Cancelled') ? 'bg-red-200 dark:bg-red-700 text-red-900 dark:text-red-200 border-red-800 ring-4 ring-red-400' : 'bg-red-50 dark:bg-red-900 text-red-800 dark:text-red-200 border-red-600'}`}
-                    >
-                        <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 ml-1">ملغاة:</span>
-                        <span className="font-extrabold text-2xl">{stats.cancelledCount}</span>
-                        <span className="text-xs text-gray-600 dark:text-gray-400">{formatCurrencyDisplay(stats.totalCancelled)}</span>
-                    </div>
-                </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
+                <FilterStatCard
+                    title="الفواتير المعلقة"
+                    value={`${stats.pendingCount} فاتورة`}
+                    subtitle={`إجمالي: ${formatCurrencyDisplay(stats.totalPending)}`}
+                    icon={Clock}
+                    onClick={() => handleFilterClick('Pending')}
+                    active={isFilterActive('Pending')}
+                    themeKey="amber"
+                    size="md"
+                />
+                <FilterStatCard
+                    title="معتمدة كاش"
+                    value={`${stats.cashCount} فاتورة`}
+                    subtitle={`إجمالي: ${formatCurrencyDisplay(stats.totalCash)}`}
+                    icon={CheckCircle}
+                    onClick={() => handleFilterClick('Dispatched')}
+                    active={isFilterActive('Dispatched')}
+                    themeKey="emerald"
+                    size="md"
+                />
+                <FilterStatCard
+                    title="معتمدة آجل"
+                    value={`${stats.creditCount} فاتورة`}
+                    subtitle={`إجمالي: ${formatCurrencyDisplay(stats.totalCredit)}`}
+                    icon={ClipboardCheck}
+                    onClick={() => handleFilterClick('CreditApproved')}
+                    active={isFilterActive('CreditApproved')}
+                    themeKey="blue"
+                    size="md"
+                />
+                <FilterStatCard
+                    title="مدفوع جزئياً"
+                    value={`${stats.partialCount} فاتورة`}
+                    subtitle={`إجمالي: ${formatCurrencyDisplay(stats.totalPartial)}`}
+                    icon={PieChart}
+                    onClick={() => handleFilterClick('PartialPaid')}
+                    active={isFilterActive('PartialPaid')}
+                    themeKey="purple"
+                    size="md"
+                />
+                <FilterStatCard
+                    title="فواتير ملغاة"
+                    value={`${stats.cancelledCount} فاتورة`}
+                    subtitle={`إجمالي: ${formatCurrencyDisplay(stats.totalCancelled)}`}
+                    icon={XCircle}
+                    onClick={() => handleFilterClick('Cancelled')}
+                    active={isFilterActive('Cancelled')}
+                    themeKey="rose"
+                    size="md"
+                />
+            </div>
 
             <div className="bg-white dark:bg-gray-700 p-4 rounded-xl shadow-lg border border-teal-100 dark:border-teal-700 relative">
                  <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">البحث في الفواتير المعلقة</label>
@@ -4288,7 +8185,8 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
             <div className="flex flex-wrap items-center justify-between gap-4">
                 <button
                     onClick={() => setIsNewInvoiceModalOpen(true)}
-                    className="flex items-center px-6 py-3 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-xl hover:from-green-600 hover:to-teal-600 shadow-lg transition duration-200"
+                    disabled={!canAddInvoice}
+                    className={`flex items-center px-6 py-3 rounded-xl shadow-lg transition duration-200 ${canAddInvoice ? 'bg-gradient-to-r from-green-500 to-teal-500 text-white hover:from-green-600 hover:to-teal-600' : 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-300 cursor-not-allowed'}`}
                     data-testid="button-add-invoice"
                 >
                     <ClipboardCheck className="w-5 h-5 ml-2" />
@@ -4319,15 +8217,23 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                             <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">الحالة والإجراء</th>
                         </tr>
                     </thead>
-                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
-                        {filteredInvoices.length === 0 ? (
-                            <tr><td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">لا توجد فواتير مشتريات مطابقة للفلترة.</td></tr>
-                        ) : (
-                            filteredInvoices.map(invoice => (
-                                <tr key={invoice.id} 
-                                    className={`hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150 cursor-pointer ${invoice.status === 'Dispatched' ? 'bg-green-50 dark:bg-green-900' : invoice.status === 'Cancelled' ? 'bg-red-50 dark:bg-red-900' : invoice.status === 'CreditApproved' ? 'bg-blue-50 dark:bg-blue-900' : 'bg-yellow-50 dark:bg-yellow-900'}`}
-                                    onClick={() => openDetailsModal(invoice)}
-                                >
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
+                        {filteredInvoices.length === 0 ? (
+                            <tr><td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">لا توجد فواتير مشتريات مطابقة للفلترة.</td></tr>
+                        ) : (
+                            paginatedInvoices.map(invoice => (
+                                <tr key={invoice.id}
+                                    className={`hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150 cursor-pointer ${invoice.status === 'Dispatched'
+                                        ? 'bg-green-50 dark:bg-green-900'
+                                        : invoice.status === 'Cancelled'
+                                            ? 'bg-red-50 dark:bg-red-900'
+                                            : invoice.status === 'PartialPaid'
+                                                ? 'bg-purple-50 dark:bg-purple-900'
+                                                : invoice.status === 'CreditApproved'
+                                                    ? 'bg-blue-50 dark:bg-blue-900'
+                                                    : 'bg-yellow-50 dark:bg-yellow-900'}`}
+                                    onClick={() => openDetailsModal(invoice)}
+                                >
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900 dark:text-gray-100">{highlightText(invoice.invoiceNumber, globalSearch)}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{formatDateDDMMYYYY(invoice.date)}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{highlightText(`${invoice.vendor} (${invoice.representative})`, globalSearch)}</td>
@@ -4336,8 +8242,9 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                         {/* عرض الحالة */}
                                         {invoice.status === 'Pending' && <span className="text-yellow-600 font-bold text-xs p-1 rounded bg-yellow-100">معلقة (مراجعة)</span>}
-                                        {invoice.status === 'CreditApproved' && <span className="text-blue-600 font-bold text-xs p-1 rounded bg-blue-100">آجل (تم الإدخال)</span>}
-                                        {invoice.status === 'Dispatched' && <span className="text-green-600 font-bold text-xs p-1 rounded bg-green-100">مصروفة (كاش/صرف آجل)</span>}
+                                        {invoice.status === 'CreditApproved' && <span className="text-blue-600 font-bold text-xs p-1 rounded bg-blue-100">آجل (تم الإدخال)</span>}
+                                        {invoice.status === 'PartialPaid' && <span className="text-purple-600 font-bold text-xs p-1 rounded bg-purple-100">دفع جزئي</span>}
+                                        {invoice.status === 'Dispatched' && <span className="text-green-600 font-bold text-xs p-1 rounded bg-green-100">مصروفة (كاش/صرف آجل)</span>}
                                         {invoice.status === 'Cancelled' && <span className="text-red-600 font-bold text-xs p-1 rounded bg-red-100">ملغاة</span>}
                                     </td>
                                 </tr>
@@ -4348,8 +8255,8 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
             </div>
 
             {/* مودال إدخال فاتورة جديدة */}
-            {isNewInvoiceModalOpen && (
-                <Modal title="إدخال فاتورة مشتريات جديدة" onClose={() => setIsNewInvoiceModalOpen(false)} size="xl">
+            {isNewInvoiceModalOpen && (
+                <Modal title="إدخال فاتورة مشتريات جديدة" onClose={() => setIsNewInvoiceModalOpen(false)} size="2xl">
                     <form onSubmit={handleCreateInvoice} className="space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 p-4 rounded-xl bg-gray-50 dark:bg-gray-700">
                             <h4 className="md:col-span-2 text-lg font-bold text-gray-700 dark:text-gray-300 border-b pb-2 mb-2">معلومات الفاتورة الأساسية</h4>
@@ -4407,15 +8314,53 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                                 </select>
                             </div>
                             
-                            <div className="md:col-span-2">
-                                <InputField
-                                    label="رابط صورة الفاتورة (اختياري)"
-                                    type="url"
-                                    placeholder="http://example.com/invoice.jpg"
-                                    value={invoiceForm.invoiceImageUrl}
-                                    onChange={(e) => setInvoiceForm({ ...invoiceForm, invoiceImageUrl: e.target.value })}
-                                />
-                            </div>
+                            <div className="md:col-span-2 space-y-2 text-right">
+                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">مرفقات الفاتورة (صور / مستندات PDF)</label>
+                                <div className="flex flex-col sm:flex-row gap-2">
+                                    <input
+                                        type="file"
+                                        accept="image/*,application/pdf"
+                                        multiple
+                                        onChange={handleInvoiceAttachmentUpload}
+                                        className="flex-1 p-3 border border-dashed border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500 transition duration-150"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={handleScanInvoiceAttachment}
+                                        disabled={!scannerAvailable}
+                                        className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl shadow transition ${scannerAvailable ? 'bg-emerald-500 hover:bg-emerald-600 text-white' : 'bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'}`}
+                                        title={scannerAvailable ? 'التقاط صورة عبر السكنر' : 'السكنر غير متاح في هذا الجهاز'}
+                                    >
+                                        <Scan className="w-5 h-5" />
+                                        مسح عبر السكنر
+                                    </button>
+                                </div>
+                                {invoiceAttachments.length > 0 && (
+                                    <div className="space-y-2">
+                                        {invoiceAttachments.map(attachment => (
+                                            <div key={attachment.id} className="flex items-center justify-between gap-3 p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100">
+                                                <div className="flex-1 truncate text-sm font-medium">{attachment.name}</div>
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => previewInvoiceAttachment(attachment, invoiceAttachments, invoiceForm.invoiceImageUrl, 'مرفق فاتورة')}
+                                                        className="px-3 py-1 text-xs rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800/50"
+                                                    >
+                                                        معاينة
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleRemoveInvoiceAttachment(attachment.id)}
+                                                        className="px-2 py-1 text-xs rounded-lg bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-200 hover:bg-red-200 dark:hover:bg-red-800/50"
+                                                    >
+                                                        حذف
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
 
                              <div className="flex flex-col space-y-1 text-right md:col-span-2">
                                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300">فئة المصروف المرتبطة (لتسجيلها كمصروف لاحقاً)</label>
@@ -4588,11 +8533,12 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                                 ))}
                             </select>
                         </div>
-                        <InputField 
-                            label="باركود المادة" 
-                            value={itemForm.barcode} 
-                            onChange={(e) => handleItemFormChange('barcode', e.target.value)} 
+                        <InputField
+                            label="باركود المادة"
+                            value={itemForm.barcode}
+                            onChange={(e) => handleItemFormChange('barcode', e.target.value)}
                             placeholder="اضغط على توليد باركود أو أدخله يدوياً"
+                            required
                         >
                             <button type="button" onClick={() => setItemForm(prev => ({ ...prev, barcode: generateBarcode() }))} className="absolute left-1 top-1/2 transform -translate-y-1/2 px-3 py-1.5 text-xs bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg text-gray-800 dark:text-gray-200 font-semibold">
                                 توليد باركود
@@ -4629,12 +8575,24 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                             <p className="font-medium text-gray-700 dark:text-gray-300">فئة المصروف: <span className="font-bold">{currentInvoice.expenseCategory}</span></p>
                         </div>
                         
-                        {currentInvoice.invoiceImageUrl && (
-                            <div className="text-center p-3 bg-white dark:bg-gray-800 rounded-xl border border-teal-200">
-                                <h5 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">صورة الفاتورة/المستند:</h5>
-                                <img src={currentInvoice.invoiceImageUrl} alt="Invoice Document" className="w-full h-auto object-contain rounded-lg shadow-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 max-h-64" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/400x150/cccccc/333333?text=No+Image+Available"; }}/>
-                            </div>
-                        )}
+                        {detailAttachments.length > 0 && (
+                            <div className="space-y-2">
+                                <h5 className="text-sm font-semibold text-gray-600 dark:text-gray-400">مرفقات الفاتورة</h5>
+                                <div className="space-y-2">
+                                    {detailAttachments.map(attachment => (
+                                        <div key={attachment.id} className="flex items-center justify-between gap-3 p-2 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600">
+                                            <span className="flex-1 truncate text-sm font-medium text-gray-700 dark:text-gray-200">{attachment.name}</span>
+                                            <button
+                                                onClick={() => previewInvoiceAttachment(attachment, detailAttachments, currentInvoice.invoiceImageUrl, 'مرفق فاتورة')}
+                                                className="px-3 py-1 text-xs rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800/50"
+                                            >
+                                                عرض
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
                         <h5 className="text-xl font-bold text-gray-800 dark:text-gray-200 border-b pb-2 pt-4">المواد في الفاتورة:</h5>
                         <div className="overflow-x-auto shadow-md rounded-xl">
@@ -4668,58 +8626,73 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                         
                         <div className="flex flex-col gap-4 pt-4">
                             {/* حالة معلقة - تظهر أزرار الاعتماد والإلغاء */}
-                            {currentInvoice.status === 'Pending' && (
-                                <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
-                                    <ActionButton 
-                                        onClick={() => handleApproveInvoice(currentInvoice, true)} 
-                                        className="bg-blue-600 hover:bg-blue-700"
-                                    >
-                                        <Package className="w-5 h-5 ml-2" />
-                                        اعتماد المخزون (آجل)
-                                    </ActionButton>
-                                    <ActionButton 
-                                        onClick={() => handleApproveInvoice(currentInvoice, false)} 
-                                        className="bg-green-600 hover:bg-green-700"
-                                    >
-                                        <CheckCircle className="w-5 h-5 ml-2" />
-                                        اعتماد المخزون (كاش)
-                                    </ActionButton>
-                                    <ActionButton 
-                                        onClick={() => { setIsDetailsModalOpen(false); setCurrentInvoice(currentInvoice); setIsCancelModalOpen(true); }} 
-                                        className="bg-red-600 hover:bg-red-700"
-                                    >
-                                        <X className="w-5 h-5 ml-2" />
-                                        إلغاء الفاتورة
-                                    </ActionButton>
-                                </div>
-                            )}
+                    {currentInvoice.status === 'Pending' && (canApproveInventory || canCancelInventory) && (
+                        <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
+                            {canApproveInventory && (
+                                <ActionButton
+                                    onClick={() => handleApproveInvoice(currentInvoice, true)}
+                                    className="bg-blue-600 hover:bg-blue-700"
+                                >
+                                    <Package className="w-5 h-5 ml-2" />
+                                    اعتماد المخزون (آجل)
+                                </ActionButton>
+                            )}
+                            {canApproveInventory && (
+                                <ActionButton
+                                    onClick={() => handleApproveInvoice(currentInvoice, false)}
+                                    className="bg-green-600 hover:bg-green-700"
+                                >
+                                    <CheckCircle className="w-5 h-5 ml-2" />
+                                    اعتماد المخزون (كاش)
+                                </ActionButton>
+                            )}
+                            {canCancelInventory && (
+                                <ActionButton
+                                    onClick={() => { setIsDetailsModalOpen(false); setCurrentInvoice(currentInvoice); setIsCancelModalOpen(true); }}
+                                    className="bg-red-600 hover:bg-red-700"
+                                >
+                                    <X className="w-5 h-5 ml-2" />
+                                    إلغاء الفاتورة
+                                </ActionButton>
+                            )}
+                        </div>
+                    )}
                             
                             {/* حالة آجل - يظهر زر الصرف */}
-                            {currentInvoice.status === 'CreditApproved' && (
-                                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-                                    <ActionButton 
-                                        onClick={() => handleApproveInvoice(currentInvoice, false)} 
-                                        className="w-full bg-yellow-600 hover:bg-yellow-700"
-                                    >
-                                        <DollarSign className="w-5 h-5 ml-2" />
-                                        صرف الفاتورة (تسجيل مصروف)
-                                    </ActionButton>
-                                    <ActionButton 
-                                        onClick={() => { setIsDetailsModalOpen(false); setCurrentInvoice(currentInvoice); setIsCancelModalOpen(true); }} 
-                                        className="w-full bg-red-600 hover:bg-red-700"
-                                    >
-                                        <X className="w-5 h-5 ml-2" />
-                                        إلغاء الفاتورة
-                                    </ActionButton>
-                                </div>
-                            )}
+                    {['CreditApproved', 'PartialPaid'].includes(currentInvoice.status) && !invoiceHasDebt && (canApproveInventory || canCancelInventory) && (
+                        <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                            {canApproveInventory && (
+                                <ActionButton
+                                    onClick={() => handleApproveInvoice(currentInvoice, false)}
+                                    className="w-full bg-yellow-600 hover:bg-yellow-700"
+                                >
+                                    <DollarSign className="w-5 h-5 ml-2" />
+                                    صرف الفاتورة (تسجيل مصروف)
+                                </ActionButton>
+                            )}
+                            {canCancelInventory && (
+                                <ActionButton
+                                    onClick={() => { setIsDetailsModalOpen(false); setCurrentInvoice(currentInvoice); setIsCancelModalOpen(true); }}
+                                    className="w-full bg-red-600 hover:bg-red-700"
+                                >
+                                    <X className="w-5 h-5 ml-2" />
+                                    إلغاء الفاتورة
+                                </ActionButton>
+                            )}
+                        </div>
+                    )}
                             
                             {/* حالة مصروفة وملغاة */}
-                            {currentInvoice.status === 'Dispatched' && (
-                                <p className="w-full text-center p-3 rounded-xl font-bold bg-green-100 text-green-700">
-                                    تم صرف الفاتورة بالكامل (مسجلة كمصروف).
-                                </p>
-                            )}
+                    {currentInvoice.status === 'Dispatched' && (
+                        <p className="w-full text-center p-3 rounded-xl font-bold bg-green-100 text-green-700">
+                            تم صرف الفاتورة بالكامل (مسجلة كمصروف).
+                        </p>
+                    )}
+                    {currentInvoice.status === 'PartialPaid' && (
+                        <p className="w-full text-center p-3 rounded-xl font-bold bg-purple-100 text-purple-700">
+                            تم دفع جزء من الفاتورة. المبلغ المتبقي: {formatCurrencyDisplay(currentInvoice.debtRemainingAmount ?? Math.max(0, (parseFloat(currentInvoice.totalAmount) || 0) - (parseFloat(currentInvoice.debtPaidAmount) || 0)))}.
+                        </p>
+                    )}
                             {currentInvoice.status === 'Cancelled' && (
                                 <p className="w-full text-center p-3 rounded-xl font-bold bg-red-100 text-red-700">
                                     الفاتورة ملغاة. السبب: {currentInvoice.cancellationReason || 'غير محدد'}
@@ -4758,21 +8731,35 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
 /**
  * 3.6. SettingsPage Component
  */
-const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavigateAttempt }) => {
+const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavigateAttempt, currentUser, registerLeaveGuard }) => {
     const [settings, setSettings] = useState(data.settings);
     const [originalSettings, setOriginalSettings] = useState(data.settings); // لحفظ الحالة الأصلية
     const [isDirty, setIsDirty] = useState(false); // لتتبع التغييرات
     
     // حالة المودال لإدارة الخروج بدون حفظ
-    const [isExitModalOpen, setIsExitModalOpen] = useState(false);
+    const [exitIntent, setExitIntent] = useState<{ open: boolean; targetPageKey: string | null }>({ open: false, targetPageKey: null });
     
-    const [newItem, setNewItem] = useState('');
-    const [currentList, setCurrentList] = useState('expenseCategories');
-    const [newRep, setNewRep] = useState({ name: '', vendor: settings.vendors[0] || '' });
+    const [newItem, setNewItem] = useState('');
+    const [currentList, setCurrentList] = useState('expenseCategories');
+    const [newVendor, setNewVendor] = useState('');
+    const [newRep, setNewRep] = useState({ name: '', vendor: settings.vendors[0] || '' });
+
+    const settingsPermissions = currentUser?.permissions?.settings || {};
+    const canManageCategories = (settingsPermissions.manageCategories ?? settingsPermissions.view) || false;
+    const canManageVendors = (settingsPermissions.manageVendors ?? settingsPermissions.view) || false;
+    const canManageRepresentatives = (settingsPermissions.manageRepresentatives ?? settingsPermissions.view) || false;
+    const categoryLists = ['expenseCategories', 'revenueCategories', 'advanceCategories', 'departments', 'jobTitles'];
+    const categoryLabels = {
+        expenseCategories: 'فئة مصروف',
+        revenueCategories: 'فئة إيراد',
+        advanceCategories: 'فئة سلفة',
+        departments: 'قسم',
+        jobTitles: 'مسمى وظيفي'
+    };
     
     // حالة نموذج المستخدم الجديد/المعدل
-    const [isUserModalOpen, setIsUserModalOpen] = useState(false);
-    const [currentUser, setCurrentUser] = useState(null);
+    const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+    const [editingSettingsUser, setEditingSettingsUser] = useState(null);
     const [userForm, setUserForm] = useState({
         username: "",
         id: "",
@@ -4782,6 +8769,36 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
         permissions: {},
         customPermissions: {}
     });
+
+    useEffect(() => {
+        setNewRep(prev => {
+            const fallbackVendor = settings.vendors[0] || '';
+            const nextVendor = settings.vendors.includes(prev.vendor) ? prev.vendor : fallbackVendor;
+            return { ...prev, vendor: nextVendor };
+        });
+    }, [settings.vendors]);
+
+    useEffect(() => {
+        if (!registerLeaveGuard) return;
+
+        const guard = (targetPageKey) => {
+            if (isDirty) {
+                setExitIntent({ open: true, targetPageKey: targetPageKey || null });
+                return false;
+            }
+            return true;
+        };
+
+        const unregister = registerLeaveGuard(guard);
+
+        return () => {
+            if (typeof unregister === 'function') {
+                unregister();
+            } else if (registerLeaveGuard) {
+                registerLeaveGuard(null);
+            }
+        };
+    }, [isDirty, registerLeaveGuard]);
     
     // قائمة الصلاحيات المتاحة
     const availablePermissions = useMemo(() => ([
@@ -4798,14 +8815,18 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
     ]), []);
     
     // دالة تحديث الحقل العام وتتبع حالة التغيير
-    const handleSettingChange = (newSettings) => {
-        setSettings(newSettings);
-        
-        // مقارنة بسيطة لمعرفة ما إذا كانت هناك تغييرات
-        const currentJSON = JSON.stringify(newSettings);
-        const originalJSON = JSON.stringify(originalSettings);
-        setIsDirty(currentJSON !== originalJSON);
-    };
+    const handleSettingChange = (updater) => {
+        setSettings(prevSettings => {
+            const nextSettings = typeof updater === 'function' ? updater(prevSettings) : updater;
+
+            // مقارنة بسيطة لمعرفة ما إذا كانت هناك تغييرات
+            const currentJSON = JSON.stringify(nextSettings);
+            const originalJSON = JSON.stringify(originalSettings);
+            setIsDirty(currentJSON !== originalJSON);
+
+            return nextSettings;
+        });
+    };
 
 
     // دالة مساعدة لحفظ جميع الإعدادات
@@ -4816,23 +8837,27 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
         setOriginalSettings(settings); // تحديث الحالة الأصلية بعد الحفظ
         setIsDirty(false);
         showToast('تم حفظ الإعدادات الأساسية بنجاح.', 'success');
-        setIsExitModalOpen(false); // إغلاق المودال في حالة الخروج الموجه
-        
-        // **الإصلاح:** إذا تم الحفظ أثناء محاولة الخروج، نقوم بالتنقل
-        if (isExitModalOpen && isExitModalOpen.targetPageKey) {
-            onNavigateAttempt(isExitModalOpen.targetPageKey);
-        }
-    };
+        setExitIntent({ open: false, targetPageKey: null }); // إغلاق المودال في حالة الخروج الموجه
+
+        // **الإصلاح:** إذا تم الحفظ أثناء محاولة الخروج، نقوم بالتنقل
+        if (exitIntent.open && exitIntent.targetPageKey) {
+            onNavigateAttempt(exitIntent.targetPageKey);
+        }
+    };
     
     // دوال إدارة القوائم (الفئات والموردين)
     
-    const handleAddItem = (e) => {
-        e.preventDefault();
-        const value = newItem.trim();
-        if (!value) return;
+    const handleAddItem = (e) => {
+        e.preventDefault();
+        if (!canManageCategories) {
+            showToast('لا تملك صلاحية إضافة الفئات.', 'error');
+            return;
+        }
+        const value = newItem.trim();
+        if (!value) return;
 
-        if (settings[currentList].includes(value)) {
-            showToast('هذا العنصر موجود بالفعل.', 'error');
+        if (settings[currentList].includes(value)) {
+            showToast('هذا العنصر موجود بالفعل.', 'error');
             return;
         }
 
@@ -4842,32 +8867,70 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
         }));
         setNewItem('');
         showToast(`تم إضافة ${value} بنجاح.`, 'success');
-    };
+    };
 
-    const handleDeleteItem = (itemToDelete) => {
-        handleSettingChange(prev => ({
-            ...prev,
-            [currentList]: prev[currentList].filter(item => item !== itemToDelete)
-        }));
-        
-        if (currentList === 'vendors') {
-             handleSettingChange(prev => ({
-                ...prev,
-                representatives: prev.representatives.filter(rep => rep.vendor !== itemToDelete)
-            }));
-        }
+    const handleDeleteItem = (itemToDelete) => {
+        if (!canManageCategories) {
+            showToast('لا تملك صلاحية حذف الفئات.', 'error');
+            return;
+        }
+        handleSettingChange(prev => ({
+            ...prev,
+            [currentList]: prev[currentList].filter(item => item !== itemToDelete)
+        }));
 
-        showToast(`تم حذف العنصر بنجاح.`, 'warning');
-    };
+        showToast(`تم حذف العنصر بنجاح.`, 'warning');
+    };
 
-    // إدارة المندوبين
-    const handleAddRep = (e) => {
-        e.preventDefault();
-        if (!newRep.name.trim() || !newRep.vendor) return;
+    const handleAddVendor = (e) => {
+        e.preventDefault();
+        if (!canManageVendors) {
+            showToast('لا تملك صلاحية إضافة الموردين.', 'error');
+            return;
+        }
 
-        if (settings.representatives.some(r => r.name === newRep.name)) {
-            showToast('هذا المندوب موجود بالفعل.', 'error');
-            return;
+        const value = newVendor.trim();
+        if (!value) return;
+
+        if (settings.vendors.includes(value)) {
+            showToast('هذا المورد موجود بالفعل.', 'error');
+            return;
+        }
+
+        handleSettingChange(prev => ({
+            ...prev,
+            vendors: [...prev.vendors, value]
+        }));
+        setNewVendor('');
+        showToast(`تم إضافة المورد ${value} بنجاح.`, 'success');
+    };
+
+    const handleDeleteVendor = (vendorToDelete) => {
+        if (!canManageVendors) {
+            showToast('لا تملك صلاحية حذف الموردين.', 'error');
+            return;
+        }
+
+        handleSettingChange(prev => ({
+            ...prev,
+            vendors: prev.vendors.filter(vendor => vendor !== vendorToDelete),
+            representatives: prev.representatives.filter(rep => rep.vendor !== vendorToDelete)
+        }));
+        showToast('تم حذف المورد وجميع مندوبيه بنجاح.', 'warning');
+    };
+
+    // إدارة المندوبين
+    const handleAddRep = (e) => {
+        e.preventDefault();
+        if (!canManageRepresentatives) {
+            showToast('لا تملك صلاحية إضافة المندوبين.', 'error');
+            return;
+        }
+        if (!newRep.name.trim() || !newRep.vendor) return;
+
+        if (settings.representatives.some(r => r.name === newRep.name)) {
+            showToast('هذا المندوب موجود بالفعل.', 'error');
+            return;
         }
 
         handleSettingChange(prev => ({
@@ -4876,37 +8939,41 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
         }));
         setNewRep({ name: '', vendor: settings.vendors[0] || '' });
         showToast(`تم إضافة المندوب ${newRep.name} بنجاح.`, 'success');
-    };
-    
-    const handleDeleteRep = (repToDelete) => {
-        handleSettingChange(prev => ({
-            ...prev,
-            representatives: prev.representatives.filter(rep => rep.name !== repToDelete.name)
-        }));
-        showToast('تم حذف المندوب بنجاح.', 'warning');
+    };
+
+    const handleDeleteRep = (repToDelete) => {
+        if (!canManageRepresentatives) {
+            showToast('لا تملك صلاحية حذف المندوبين.', 'error');
+            return;
+        }
+        handleSettingChange(prev => ({
+            ...prev,
+            representatives: prev.representatives.filter(rep => rep.name !== repToDelete.name)
+        }));
+        showToast('تم حذف المندوب بنجاح.', 'warning');
     };
     
     // إدارة المستخدمين
     
     const openUserModal = (user = null) => {
-        if (user) {
-            setCurrentUser(user);
-            setUserForm({
-                username: user.username,
-                id: user.id,
-                email: user.email,
-                password: '', // لا نعرض الباسورد المحفوظة
+        if (user) {
+            setEditingSettingsUser(user);
+            setUserForm({
+                username: user.username,
+                id: user.id,
+                email: user.email,
+                password: '', // لا نعرض الباسورد المحفوظة
                 role: user.role || USER_ROLES.CASHIER,
                 customPermissions: user.customPermissions || {},
                 permissions: user.permissions || ROLE_PERMISSIONS[user.role || USER_ROLES.CASHIER]
             });
-        } else {
-             setCurrentUser(null);
+        } else {
+             setEditingSettingsUser(null);
              setUserForm({
-                username: '',
-                id: crypto.randomUUID(),
-                email: '',
-                password: '',
+                username: '',
+                id: crypto.randomUUID(),
+                email: '',
+                password: '',
                 role: USER_ROLES.CASHIER,
                 permissions: ROLE_PERMISSIONS[USER_ROLES.CASHIER],
                 customPermissions: {}
@@ -4923,19 +8990,19 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
         }
 
         // التحقق من كلمة المرور عند إضافة مستخدم جديد فقط
-        if (!currentUser && !userForm.password.trim()) {
+        if (!editingSettingsUser && !userForm.password.trim()) {
             showToast('يجب إدخال كلمة المرور للمستخدم الجديد.', 'error');
             return;
         }
 
         // منع إنشاء حساب أدمن جديد
-        if (!currentUser && userForm.role === USER_ROLES.ADMIN) {
+        if (!editingSettingsUser && userForm.role === USER_ROLES.ADMIN) {
             showToast('لا يمكن إنشاء حساب أدمن جديد. يمكن فقط تعديل الحسابات الموجودة.', 'error');
             return;
         }
 
-        const userToSave = {
-            ...userForm,
+        const userToSave = {
+            ...userForm,
             // ضمان وجود صلاحية الرؤية دائما للوحة المعلومات
             // دمج الصلاحيات الأساسية مع الصلاحيات المخصصة
             role: userForm.role || USER_ROLES.CASHIER,
@@ -4945,23 +9012,23 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
                 ...userForm.customPermissions,
                 dashboard: { view: true }
             }
-        };
+        };
 
-        handleSettingChange(prev => {
-            const newUsers = currentUser 
-                ? prev.users.map(u => u.id === userToSave.id ? userToSave : u)
-                : [...prev.users, userToSave];
-            
-            // تصحيح: يجب تحديث المستخدم الذي تم تعديله بـ userToSave
-            const finalUsers = prev.users.map(u => u.id === userToSave.id ? userToSave : u);
-            if (!currentUser) finalUsers.push(userToSave);
+        handleSettingChange(prev => {
+            const newUsers = editingSettingsUser
+                ? prev.users.map(u => u.id === userToSave.id ? userToSave : u)
+                : [...prev.users, userToSave];
 
-            return { ...prev, users: finalUsers };
-        });
-        
-        setIsUserModalOpen(false);
-        showToast(currentUser ? 'تم تعديل صلاحيات المستخدم بنجاح.' : 'تم إضافة مستخدم جديد بنجاح.', 'success');
-    };
+            // تصحيح: يجب تحديث المستخدم الذي تم تعديله بـ userToSave
+            const finalUsers = prev.users.map(u => u.id === userToSave.id ? userToSave : u);
+            if (!editingSettingsUser) finalUsers.push(userToSave);
+
+            return { ...prev, users: finalUsers };
+        });
+
+        setIsUserModalOpen(false);
+        showToast(editingSettingsUser ? 'تم تعديل صلاحيات المستخدم بنجاح.' : 'تم إضافة مستخدم جديد بنجاح.', 'success');
+    };
     
     const handleDeleteUser = (userId) => {
         handleSettingChange(prev => ({
@@ -4980,83 +9047,73 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
 
     // التعامل مع الخروج من الصفحة دون حفظ
     const handleExitClick = (targetPageKey = null) => {
-        if (isDirty) {
-            setIsExitModalOpen({ targetPageKey: targetPageKey });
-        } else if (targetPageKey) {
-             onNavigateAttempt(targetPageKey);
-        }
-    };
-    
-    const confirmDiscardAndExit = () => {
-         setSettings(originalSettings); // إعادة الحالة الأصلية
-         setIsDirty(false);
-         // توجيه التنقل بعد تجاهل التغييرات
-         if (isExitModalOpen.targetPageKey) {
-             onNavigateAttempt(isExitModalOpen.targetPageKey);
-         }
-         setIsExitModalOpen(false);
-         showToast('تم إلغاء التغييرات والخروج.', 'warning');
-    };
-    
-    const confirmSaveAndExit = (e) => {
-        // نستخدم دالة saveAllSettings التي تتضمن منطق التنقل
-        saveAllSettings(e); 
-    };
+        if (isDirty) {
+            setExitIntent({ open: true, targetPageKey });
+        } else if (targetPageKey) {
+            onNavigateAttempt(targetPageKey);
+        }
+    };
+
+    const confirmDiscardAndExit = () => {
+        setSettings(originalSettings); // إعادة الحالة الأصلية
+        setIsDirty(false);
+        // توجيه التنقل بعد تجاهل التغييرات
+        if (exitIntent.targetPageKey) {
+            onNavigateAttempt(exitIntent.targetPageKey);
+        }
+        setExitIntent({ open: false, targetPageKey: null });
+        showToast('تم إلغاء التغييرات والخروج.', 'warning');
+    };
+
+    const confirmSaveAndExit = (e) => {
+        // نستخدم دالة saveAllSettings التي تتضمن منطق التنقل
+        saveAllSettings(e);
+    };
 
 
     // **مهم:** تم تعديل <form> الإعدادات ليصبح زر الحفظ في الأسفل
     // نستخدم React.Fragment للتحكم في عناصر الإدخال
-    const renderCompanySettings = () => (
-        <React.Fragment>
-            <InputField 
-                label="اسم الشركة/العمل" 
-                value={settings.companyName} 
-                onChange={(e) => handleSettingChange({ ...settings, companyName: e.target.value })} 
-                required
-            />
-             <InputField 
-                label="رابط شعار الشركة (Logo URL)" 
-                value={settings.companyLogoUrl} 
-                onChange={(e) => handleSettingChange({ ...settings, companyLogoUrl: e.target.value })} 
-                placeholder="https://placehold.co/100x40/0d9488/ffffff?text=LOGO"
-            />
-        </React.Fragment>
-    );
 
     return (
-        <div className="p-6 space-y-8 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl">
-            <h2 className="text-4xl font-extrabold text-gray-800 dark:text-gray-200 border-b-2 border-teal-500 pb-3">الإعدادات {isDirty && <span className='text-red-500 text-base mr-3'>(لم يتم الحفظ)</span>}</h2>
-            
-            {/* **التعامل مع الخروج بدون حفظ** */}
-            {isExitModalOpen && (
-                <Modal title="تنبيه: لم يتم حفظ التغييرات" onClose={() => setIsExitModalOpen(false)} size="sm">
-                    <p className='text-lg font-medium text-red-700 mb-4'>
-                        لقد قمت بإجراء تغييرات في الإعدادات. هل تريد حفظها قبل الخروج؟
-                    </p>
-                    <div className='flex justify-around gap-4'>
-                        <ActionButton 
-                            onClick={confirmSaveAndExit} 
-                            className="bg-green-600 hover:bg-green-700 flex-1"
-                        >
-                            <Save className="w-5 h-5 ml-2" />
-                            حفظ والخروج
-                        </ActionButton>
-                        <ActionButton 
-                            onClick={confirmDiscardAndExit} 
-                            className="bg-gray-400 hover:bg-gray-50 dark:bg-gray-600 dark:hover:bg-gray-700 flex-1"
-                        >
-                            <Trash2 className="w-5 h-5 ml-2" />
-                            تجاهل التغييرات
-                        </ActionButton>
-                    </div>
-                </Modal>
-            )}
+        <div className="p-6 space-y-8 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl">
+            <div className="flex flex-col gap-4 border-b-2 border-teal-500 pb-4">
+                <h2 className="text-4xl font-extrabold text-gray-800 dark:text-gray-200">الإعدادات</h2>
+                {isDirty && (
+                    <div className="flex items-center gap-3 bg-red-100 dark:bg-red-900/40 border border-red-300 dark:border-red-700 text-red-800 dark:text-red-200 px-4 py-3 rounded-2xl shadow-sm">
+                        <AlertTriangle className="w-6 h-6" />
+                        <div>
+                            <p className="text-lg font-bold">لم يتم حفظ التغييرات</p>
+                            <p className="text-sm">احفظ التعديلات الحالية قبل المغادرة لتفادي فقدانها.</p>
+                        </div>
+                    </div>
+                )}
+            </div>
 
-            {/* إعدادات الشركة */}
-            <form className="space-y-6 p-6 rounded-xl shadow-lg border-l-4 border-indigo-500 bg-indigo-50 dark:bg-indigo-900">
-                <h3 className="text-2xl font-bold text-indigo-800 dark:text-indigo-300 flex items-center"><Building className="w-6 h-6 ml-2" /> إعدادات الشركة الأساسية</h3>
-                {renderCompanySettings()}
-            </form>
+            {/* **التعامل مع الخروج بدون حفظ** */}
+            {exitIntent.open && (
+                <Modal title="لم يتم حفظ التغييرات" onClose={() => setExitIntent({ open: false, targetPageKey: null })} size="sm">
+                    <p className='text-base md:text-lg font-medium text-gray-700 dark:text-gray-200 mb-4'>
+                        لم تحفظ التغييرات التي أجريتها في الإعدادات. اختر متابعة الإجراء المناسب:
+                    </p>
+                    <div className='flex flex-col sm:flex-row gap-3'>
+                        <ActionButton
+                            onClick={confirmDiscardAndExit}
+                            className="bg-gray-200 text-gray-800 hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-100 dark:hover:bg-gray-500 flex-1"
+                        >
+                            <Trash2 className="w-5 h-5 ml-2" />
+                            إلغاء التغييرات
+                        </ActionButton>
+                        <ActionButton
+                            onClick={confirmSaveAndExit}
+                            className="bg-green-600 hover:bg-green-700 flex-1"
+                        >
+                            <Save className="w-5 h-5 ml-2" />
+                            حفظ التغييرات والانتقال
+                        </ActionButton>
+                    </div>
+                </Modal>
+            )}
+
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-8">
                 {/* إدارة القوائم (الفئات والموردين) */}
@@ -5064,30 +9121,38 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
                     <h3 className="text-lg md:text-2xl font-bold text-teal-800 dark:text-teal-300 flex items-center"><List className="w-5 h-5 md:w-6 md:h-6 ml-2" /> إدارة الفئات والأقسام والمناصب</h3>
 
                     <div className="flex gap-2 overflow-x-auto -mx-2 px-2 pb-2">
-                        {['expenseCategories', 'revenueCategories', 'advanceCategories', 'departments', 'jobTitles', 'vendors'].map(key => (
+                        {categoryLists.map(key => (
                             <button
                                 key={key}
+                                type="button"
                                 onClick={() => setCurrentList(key)}
                                 className={`px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm flex-shrink-0 font-semibold transition whitespace-nowrap ${currentList === key ? 'bg-teal-600 text-white shadow-md' : 'bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-teal-50 dark:hover:bg-gray-600'}`}
                             >
-                                {key === 'expenseCategories' ? 'مصروفات' : key === 'revenueCategories' ? 'إيرادات' : key === 'advanceCategories' ? 'سلف' : key === 'departments' ? 'أقسام' : key === 'jobTitles' ? 'مناصب' : 'الموردين'}
+                                {key === 'expenseCategories' ? 'مصروفات' : key === 'revenueCategories' ? 'إيرادات' : key === 'advanceCategories' ? 'سلف' : key === 'departments' ? 'أقسام' : 'مناصب'}
                             </button>
                         ))}
                     </div>
 
                     <form onSubmit={handleAddItem} className="space-y-3">
-                        <h4 className="text-sm md:text-base font-semibold text-gray-700 dark:text-gray-300">إضافة عنصر جديد ({currentList === 'vendors' ? 'مورد' : 'فئة'})</h4>
-                        <InputField 
-                            value={newItem} 
-                            onChange={(e) => setNewItem(e.target.value)} 
-                            placeholder="أدخل اسماً جديداً" 
+                        <h4 className="text-sm md:text-base font-semibold text-gray-700 dark:text-gray-300">إضافة {categoryLabels[currentList]}</h4>
+                        <InputField
+                            value={newItem}
+                            onChange={(e) => setNewItem(e.target.value)}
+                            placeholder="أدخل اسماً جديداً"
                             required
+                            readOnly={!canManageCategories}
                         >
-                            {/* **إصلاح زر الإضافة:** جعله أيقونة بيضاء بدون نص */}
-                            <button type="submit" className="absolute left-1 top-1/2 transform -translate-y-1/2 px-4 py-1 text-sm bg-white hover:bg-gray-100 dark:bg-gray-600 p-2 rounded-lg">
-                                <Plus className="w-4 h-4 text-teal-600" />
+                            <button
+                                type="submit"
+                                disabled={!canManageCategories}
+                                className={`absolute left-1 top-1/2 transform -translate-y-1/2 px-4 py-1 text-sm rounded-lg p-2 ${canManageCategories ? 'bg-white hover:bg-gray-100 dark:bg-gray-600' : 'bg-gray-200 text-gray-400 cursor-not-allowed dark:bg-gray-600/40'}`}
+                            >
+                                <Plus className={`w-4 h-4 ${canManageCategories ? 'text-teal-600' : 'text-gray-400'}`} />
                             </button>
                         </InputField>
+                        {!canManageCategories && (
+                            <p className="text-xs text-red-600 dark:text-red-300">لا تملك صلاحية إضافة أو تعديل الفئات.</p>
+                        )}
                     </form>
 
                     <div className="space-y-2 max-h-60 overflow-y-auto p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800">
@@ -5095,7 +9160,12 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
                         {currentItems.map(item => (
                             <div key={item} className="flex justify-between gap-2 items-center p-2 bg-gray-100 dark:bg-gray-600 rounded-lg shadow-sm">
                                 <span className="font-medium text-sm md:text-base break-words flex-1 text-gray-800 dark:text-gray-200">{item}</span>
-                                <button onClick={() => handleDeleteItem(item)} className="text-red-500 hover:text-red-700 p-1 flex-shrink-0">
+                                <button
+                                    type="button"
+                                    onClick={() => handleDeleteItem(item)}
+                                    disabled={!canManageCategories}
+                                    className={`p-1 flex-shrink-0 rounded-md ${canManageCategories ? 'text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/30' : 'text-gray-400 cursor-not-allowed'}`}
+                                >
                                     <Trash2 className="w-4 h-4" />
                                 </button>
                             </div>
@@ -5104,49 +9174,97 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
                     </div>
                 </div>
 
-                {/* إدارة المندوبين */}
+                {/* إدارة الموردين والمندوبين */}
                 <div className="space-y-4 md:space-y-6 p-4 md:p-6 rounded-xl shadow-lg border-l-4 border-blue-500 bg-gray-50 dark:bg-gray-800">
-                    <h3 className="text-lg md:text-2xl font-bold text-blue-800 dark:text-blue-300 flex items-center"><User className="w-5 h-5 md:w-6 md:h-6 ml-2" /> إدارة المندوبين (للشركات الموردة)</h3>
+                    <h3 className="text-lg md:text-2xl font-bold text-blue-800 dark:text-blue-300 flex items-center"><User className="w-5 h-5 md:w-6 md:h-6 ml-2" /> إدارة الموردين والمندوبين</h3>
 
-                    <form onSubmit={handleAddRep} className="space-y-3 p-3 md:p-4 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800">
-                        <h4 className="text-sm md:text-base font-semibold text-gray-700 dark:text-gray-300 border-b pb-2">إضافة مندوب جديد</h4>
-                        <InputField 
-                            label="اسم المندوب" 
-                            value={newRep.name} 
-                            onChange={(e) => setNewRep({ ...newRep, name: e.target.value })} 
-                            required
-                        />
-                        <div className="flex flex-col space-y-1 text-right">
-                            <label className="text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300">تابع لشركة</label>
-                            <select
-                                value={newRep.vendor}
-                                onChange={(e) => setNewRep({ ...newRep, vendor: e.target.value })}
+                    <div className="grid gap-4">
+                        <form onSubmit={handleAddVendor} className="space-y-3 p-3 md:p-4 border border-blue-200 dark:border-blue-700 rounded-xl bg-white dark:bg-gray-900">
+                            <h4 className="text-sm md:text-base font-semibold text-gray-700 dark:text-gray-200 border-b pb-2">إضافة مورد جديد</h4>
+                            <InputField
+                                label="اسم المورد"
+                                value={newVendor}
+                                onChange={(e) => setNewVendor(e.target.value)}
                                 required
-                                className="w-full p-2 md:p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl transition text-sm md:text-base duration-150 text-right focus:ring-blue-500 focus:border-blue-500"
-                            >
-                                {settings.vendors.map(vendor => (
-                                    <option key={vendor} value={vendor}>{vendor}</option>
-                                ))}
-                            </select>
-                            {settings.vendors.length === 0 && <p className="text-xs text-red-500 mt-1">يجب إضافة موردين أولاً.</p>}
-                        </div>
-                        <ActionButton type="submit" disabled={settings.vendors.length === 0} className="bg-blue-600 hover:bg-blue-700 w-full text-sm md:text-base">
-                            <UserPlus className="w-4 h-4 md:w-5 md:h-5 ml-2" />
-                            إضافة المندوب
-                        </ActionButton>
-                    </form>
+                                readOnly={!canManageVendors}
+                            />
+                            <ActionButton type="submit" disabled={!canManageVendors} className={`w-full ${canManageVendors ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-400 cursor-not-allowed'}`}>
+                                <FolderOpen className="w-5 h-5 ml-2" />
+                                إضافة المورد
+                            </ActionButton>
+                            {!canManageVendors && <p className="text-xs text-red-600 dark:text-red-300">لا تملك صلاحية إدارة الموردين.</p>}
+                        </form>
 
-                    <div className="space-y-2 max-h-60 overflow-y-auto p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800">
-                        <h4 className="text-sm md:text-base font-semibold text-gray-700 dark:text-gray-300 border-b border-gray-300 dark:border-gray-600 pb-1">قائمة المندوبين:</h4>
-                        {settings.representatives.map((rep, index) => (
-                            <div key={index} className="flex justify-between gap-2 items-center p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg shadow-sm">
-                                <span className="font-medium text-sm md:text-base break-words flex-1 text-gray-800 dark:text-gray-200">{rep.name} <span className="text-xs text-gray-500 dark:text-gray-400">({rep.vendor})</span></span>
-                                <button onClick={() => handleDeleteRep(rep)} className="text-red-500 hover:text-red-700 p-1 flex-shrink-0">
-                                    <Trash2 className="w-4 h-4" />
-                                </button>
+                        <div className="space-y-2 max-h-44 overflow-y-auto p-3 border border-blue-200 dark:border-blue-700 rounded-xl bg-white dark:bg-gray-900">
+                            <h4 className="text-sm md:text-base font-semibold text-gray-700 dark:text-gray-200 border-b border-blue-200 dark:border-blue-700 pb-1">قائمة الموردين</h4>
+                            {settings.vendors.map(vendor => (
+                                <div key={vendor} className="flex justify-between items-center p-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
+                                    <span className="font-medium text-sm md:text-base text-blue-900 dark:text-blue-100">{vendor}</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleDeleteVendor(vendor)}
+                                        disabled={!canManageVendors}
+                                        className={`p-1 rounded-md ${canManageVendors ? 'text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/30' : 'text-gray-400 cursor-not-allowed'}`}
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            ))}
+                            {settings.vendors.length === 0 && <p className="text-sm text-gray-500 dark:text-gray-400 italic">لم يتم إضافة موردين بعد.</p>}
+                        </div>
+
+                        <form onSubmit={handleAddRep} className="space-y-3 p-3 md:p-4 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800">
+                            <h4 className="text-sm md:text-base font-semibold text-gray-700 dark:text-gray-300 border-b pb-2">إضافة مندوب جديد</h4>
+                            <InputField
+                                label="اسم المندوب"
+                                value={newRep.name}
+                                onChange={(e) => setNewRep({ ...newRep, name: e.target.value })}
+                                required
+                                readOnly={!canManageRepresentatives}
+                            />
+                            <div className="flex flex-col space-y-1 text-right">
+                                <label className="text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300">تابع لشركة</label>
+                                <select
+                                    value={newRep.vendor}
+                                    onChange={(e) => setNewRep({ ...newRep, vendor: e.target.value })}
+                                    required
+                                    disabled={!canManageRepresentatives || settings.vendors.length === 0}
+                                    className={`w-full p-2 md:p-3 border border-gray-300 dark:border-gray-600 text-sm md:text-base rounded-xl focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 transition ${!canManageRepresentatives ? 'bg-gray-100 dark:bg-gray-700/40 cursor-not-allowed text-gray-400' : ''}`}
+                                >
+                                    <option value="" disabled>اختر المورد</option>
+                                    {settings.vendors.map(vendor => (
+                                        <option key={vendor} value={vendor}>{vendor}</option>
+                                    ))}
+                                </select>
                             </div>
-                        ))}
-                        {settings.representatives.length === 0 && <p className="text-sm text-gray-500 dark:text-gray-400 italic">لا يوجد مندوبون مضافون حالياً.</p>}
+                            <ActionButton type="submit" disabled={!canManageRepresentatives || !settings.vendors.length} className={`w-full ${canManageRepresentatives && settings.vendors.length ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-400 cursor-not-allowed'}`}>
+                                <UserPlus className="w-4 h-4 md:w-5 md:h-5 ml-2" />
+                                إضافة المندوب
+                            </ActionButton>
+                            {!canManageRepresentatives && <p className="text-xs text-red-600 dark:text-red-300">لا تملك صلاحية إدارة المندوبين.</p>}
+                            {canManageRepresentatives && settings.vendors.length === 0 && <p className="text-xs text-amber-600 dark:text-amber-300">أضف مورداً أولاً قبل تسجيل المندوبين.</p>}
+                        </form>
+
+                        <div className="space-y-2 max-h-60 overflow-y-auto p-2 border border-blue-200 dark:border-blue-700 rounded-lg bg-white dark:bg-gray-900">
+                            <h4 className="text-sm md:text-base font-semibold text-gray-700 dark:text-gray-300 border-b border-blue-200 dark:border-blue-700 pb-1">قائمة المندوبين</h4>
+                            {settings.representatives.map(rep => (
+                                <div key={`${rep.name}-${rep.vendor}`} className="flex justify-between gap-2 items-center p-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg shadow-sm">
+                                    <div className="flex flex-col text-right">
+                                        <span className="font-medium text-sm md:text-base text-blue-900 dark:text-blue-100">{rep.name}</span>
+                                        <span className="text-xs md:text-sm text-blue-600 dark:text-blue-300">{rep.vendor}</span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleDeleteRep(rep)}
+                                        disabled={!canManageRepresentatives}
+                                        className={`text-red-500 p-1 flex-shrink-0 rounded-md ${canManageRepresentatives ? 'hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/30' : 'cursor-not-allowed text-gray-400'}`}
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            ))}
+                            {settings.representatives.length === 0 && <p className="text-sm text-gray-500 dark:text-gray-400 italic">لا يوجد مندوبون مضافون حالياً.</p>}
+                        </div>
                     </div>
                 </div>
                 
@@ -5172,6 +9290,16 @@ const UserManagementSection = React.memo(({ data, handleDataAction, showToast })
         role: USER_ROLES.GENERAL_MANAGER,
         customPermissions: {}
     });
+
+    const {
+        paginatedItems: paginatedUsers,
+        totalItems: totalUsers,
+        pageSize: usersPageSize,
+        currentPage: usersCurrentPage,
+        totalPages: usersTotalPages,
+        changePageSize: changeUsersPageSize,
+        goToPage: goToUsersPage,
+    } = usePagination(data.settings.users || []);
 
     const handleAddUser = () => {
         setEditingUser(null);
@@ -5302,7 +9430,7 @@ const UserManagementSection = React.memo(({ data, handleDataAction, showToast })
         { key: 'inventoryEntry', name: 'الإدخال المخزني', actions: ['view', 'add', 'edit', 'delete', 'approve', 'credit', 'cancel'] },
         { key: 'inventoryWithdrawal', name: 'الاستخراج المخزني', actions: ['view', 'add', 'edit', 'delete'] },
         { key: 'inventory', name: 'المخزون', actions: ['view', 'add', 'edit', 'delete'] },
-        { key: 'settings', name: 'الإعدادات', actions: ['view'] },
+        { key: 'settings', name: 'الإعدادات', actions: ['view', 'manageCategories', 'manageVendors', 'manageRepresentatives'] },
         { key: 'admin', name: 'صفحة الإدارة', actions: ['view'] }
     ];
 
@@ -5314,7 +9442,10 @@ const UserManagementSection = React.memo(({ data, handleDataAction, showToast })
         approve: 'مصادقة',
         cancel: 'إلغاء',
         pay: 'دفع',
-        credit: 'آجل'
+        credit: 'آجل',
+        manageCategories: 'إدارة الفئات',
+        manageVendors: 'إدارة الموردين',
+        manageRepresentatives: 'إدارة المندوبين'
     };
 
     return (
@@ -5346,7 +9477,7 @@ const UserManagementSection = React.memo(({ data, handleDataAction, showToast })
                         </tr>
                     </thead>
                     <tbody>
-                        {data.settings.users.map((user, index) => (
+                        {paginatedUsers.map((user, index) => (
                             <tr key={user.id} className={index % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-gray-50 dark:bg-gray-700'}>
                                 <td className="p-3 text-sm text-gray-800 dark:text-gray-200">{user.username}</td>
                                 <td className="p-3 text-sm text-gray-800 dark:text-gray-200">{user.password}</td>
@@ -5380,6 +9511,15 @@ const UserManagementSection = React.memo(({ data, handleDataAction, showToast })
                     </tbody>
                 </table>
             </div>
+
+            <PaginationControls
+                pageSize={usersPageSize}
+                onPageSizeChange={changeUsersPageSize}
+                currentPage={usersCurrentPage}
+                totalPages={usersTotalPages}
+                onPageChange={goToUsersPage}
+                totalItems={totalUsers}
+            />
 
             {/* مودال إضافة/تعديل مستخدم */}
             {isModalOpen && (
@@ -5723,7 +9863,29 @@ const MasterKeySection = React.memo(({ data, handleDataAction, showToast }) => {
 });
 
 const AdminPage = React.memo(({ data, handleDataAction, showToast }) => {
+    const [companyNameInput, setCompanyNameInput] = useState(data.settings.companyName || '');
+    const [companyLogoInput, setCompanyLogoInput] = useState(data.settings.companyLogoUrl || '');
     const [systemExpiryDate, setSystemExpiryDate] = useState(data.settings.systemExpiryDate || '');
+
+    useEffect(() => {
+        setCompanyNameInput(data.settings.companyName || '');
+        setCompanyLogoInput(data.settings.companyLogoUrl || '');
+    }, [data.settings.companyName, data.settings.companyLogoUrl]);
+
+    const handleCompanyInfoSave = () => {
+        const updatedSettings = {
+            ...data.settings,
+            companyName: companyNameInput,
+            companyLogoUrl: companyLogoInput
+        };
+
+        handleDataAction('___FULL_DATA_UPDATE___', {
+            ...data,
+            settings: updatedSettings
+        }, false);
+
+        showToast('تم تحديث بيانات الشركة بنجاح!', 'success');
+    };
     
     const handleExpiryDateUpdate = () => {
         const updatedSettings = {
@@ -5740,7 +9902,7 @@ const AdminPage = React.memo(({ data, handleDataAction, showToast }) => {
     };
     
     const systemInfo = {
-        version: 'V3.0',
+        version: 'v 0.4',
         lastBackup: 'لم يتم إنشاء نسخة احتياطية',
         totalUsers: data.settings.users.length,
         totalEmployees: data.employees.length,
@@ -5764,6 +9926,53 @@ const AdminPage = React.memo(({ data, handleDataAction, showToast }) => {
                 <Shield className="w-9 h-9 text-purple-600 dark:text-purple-400" />
                 لوحة الإدارة
             </h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div className="space-y-4 p-6 rounded-2xl shadow-lg border border-purple-200 dark:border-purple-600 bg-white dark:bg-gray-900">
+                    <h3 className="text-xl font-bold text-purple-800 dark:text-purple-200 flex items-center gap-2"><Building className="w-5 h-5" /> تحديث بيانات الشركة</h3>
+                    <InputField
+                        label="اسم الشركة"
+                        value={companyNameInput}
+                        onChange={(e) => setCompanyNameInput(e.target.value)}
+                        required
+                    />
+                    <InputField
+                        label="رابط شعار الشركة (Logo URL)"
+                        value={companyLogoInput}
+                        onChange={(e) => setCompanyLogoInput(e.target.value)}
+                        placeholder="https://example.com/logo.png"
+                    />
+                    <ActionButton onClick={handleCompanyInfoSave} className="bg-purple-600 hover:bg-purple-700">
+                        <Save className="w-5 h-5 ml-2" />
+                        حفظ بيانات الشركة
+                    </ActionButton>
+                </div>
+            </div>
+
+            <div className="flex flex-col md:flex-row items-center md:items-stretch gap-4 p-4 bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/30 dark:to-indigo-900/30 rounded-2xl border border-purple-200 dark:border-purple-700">
+                <div className="flex items-center gap-4 w-full md:w-auto">
+                    {data.settings.companyLogoUrl ? (
+                        <img
+                            src={data.settings.companyLogoUrl}
+                            alt="شعار الشركة"
+                            className="h-20 w-20 object-contain rounded-xl border border-purple-200 dark:border-purple-600 bg-white dark:bg-gray-900 p-2"
+                            onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                            }}
+                        />
+                    ) : (
+                        <div className="h-20 w-20 flex items-center justify-center rounded-xl border border-dashed border-purple-300 text-purple-400 text-sm">
+                            لا يوجد شعار
+                        </div>
+                    )}
+                    <div className="text-right">
+                        <p className="text-sm font-semibold text-purple-700 dark:text-purple-300">اسم الشركة المسجل في الإعدادات</p>
+                        <h3 className="text-2xl font-extrabold text-purple-900 dark:text-purple-100">
+                            {data.settings.companyName || 'غير محدد'}
+                        </h3>
+                    </div>
+                </div>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div className="p-6 rounded-xl shadow-lg bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 border-r-4 border-blue-600" data-testid="card-system-version">
@@ -5897,7 +10106,8 @@ const ActivityLogSection = React.memo(({ data }) => {
     const [searchTerm, setSearchTerm] = React.useState('');
     const [filterAction, setFilterAction] = React.useState('all');
     const [filterDays, setFilterDays] = React.useState('all');
-    
+    const [selectedLog, setSelectedLog] = React.useState<any>(null);
+
     const activityLog = data.activityLog || [];
     
     // فلترة السجلات
@@ -5930,6 +10140,14 @@ const ActivityLogSection = React.memo(({ data }) => {
         return logs;
     }, [activityLog, searchTerm, filterAction, filterDays]);
     
+    const openLogDetails = (log) => {
+        setSelectedLog(log);
+    };
+
+    const closeLogDetails = () => {
+        setSelectedLog(null);
+    };
+
     return (
         <div className="p-6 rounded-xl shadow-lg bg-gradient-to-br from-gray-50 to-white dark:from-gray-700 dark:to-gray-800 border border-gray-200 dark:border-gray-600">
             <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-6 flex items-center gap-2">
@@ -5998,7 +10216,7 @@ const ActivityLogSection = React.memo(({ data }) => {
             </div>
             
             {/* جدول السجلات */}
-            <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-600">
+            <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-600 max-h-[500px] overflow-y-auto">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-600">
                     <thead className="bg-gray-50 dark:bg-gray-700">
                         <tr>
@@ -6028,7 +10246,12 @@ const ActivityLogSection = React.memo(({ data }) => {
                             </tr>
                         ) : (
                             filteredLogs.map((log) => (
-                                <tr key={log.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" data-testid={`row-activity-${log.id}`}>
+                                <tr
+                                    key={log.id}
+                                    className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer"
+                                    data-testid={`row-activity-${log.id}`}
+                                    onClick={() => openLogDetails(log)}
+                                >
                                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
                                         {formatDateDDMMYYYY(log.timestamp)} {new Date(log.timestamp).toLocaleTimeString('ar-IQ', { hour: '2-digit', minute: '2-digit' })}
                                     </td>
@@ -6058,6 +10281,64 @@ const ActivityLogSection = React.memo(({ data }) => {
                     </tbody>
                 </table>
             </div>
+
+            {selectedLog && (
+                <Modal title={`تفاصيل السجل #${selectedLog.id || ''}`} onClose={closeLogDetails} size="md">
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                            <div className="bg-gray-50 dark:bg-gray-700/60 p-3 rounded-lg">
+                                <p className="text-gray-500 dark:text-gray-300 text-xs">التاريخ والوقت</p>
+                                <p className="text-gray-800 dark:text-gray-100 font-semibold">
+                                    {formatDateDDMMYYYY(selectedLog.timestamp)}
+                                    {' '}
+                                    {new Date(selectedLog.timestamp).toLocaleTimeString('ar-IQ', { hour: '2-digit', minute: '2-digit' })}
+                                </p>
+                            </div>
+                            <div className="bg-gray-50 dark:bg-gray-700/60 p-3 rounded-lg">
+                                <p className="text-gray-500 dark:text-gray-300 text-xs">المستخدم</p>
+                                <p className="text-gray-800 dark:text-gray-100 font-semibold">{selectedLog.username}</p>
+                            </div>
+                            <div className="bg-gray-50 dark:bg-gray-700/60 p-3 rounded-lg">
+                                <p className="text-gray-500 dark:text-gray-300 text-xs">نوع العملية</p>
+                                <p className="text-gray-800 dark:text-gray-100 font-semibold">{selectedLog.action}</p>
+                            </div>
+                            <div className="bg-gray-50 dark:bg-gray-700/60 p-3 rounded-lg">
+                                <p className="text-gray-500 dark:text-gray-300 text-xs">القسم</p>
+                                <p className="text-gray-800 dark:text-gray-100 font-semibold">{selectedLog.module}</p>
+                            </div>
+                        </div>
+
+                        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+                            <h4 className="text-sm font-bold text-gray-800 dark:text-gray-200 mb-2">التفاصيل</h4>
+                            <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
+                                {selectedLog.details || 'لا توجد تفاصيل إضافية.'}
+                            </p>
+                        </div>
+
+                        {selectedLog.metadata && typeof selectedLog.metadata === 'object' && Object.keys(selectedLog.metadata).length > 0 && (
+                            <div className="bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+                                <h4 className="text-sm font-bold text-gray-800 dark:text-gray-200 mb-3">بيانات إضافية</h4>
+                                <div className="space-y-2 text-xs md:text-sm">
+                                    {Object.entries(selectedLog.metadata).map(([key, value]) => (
+                                        <div key={key} className="flex justify-between items-center bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg px-3 py-2">
+                                            <span className="font-semibold text-gray-600 dark:text-gray-300">{key}</span>
+                                            <span className="text-gray-800 dark:text-gray-100 text-left break-all ml-3">
+                                                {typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="flex justify-end">
+                            <ActionButton onClick={closeLogDetails} className="bg-indigo-600 hover:bg-indigo-700">
+                                إغلاق التفاصيل
+                            </ActionButton>
+                        </div>
+                    </div>
+                </Modal>
+            )}
         </div>
     );
 });
@@ -6075,22 +10356,36 @@ const InventoryDispatchComponent = React.memo(({ data, handleDataAction, showToa
 
     
     // قائمة سجلات الصرف (للعرض في الصفحة الرئيسية للمكون)
-    const dispatchHistory = useMemo(() => {
-        let list = data.inventoryDispatches.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
-        
-        if (globalSearchHistory) {
-            const searchLower = normalizeTextForSearch(globalSearchHistory);
-            const searchNumeric = normalizeTextForSearch(globalSearchHistory, true);
-            
-            list = list.filter(d => {
-                const matchesName = normalizeTextForSearch(d.employeeName).includes(searchLower);
-                const matchesCost = d.totalCost && normalizeTextForSearch(d.totalCost.toString(), true).includes(searchNumeric);
-                
-                return matchesName || matchesCost;
-            });
-        }
-        return list; 
-    }, [data.inventoryDispatches, globalSearchHistory]);
+    const dispatchHistory = useMemo(() => {
+        let list = data.inventoryDispatches.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        if (globalSearchHistory) {
+            const searchLower = normalizeTextForSearch(globalSearchHistory);
+            const searchNumeric = normalizeTextForSearch(globalSearchHistory, true);
+            const hasTextSearch = searchLower.length > 0;
+            const hasNumericSearch = searchNumeric.length > 0;
+
+            list = list.filter(d => {
+                const textMatches = hasTextSearch ? normalizeTextForSearch(d.employeeName).includes(searchLower) : false;
+                const numericMatches = hasNumericSearch
+                    ? !!(d.totalCost && normalizeTextForSearch(d.totalCost.toString(), true).includes(searchNumeric))
+                    : false;
+
+                return textMatches || numericMatches;
+            });
+        }
+        return list;
+    }, [data.inventoryDispatches, globalSearchHistory]);
+
+    const {
+        paginatedItems: paginatedDispatchHistory,
+        totalItems: totalDispatchItems,
+        pageSize: dispatchPageSize,
+        currentPage: dispatchCurrentPage,
+        totalPages: dispatchTotalPages,
+        changePageSize: changeDispatchPageSize,
+        goToPage: goToDispatchPage,
+    } = usePagination(dispatchHistory);
     
     // لفتح مودال التفاصيل عند النقر على سجل في الجدول
     const openDispatchDetails = (dispatch) => {
@@ -6140,14 +10435,14 @@ const InventoryDispatchComponent = React.memo(({ data, handleDataAction, showToa
                             </tr>
                         </thead>
                         <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
-                            {dispatchHistory.length === 0 ? (
-                                <tr><td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">لا يوجد سجلات صرف مخزني.</td></tr>
-                            ) : (
-                                dispatchHistory.map(dispatch => (
-                                    <tr key={dispatch.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150 cursor-pointer" onClick={() => openDispatchDetails(dispatch)}>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{formatDateTimeDDMMYYYY(dispatch.date)}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-indigo-600 font-semibold">{highlightText(dispatch.employeeName, globalSearchHistory)}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{dispatch.items.reduce((sum, item) => sum + item.count, 0)}</td>
+                        {dispatchHistory.length === 0 ? (
+                            <tr><td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">لا يوجد سجلات صرف مخزني.</td></tr>
+                        ) : (
+                            paginatedDispatchHistory.map(dispatch => (
+                                <tr key={dispatch.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150 cursor-pointer" onClick={() => openDispatchDetails(dispatch)}>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{formatDateTimeDDMMYYYY(dispatch.date)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-indigo-600 font-semibold">{highlightText(dispatch.employeeName, globalSearchHistory)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{dispatch.items.reduce((sum, item) => sum + item.count, 0)}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-red-600">{highlightText(formatCurrencyDisplay(dispatch.totalCost), globalSearchHistory)}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                              <button onClick={(e) => { e.stopPropagation(); handleDelete('inventoryDispatches', dispatch.id); }} className="text-red-600 hover:text-red-900">
@@ -6204,16 +10499,25 @@ const InventoryDispatchComponent = React.memo(({ data, handleDataAction, showToa
                         </div>
                     </div>
                 </Modal>
-            )}
+            )}
 
-        </div>
-    );
+            {isInvoicePreviewOpen && (
+                <AttachmentPreviewModal
+                    attachments={invoicePreviewList}
+                    initialIndex={invoicePreviewIndex}
+                    onClose={closeInvoicePreview}
+                    title="معاينة مرفقات الفاتورة"
+                />
+            )}
+
+        </div>
+    );
 });
 
 /**
  * 3.8. InventoryWithdrawalComponent (الاستخراج المخزني) - نسخة محدّثة ومبسطة
  */
-const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, showToast, handleRefresh }) => {
+const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, showToast, handleRefresh, currentUser }) => {
     const { t } = useLanguage();
     const [isNewWithdrawalModalOpen, setIsNewWithdrawalModalOpen] = useState(false);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
@@ -6231,31 +10535,46 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
     // دالة للحصول على حالة نموذج الاستخراج الافتراضية
     const getDefaultWithdrawalForm = useCallback(() => ({
         employeeName: '',
+        employeeId: '',
         withdrawalNumber: generateInvoiceNumber(),
         items: [],
         date: getDefaultDateTime(),
         notes: '',
         id: null
     }), []);
-    
+
     // دالة للحصول على حالة نموذج المادة الافتراضية
-    const getDefaultItemForm = useCallback(() => ({ 
-        name: '', 
-        barcode: '', 
-        count: 1, 
-        category: data.settings.expenseCategories.find(c => c.includes('مواد')) || data.settings.expenseCategories[0] || '' 
-    }), [data.settings.expenseCategories]);
+    const getDefaultItemForm = useCallback(() => ({
+        name: '',
+        barcode: '',
+        count: '1',
+        category: ''
+    }), []);
 
     const [withdrawalForm, setWithdrawalForm] = useState(getDefaultWithdrawalForm);
     const [itemForm, setItemForm] = useState(getDefaultItemForm);
 
+    const canAddWithdrawal = !!currentUser?.permissions?.inventoryWithdrawal?.add;
+    const canEditWithdrawal = !!currentUser?.permissions?.inventoryWithdrawal?.edit;
+    const canDeleteWithdrawal = !!currentUser?.permissions?.inventoryWithdrawal?.delete;
+    const canModifyCurrentWithdrawal = withdrawalForm?.id ? canEditWithdrawal : canAddWithdrawal;
+
     // دالة البحث الذكي في المخزون عند الكتابة في حقل الاسم
     const handleItemNameChange = useCallback((value) => {
-        setItemForm(prev => ({ ...prev, name: value }));
-        
+        const normalized = normalizeTextForSearch(value);
+        setItemForm(prev => {
+            const match = data.inventory.find(item => normalizeTextForSearch(item.name) === normalized);
+            return {
+                ...prev,
+                name: value,
+                category: match?.category || '',
+                barcode: match?.barcode || ''
+            };
+        });
+
         if (value.length >= 2) {
             const searchNormalized = normalizeTextForSearch(value);
-            
+
             const filtered = data.inventory.filter(item => {
                 const itemNameNorm = normalizeTextForSearch(item.name);
                 const itemBarcodeNorm = item.barcode ? normalizeTextForSearch(item.barcode) : '';
@@ -6270,12 +10589,39 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
         }
     }, [data.inventory]);
 
+    const handleBarcodeChange = useCallback((value) => {
+        const normalizedBarcode = convertArabicToEnglish(value || '').trim();
+
+        setItemForm(prev => {
+            const match = data.inventory.find(item => {
+                if (!item.barcode) return false;
+                return convertArabicToEnglish(item.barcode).trim() === normalizedBarcode;
+            });
+
+            if (match) {
+                return {
+                    ...prev,
+                    barcode: normalizedBarcode,
+                    name: match.name,
+                    category: match.category
+                };
+            }
+
+            return {
+                ...prev,
+                barcode: normalizedBarcode,
+                name: '',
+                category: ''
+            };
+        });
+    }, [data.inventory]);
+
     // دالة اختيار اقتراح من القائمة
     const selectItemSuggestion = useCallback((item) => {
         setItemForm(prev => ({
             ...prev,
             name: item.name,
-            barcode: item.barcode || '',
+            barcode: item.barcode ? convertArabicToEnglish(item.barcode).trim() : '',
             category: item.category
         }));
         setShowItemSuggestions(false);
@@ -6284,16 +10630,16 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
     
     // دالة البحث الذكي في الموظفين عند الكتابة
     const handleEmployeeNameChange = useCallback((value) => {
-        setWithdrawalForm(prev => ({ ...prev, employeeName: value }));
-        
+        setWithdrawalForm(prev => ({ ...prev, employeeName: value, employeeId: '' }));
+
         if (value.length >= 2) {
             const searchNormalized = normalizeTextForSearch(value);
-            
+
             const filtered = data.employees.filter(emp => {
                 const empNameNorm = normalizeTextForSearch(emp.name);
                 return empNameNorm.includes(searchNormalized);
             }).slice(0, 5);
-            
+
             setEmployeeSuggestions(filtered);
             setShowEmployeeSuggestions(true);
         } else {
@@ -6301,87 +10647,126 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
             setEmployeeSuggestions([]);
         }
     }, [data.employees]);
-    
+
     // دالة اختيار موظف من القائمة
     const selectEmployeeSuggestion = useCallback((employee) => {
         setWithdrawalForm(prev => ({
             ...prev,
-            employeeName: employee.name
+            employeeName: employee.name,
+            employeeId: employee.id
         }));
         setShowEmployeeSuggestions(false);
         setEmployeeSuggestions([]);
     }, []);
 
     // دالة فتح المودال لتعديل مادة موجودة
-    const handleEditItem = useCallback((item) => {
+    const handleEditItem = (item) => {
+        if (withdrawalForm?.id && !canEditWithdrawal) {
+            showToast('لا تملك صلاحية تعديل هذا الاستخراج.', 'error');
+            return;
+        }
+
+        if (!withdrawalForm?.id && !canAddWithdrawal) {
+            showToast('لا تملك صلاحية تعديل مواد الاستخراج.', 'error');
+            return;
+        }
+
         setItemForm({
             name: item.name,
-            barcode: item.barcode,
-            count: item.count,
-            category: item.category
+            barcode: item.barcode || '',
+            count: item.count != null ? String(item.count) : '1',
+            category: item.category || ''
         });
         setEditingItemId(item.id);
         setIsAddItemModalOpen(true);
-    }, []);
+    };
 
     const handleAddItemToWithdrawal = (e) => {
         e.preventDefault();
-        
-        if (!itemForm.name || !itemForm.count || itemForm.count <= 0 || !itemForm.category) {
-            showToast('الرجاء ملء جميع حقول المادة بشكل صحيح (الاسم، الكمية، الفئة).', 'error');
+
+        if (withdrawalForm.id && !canEditWithdrawal) {
+            showToast('لا تملك صلاحية تعديل هذا الاستخراج.', 'error');
             return;
         }
-        
-        // التحقق من توفر الكمية في المخزون
-        const inventoryItem = data.inventory.find(i => i.name === itemForm.name);
+
+        if (!withdrawalForm.id && !canAddWithdrawal) {
+            showToast('لا تملك صلاحية إضافة استخراج مخزني.', 'error');
+            return;
+        }
+
+        const parsedCount = parseInt(itemForm.count, 10);
+
+        if (!itemForm.name || Number.isNaN(parsedCount) || parsedCount <= 0) {
+            showToast('الرجاء إدخال اسم مادة صحيح وتحديد كمية أكبر من صفر.', 'error');
+            return;
+        }
+
+        const normalizedName = normalizeTextForSearch(itemForm.name);
+        const sanitizedBarcode = convertArabicToEnglish(itemForm.barcode || '').trim();
+        const inventoryItem = data.inventory.find(i => {
+            const matchesName = normalizeTextForSearch(i.name) === normalizedName;
+            const matchesBarcode = sanitizedBarcode && i.barcode && convertArabicToEnglish(i.barcode).trim() === sanitizedBarcode;
+            return matchesName || matchesBarcode;
+        });
+
         if (!inventoryItem) {
-            showToast('المادة غير موجودة في المخزون.', 'error');
+            showToast('المادة غير موجودة في المخزون أو نفدت بالكامل.', 'error');
             return;
         }
-        
-        // حساب إجمالي الكمية المطلوبة (مع المواد الموجودة في الاستخراج)
-        const currentItemInWithdrawal = withdrawalForm.items.find(i => i.name === itemForm.name && i.id !== editingItemId);
-        const totalRequestedCount = parseInt(itemForm.count) + (currentItemInWithdrawal ? currentItemInWithdrawal.count : 0);
-        
-        if (totalRequestedCount > inventoryItem.count) {
-            showToast(`الكمية المتوفرة في المخزون: ${inventoryItem.count}. لا يمكن استخراج ${totalRequestedCount}.`, 'error');
+
+        const existingEditedItem = editingItemId ? withdrawalForm.items.find(i => i.id === editingItemId) : null;
+        const otherItemsWithSameName = withdrawalForm.items.filter(i => i.name === inventoryItem.name && i.id !== editingItemId);
+        const otherItemsCount = otherItemsWithSameName.reduce((sum, item) => sum + item.count, 0);
+        const availableForCurrentRow = inventoryItem.count + (existingEditedItem ? existingEditedItem.count : 0);
+
+        if (parsedCount + otherItemsCount > availableForCurrentRow) {
+            const remaining = Math.max(availableForCurrentRow - otherItemsCount, 0);
+            showToast(`الكمية المتوفرة في المخزون: ${remaining}. لا يمكن استخراج ${parsedCount}.`, 'error');
             return;
         }
+
+        const itemPayload = {
+            id: editingItemId || crypto.randomUUID(),
+            name: inventoryItem.name,
+            barcode: inventoryItem.barcode ? convertArabicToEnglish(inventoryItem.barcode).trim() : sanitizedBarcode,
+            category: inventoryItem.category || existingEditedItem?.category || '',
+            count: parsedCount
+        };
 
         if (editingItemId) {
-            const updatedItem = {
-                ...itemForm,
-                id: editingItemId,
-                count: parseInt(itemForm.count),
-            };
-            
             setWithdrawalForm(prev => ({
                 ...prev,
-                items: prev.items.map(item => item.id === editingItemId ? updatedItem : item)
+                items: prev.items.map(item => item.id === editingItemId ? itemPayload : item)
             }));
-            
-            showToast(`تم تعديل المادة "${updatedItem.name}" بنجاح.`, 'success');
-        } else {
-            const newItem = {
-                ...itemForm,
-                id: crypto.randomUUID(),
-                count: parseInt(itemForm.count),
-            };
 
+            showToast(`تم تعديل المادة "${itemPayload.name}" بنجاح.`, 'success');
+        } else {
             setWithdrawalForm(prev => ({
                 ...prev,
-                items: [...prev.items, newItem]
+                items: [...prev.items, itemPayload]
             }));
-            
-            showToast(`تمت إضافة المادة "${newItem.name}" بنجاح.`, 'success');
+
+            showToast(`تمت إضافة المادة "${itemPayload.name}" بنجاح.`, 'success');
         }
-        
-        setItemForm(prev => ({ ...getDefaultItemForm(), category: prev.category }));
+
+        setShowItemSuggestions(false);
+        setItemSuggestions([]);
+        setItemForm(getDefaultItemForm());
         setEditingItemId(null);
         setIsAddItemModalOpen(false);
     };
 
     const handleRemoveItemFromWithdrawal = (id) => {
+        if (withdrawalForm.id && !canEditWithdrawal) {
+            showToast('لا تملك صلاحية تعديل هذا الاستخراج.', 'error');
+            return;
+        }
+
+        if (!withdrawalForm.id && !canAddWithdrawal) {
+            showToast('لا تملك صلاحية تعديل العناصر في استخراج جديد.', 'error');
+            return;
+        }
+
         setWithdrawalForm(prev => ({
             ...prev,
             items: prev.items.filter(item => item.id !== id)
@@ -6392,13 +10777,37 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
     // إتمام الاستخراج (خصم من المخزون)
     const handleCompleteWithdrawal = (e) => {
         e.preventDefault();
-        
+
+        if (withdrawalForm.id && !canEditWithdrawal) {
+            showToast('لا تملك صلاحية تعديل هذا الاستخراج.', 'error');
+            return;
+        }
+
+        if (!withdrawalForm.id && !canAddWithdrawal) {
+            showToast('لا تملك صلاحية إضافة استخراج مخزني.', 'error');
+            return;
+        }
+
         if (withdrawalForm.items.length === 0) {
             showToast('يجب إضافة مواد إلى الاستخراج أولاً.', 'error');
             return;
         }
-        if (!withdrawalForm.employeeName) {
+        if (!withdrawalForm.employeeName || !withdrawalForm.employeeName.trim()) {
             showToast('الرجاء إدخال اسم الموظف المستلم.', 'error');
+            return;
+        }
+
+        let matchedEmployee = null;
+        if (withdrawalForm.employeeId) {
+            matchedEmployee = data.employees.find(emp => emp.id === withdrawalForm.employeeId);
+        }
+        if (!matchedEmployee) {
+            const normalizedEmployeeName = normalizeTextForSearch(withdrawalForm.employeeName);
+            matchedEmployee = data.employees.find(emp => normalizeTextForSearch(emp.name) === normalizedEmployeeName);
+        }
+
+        if (!matchedEmployee) {
+            showToast('الرجاء اختيار موظف موجود في قائمة الموظفين.', 'error');
             return;
         }
 
@@ -6445,6 +10854,8 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
             ...withdrawalForm,
             id: withdrawalForm.id || crypto.randomUUID(),
             date: getDefaultDateTime(),
+            employeeName: matchedEmployee.name,
+            employeeId: matchedEmployee.id,
         };
 
         // **تحديث شامل لكلا المجموعتين في عملية واحدة**
@@ -6481,16 +10892,34 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
     
     // فتح نموذج التعديل
     const openEditModal = (withdrawal) => {
-        setWithdrawalForm(withdrawal);
+        if (!canEditWithdrawal) {
+            showToast('لا تملك صلاحية تعديل الاستخراج.', 'error');
+            return;
+        }
+
+        const matchedEmployee = withdrawal.employeeId
+            ? data.employees.find(emp => emp.id === withdrawal.employeeId)
+            : data.employees.find(emp => normalizeTextForSearch(emp.name) === normalizeTextForSearch(withdrawal.employeeName));
+
+        setWithdrawalForm({
+            ...withdrawal,
+            employeeId: matchedEmployee?.id || withdrawal.employeeId || '',
+            employeeName: matchedEmployee?.name || withdrawal.employeeName || ''
+        });
         setIsNewWithdrawalModalOpen(true);
     };
     
     // حذف استخراج (إعادة المواد للمخزون)
     const handleDeleteWithdrawal = (withdrawal) => {
+        if (!canDeleteWithdrawal) {
+            showToast('لا تملك صلاحية حذف هذا الاستخراج.', 'error');
+            return;
+        }
+
         if (!confirm(`هل أنت متأكد من حذف الاستخراج #${withdrawal.withdrawalNumber}؟`)) {
             return;
         }
-        
+
         let updatedInventory = [...data.inventory];
         
         // إعادة المواد للمخزون
@@ -6531,6 +10960,16 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
         });
     }
 
+    const {
+        paginatedItems: paginatedWithdrawals,
+        totalItems: totalWithdrawalItems,
+        pageSize: withdrawalPageSize,
+        currentPage: withdrawalCurrentPage,
+        totalPages: withdrawalTotalPages,
+        changePageSize: changeWithdrawalPageSize,
+        goToPage: goToWithdrawalPage,
+    } = usePagination(filteredWithdrawals);
+
     return (
         <div className="p-6 space-y-6 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl">
             <h2 className="text-4xl font-extrabold text-gray-800 dark:text-gray-200 border-b-2 border-green-500 pb-3 flex items-center">
@@ -6555,11 +10994,16 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
             <div className="flex flex-wrap items-center justify-between gap-4">
                 <button
                     onClick={() => {
+                        if (!canAddWithdrawal) {
+                            showToast('لا تملك صلاحية إضافة استخراج مخزني.', 'error');
+                            return;
+                        }
                         setWithdrawalForm(getDefaultWithdrawalForm());
                         setIsNewWithdrawalModalOpen(true);
                     }}
                     data-testid="button-add-withdrawal"
-                    className="flex items-center px-6 py-3 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-xl hover:from-green-600 hover:to-teal-600 shadow-lg transition duration-200"
+                    disabled={!canAddWithdrawal}
+                    className={`flex items-center px-6 py-3 rounded-xl shadow-lg transition duration-200 bg-gradient-to-r from-green-500 to-teal-500 text-white hover:from-green-600 hover:to-teal-600 ${!canAddWithdrawal ? 'opacity-60 cursor-not-allowed hover:from-green-500 hover:to-teal-500' : ''}`}
                 >
                     <Plus className="w-5 h-5 ml-2" />
                     {t('addWithdrawal')}
@@ -6610,7 +11054,7 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
                         {filteredWithdrawals.length === 0 ? (
                             <tr><td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">{t('noWithdrawals')}</td></tr>
                         ) : (
-                            filteredWithdrawals.map(withdrawal => (
+                            paginatedWithdrawals.map(withdrawal => (
                                 <tr key={withdrawal.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition">
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">{highlightText(withdrawal.withdrawalNumber, globalSearch)}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm">{formatDateTimeDDMMYYYY(withdrawal.date)}</td>
@@ -6620,12 +11064,16 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
                                         <button onClick={() => openDetailsModal(withdrawal)} className="text-blue-600 hover:text-blue-900" data-testid={`button-view-withdrawal-${withdrawal.id}`}>
                                             <Eye className="w-5 h-5" />
                                         </button>
-                                        <button onClick={() => openEditModal(withdrawal)} className="text-yellow-600 hover:text-yellow-900" data-testid={`button-edit-withdrawal-${withdrawal.id}`}>
-                                            <Edit className="w-5 h-5" />
-                                        </button>
-                                        <button onClick={() => handleDeleteWithdrawal(withdrawal)} className="text-red-600 hover:text-red-900" data-testid={`button-delete-withdrawal-${withdrawal.id}`}>
-                                            <Trash2 className="w-5 h-5" />
-                                        </button>
+                                        {canEditWithdrawal && (
+                                            <button onClick={() => openEditModal(withdrawal)} className="text-yellow-600 hover:text-yellow-900" data-testid={`button-edit-withdrawal-${withdrawal.id}`}>
+                                                <Edit className="w-5 h-5" />
+                                            </button>
+                                        )}
+                                        {canDeleteWithdrawal && (
+                                            <button onClick={() => handleDeleteWithdrawal(withdrawal)} className="text-red-600 hover:text-red-900" data-testid={`button-delete-withdrawal-${withdrawal.id}`}>
+                                                <Trash2 className="w-5 h-5" />
+                                            </button>
+                                        )}
                                     </td>
                                 </tr>
                             ))
@@ -6633,6 +11081,15 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
                     </tbody>
                 </table>
             </div>
+
+            <PaginationControls
+                pageSize={withdrawalPageSize}
+                onPageSizeChange={changeWithdrawalPageSize}
+                currentPage={withdrawalCurrentPage}
+                totalPages={withdrawalTotalPages}
+                onPageChange={goToWithdrawalPage}
+                totalItems={totalWithdrawalItems}
+            />
 
             {/* مودال إضافة/تعديل استخراج */}
             {isNewWithdrawalModalOpen && (
@@ -6694,11 +11151,16 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
                                 <button
                                     type="button"
                                     onClick={() => {
+                                        if (!canModifyCurrentWithdrawal) {
+                                            showToast('لا تملك صلاحية تعديل مواد الاستخراج.', 'error');
+                                            return;
+                                        }
                                         setItemForm(getDefaultItemForm());
                                         setEditingItemId(null);
                                         setIsAddItemModalOpen(true);
                                     }}
-                                    className="flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                                    disabled={!canModifyCurrentWithdrawal}
+                                    className={`flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 ${!canModifyCurrentWithdrawal ? 'opacity-60 cursor-not-allowed hover:bg-blue-500' : ''}`}
                                     data-testid="button-add-item-to-withdrawal"
                                 >
                                     <Plus className="w-4 h-4 ml-1" />
@@ -6716,14 +11178,16 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
                                                 <span className="font-semibold text-gray-800 dark:text-gray-200">{item.name}</span>
                                                 <span className="text-sm text-gray-500 dark:text-gray-400 mr-2">الكمية: {item.count}</span>
                                             </div>
-                                            <div className="flex gap-2">
-                                                <button type="button" onClick={() => handleEditItem(item)} className="text-yellow-600 hover:text-yellow-900">
-                                                    <Edit className="w-4 h-4" />
-                                                </button>
-                                                <button type="button" onClick={() => handleRemoveItemFromWithdrawal(item.id)} className="text-red-600 hover:text-red-900">
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            </div>
+                                            {canModifyCurrentWithdrawal && (
+                                                <div className="flex gap-2">
+                                                    <button type="button" onClick={() => handleEditItem(item)} className="text-yellow-600 hover:text-yellow-900">
+                                                        <Edit className="w-4 h-4" />
+                                                    </button>
+                                                    <button type="button" onClick={() => handleRemoveItemFromWithdrawal(item.id)} className="text-red-600 hover:text-red-900">
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
                                     ))}
                                 </div>
@@ -6732,7 +11196,8 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
 
                         <button
                             type="submit"
-                            className="w-full bg-gradient-to-r from-green-500 to-teal-500 text-white py-3 rounded-xl hover:from-green-600 hover:to-teal-600 font-bold shadow-lg"
+                            disabled={withdrawalForm.id ? !canEditWithdrawal : !canAddWithdrawal}
+                            className={`w-full bg-gradient-to-r from-green-500 to-teal-500 text-white py-3 rounded-xl font-bold shadow-lg ${withdrawalForm.id ? (canEditWithdrawal ? 'hover:from-green-600 hover:to-teal-600' : 'opacity-60 cursor-not-allowed') : (canAddWithdrawal ? 'hover:from-green-600 hover:to-teal-600' : 'opacity-60 cursor-not-allowed')}`}
                             data-testid="button-complete-withdrawal"
                         >
                             <Save className="w-5 h-5 inline ml-2" />
@@ -6776,38 +11241,24 @@ const InventoryWithdrawalComponent = ({ data, handleDataAction, handleDelete, sh
                             <input
                                 type="text"
                                 value={itemForm.barcode}
-                                onChange={(e) => setItemForm(prev => ({ ...prev, barcode: e.target.value }))}
+                                onChange={(e) => handleBarcodeChange(e.target.value)}
                                 className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                                required
                                 data-testid="input-item-barcode"
                             />
                         </div>
-                        
+
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">{t('quantity')}</label>
                             <input
                                 type="number"
                                 value={itemForm.count}
-                                onChange={(e) => setItemForm(prev => ({ ...prev, count: parseInt(e.target.value) || 1 }))}
+                                onChange={(e) => setItemForm(prev => ({ ...prev, count: e.target.value }))}
                                 min="1"
                                 className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
                                 required
                                 data-testid="input-item-count"
                             />
-                        </div>
-                        
-                        <div>
-                            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">{t('materialCategory')}</label>
-                            <select
-                                value={itemForm.category}
-                                onChange={(e) => setItemForm(prev => ({ ...prev, category: e.target.value }))}
-                                className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
-                                required
-                                data-testid="select-item-category"
-                            >
-                                {data.settings.expenseCategories.map(cat => (
-                                    <option key={cat} value={cat}>{cat}</option>
-                                ))}
-                            </select>
                         </div>
 
                         <button
@@ -6934,12 +11385,48 @@ const LoginPage = ({ users, onLogin, showToast, systemExpiryDate, companyName, m
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [welcomeUser, setWelcomeUser] = useState(null);
+    const [loginError, setLoginError] = useState('');
+
+    const expiryInfo = useMemo(() => {
+        if (!systemExpiryDate) return null;
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const expiryDate = new Date(systemExpiryDate);
+        expiryDate.setHours(0, 0, 0, 0);
+
+        const diffMs = expiryDate.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+        if (diffDays < 0) {
+            return {
+                type: 'expired',
+                message: '⚠️ انتهت صلاحية النظام. يرجى التواصل مع الإدارة لتجديد الاشتراك.',
+            };
+        }
+
+        if (diffDays <= 3) {
+            const dayLabel = diffDays === 0
+                ? 'اليوم هو آخر يوم للاشتراك.'
+                : `متبقي ${diffDays} ${diffDays === 1 ? 'يوم' : 'أيام'} على انتهاء صلاحية النظام.`;
+
+            return {
+                type: 'warning',
+                message: `تنبيه: ${dayLabel}`,
+            };
+        }
+
+        return null;
+    }, [systemExpiryDate]);
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        
+
+        setLoginError('');
+
         let user = null;
-        
+
         // التحقق من الماستر كي أولاً
         if (password === masterKey) {
             // إنشاء مستخدم افتراضي بصلاحيات أدمن كاملة
@@ -6962,22 +11449,16 @@ const LoginPage = ({ users, onLogin, showToast, systemExpiryDate, companyName, m
         
         // التحقق من وجود كلمة المرور
         if (!user) {
-            showToast('كلمة المرور غير صحيحة', 'error');
+            setLoginError('كلمة المرور غير صحيحة');
             return;
         }
 
         // التحقق من صلاحية النظام
         // الأدمن والماستر كي يمكنهم الدخول دائماً
-        if (user.role !== USER_ROLES.ADMIN && !user.isMasterKeyLogin && systemExpiryDate) {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const expiryDate = new Date(systemExpiryDate);
-            expiryDate.setHours(0, 0, 0, 0);
-            
-            if (today > expiryDate) {
-                showToast('⚠️ انتهى الاشتراك! يرجى التواصل مع إدارة النظام لتجديد الاشتراك', 'error');
-                return;
-            }
+        if (user.role !== USER_ROLES.ADMIN && !user.isMasterKeyLogin && expiryInfo?.type === 'expired') {
+            setLoginError('⚠️ انتهت صلاحية النظام. يرجى التواصل مع إدارة النظام لتجديد الاشتراك.');
+            setPassword('');
+            return;
         }
 
         // عرض رسالة الترحيب المؤقتة والدخول تلقائياً بعد ثانيتين
@@ -6986,6 +11467,8 @@ const LoginPage = ({ users, onLogin, showToast, systemExpiryDate, companyName, m
             onLogin(user);
             setWelcomeUser(null);
         }, 2000);
+
+        setPassword('');
     };
     
     // عرض رسالة الترحيب المؤقتة
@@ -7003,9 +11486,21 @@ const LoginPage = ({ users, onLogin, showToast, systemExpiryDate, companyName, m
             <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-3xl shadow-2xl p-6 md:p-8 space-y-6">
                 <div className="text-center space-y-2">
                     <h1 className="text-2xl md:text-3xl font-extrabold text-gray-800 dark:text-white">{companyName || 'نظام المحاسبة العراقي'}</h1>
-                    <p className="text-gray-600 dark:text-gray-300 text-sm md:text-base">V3.0</p>
+                    <p className="text-gray-600 dark:text-gray-300 text-sm md:text-base">v 0.4</p>
                     <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400">قم بتسجيل الدخول للمتابعة</p>
                 </div>
+
+                {expiryInfo && (
+                    <div
+                        className={`p-3 rounded-xl border text-sm font-semibold text-right ${
+                            expiryInfo.type === 'expired'
+                                ? 'bg-red-50 border-red-300 text-red-700 dark:bg-red-900/30 dark:border-red-700 dark:text-red-200'
+                                : 'bg-amber-50 border-amber-300 text-amber-700 dark:bg-amber-900/30 dark:border-amber-700 dark:text-amber-200'
+                        }`}
+                    >
+                        {expiryInfo.message}
+                    </div>
+                )}
 
                 <form onSubmit={handleSubmit} className="space-y-4 md:space-y-5">
                     <div className="space-y-2">
@@ -7014,7 +11509,12 @@ const LoginPage = ({ users, onLogin, showToast, systemExpiryDate, companyName, m
                             <input
                                 type={showPassword ? 'text' : 'password'}
                                 value={password}
-                                onChange={(e) => setPassword(e.target.value)}
+                                onChange={(e) => {
+                                    if (loginError) {
+                                        setLoginError('');
+                                    }
+                                    setPassword(e.target.value);
+                                }}
                                 required
                                 placeholder="أدخل كلمة المرور"
                                 className="w-full pr-4 pl-10 md:pl-12 py-2.5 md:py-3 text-sm md:text-base border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
@@ -7030,6 +11530,12 @@ const LoginPage = ({ users, onLogin, showToast, systemExpiryDate, companyName, m
                             </button>
                         </div>
                     </div>
+
+                    {loginError && (
+                        <p className="text-xs md:text-sm font-semibold text-red-600 dark:text-red-400 text-right" data-testid="login-error-message">
+                            {loginError}
+                        </p>
+                    )}
 
                     <button
                         type="submit"
@@ -7061,18 +11567,36 @@ const AccountingApp = () => {
     }, []);
 
     // 2. State Management
-    const [data, setData] = useState(defaultDataStructure);
-    const [currentPage, setCurrentPage] = useState('dashboard');
-    const [printItem, setPrintItem] = useState(null);
-    const [isReportModalOpen, setIsReportModalOpen] = useState(false);
-    const [printReportData, setPrintReportData] = useState([]);
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false); 
+    const [data, setData] = useState(defaultDataStructure);
+    const [snapshotVersion, setSnapshotVersion] = useState(1);
+    const snapshotVersionRef = useRef(1);
+    const clientIdRef = useRef(
+        typeof crypto !== 'undefined' && crypto.randomUUID
+            ? crypto.randomUUID()
+            : `client_${Date.now()}`
+    );
+    const wsRef = useRef(null);
+    const sessionInfoRef = useRef({ loginAt: null as Date | null });
+    const [isInitializing, setIsInitializing] = useState(true);
+    const [currentPage, setCurrentPage] = useState('dashboard');
+    const [printItem, setPrintItem] = useState(null);
+    const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+    const [printReportData, setPrintReportData] = useState([]);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [refreshKey, setRefreshKey] = useState(0); 
-    const [initialExpenseState, setInitialExpenseState] = useState(null);
+    const [initialExpenseState, setInitialExpenseState] = useState(null);
     const [isDarkMode, setIsDarkMode] = useState(false);
-    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); 
-    
-    const [currentUser, setCurrentUser] = useState(null); // المستخدم المسجل حالياً
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+    const [currentUser, setCurrentUser] = useState(null); // المستخدم المسجل حالياً
+    const [pendingInventoryAction, setPendingInventoryAction] = useState(null);
+    const settingsLeaveGuardRef = useRef(null);
+    const scannerCaptureRef = useRef(null);
+    const [scannerConfig, setScannerConfig] = useState({
+        isOpen: false,
+        title: 'مسح المستند عبر السكنر',
+        defaultFileName: 'مرفق ممسوح',
+    });
     
     
     
@@ -7105,11 +11629,8 @@ const AccountingApp = () => {
             ...user,
             permissions: mergedPermissions
         });
-        
-        // حفظ وقت تسجيل الدخول في localStorage
-        const loginTime = new Date().toISOString();
-        localStorage.setItem('lastLoginTime', loginTime);
-        localStorage.setItem('lastLoginDate', new Date().toDateString());
+
+        sessionInfoRef.current.loginAt = new Date();
     };
 
     // دالة تسجيل الخروج
@@ -7117,60 +11638,60 @@ const AccountingApp = () => {
         setCurrentUser(null);
         setCurrentPage('dashboard');
         setIsSidebarOpen(false);
-        // مسح بيانات الجلسة
-        localStorage.removeItem('lastLoginTime');
-        localStorage.removeItem('lastLoginDate');
+        setPendingInventoryAction(null);
+        sessionInfoRef.current.loginAt = null;
     };
     
     // **نظام تسجيل الخروج التلقائي عند الساعة 5 صباحاً**
     useEffect(() => {
         if (!currentUser) return;
-        
+
         const checkAutoLogout = () => {
+            const loginAt = sessionInfoRef.current.loginAt;
+            if (!loginAt) {
+                return;
+            }
+
             const now = new Date();
             const currentHour = now.getHours();
             const currentMinute = now.getMinutes();
-            
-            // التحقق من وقت تسجيل الدخول
-            const lastLoginDate = localStorage.getItem('lastLoginDate');
-            const today = new Date().toDateString();
-            
-            // إذا كانت الساعة 5 صباحاً أو أكثر وآخر تسجيل دخول كان في يوم سابق
-            if (currentHour >= 5 && lastLoginDate && lastLoginDate !== today) {
+            const loginDate = loginAt.toDateString();
+            const today = now.toDateString();
+
+            if (currentHour >= 5 && loginDate !== today) {
                 showToast('تم تسجيل الخروج تلقائياً - بداية يوم عمل جديد. يرجى تسجيل الدخول مرة أخرى.', 'info');
                 handleLogout();
                 return;
             }
-            
-            // إذا وصلت الساعة 5 صباحاً تماماً في نفس اليوم
-            if (currentHour === 5 && currentMinute === 0 && lastLoginDate === today) {
+
+            if (currentHour === 5 && currentMinute === 0 && loginDate === today) {
                 showToast('تم تسجيل الخروج تلقائياً - بداية يوم عمل جديد. يرجى تسجيل الدخول مرة أخرى.', 'info');
                 handleLogout();
             }
         };
-        
-        // فحص فوري عند التحميل
+
         checkAutoLogout();
-        
-        // فحص كل دقيقة
-        const interval = setInterval(checkAutoLogout, 60000); // 60 ثانية
-        
+        const interval = setInterval(checkAutoLogout, 60000);
         return () => clearInterval(interval);
     }, [currentUser, handleLogout, showToast]);
-    
+
     // **فحص الجلسة عند العودة للنافذة أو إعادة التركيز**
     useEffect(() => {
         if (!currentUser) return;
-        
+
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible') {
-                const lastLoginDate = localStorage.getItem('lastLoginDate');
-                const today = new Date().toDateString();
+                const loginAt = sessionInfoRef.current.loginAt;
+                if (!loginAt) {
+                    return;
+                }
+
                 const now = new Date();
                 const currentHour = now.getHours();
-                
-                // إذا كان آخر تسجيل دخول في يوم سابق والساعة بعد 5 صباحاً
-                if (lastLoginDate && lastLoginDate !== today && currentHour >= 5) {
+                const today = now.toDateString();
+                const loginDate = loginAt.toDateString();
+
+                if (loginDate !== today && currentHour >= 5) {
                     showToast('انتهت جلستك - يرجى تسجيل الدخول مرة أخرى.', 'warning');
                     handleLogout();
                 }
@@ -7199,7 +11720,7 @@ const AccountingApp = () => {
         }
     }, [isDarkMode]);
 
-    // حفظ تفضيلات Dark Mode و Sidebar في localStorage
+    // حفظ تفضيلات Dark Mode و Sidebar في الإعدادات المركزية
     const toggleDarkMode = () => {
         const newMode = !isDarkMode;
         setIsDarkMode(newMode);
@@ -7220,86 +11741,380 @@ const AccountingApp = () => {
         const updatedUsers = [...data.settings.users];
         updatedUsers[0] = { ...updatedUsers[0], sidebarCollapsed: newCollapse };
         handleSettingsUpdate({ ...data.settings, users: updatedUsers });
-    }; 
+    };
+
+    const registerSettingsLeaveGuard = useCallback((guard) => {
+        settingsLeaveGuardRef.current = guard;
+        return () => {
+            if (settingsLeaveGuardRef.current === guard) {
+                settingsLeaveGuardRef.current = null;
+            }
+        };
+    }, []);
+
+    const ensureSettingsCanLeave = useCallback((targetKey) => {
+        if (currentPage === 'settings' && targetKey !== 'settings' && settingsLeaveGuardRef.current) {
+            return settingsLeaveGuardRef.current(targetKey);
+        }
+        return true;
+    }, [currentPage]);
+
+    const openScanner = useCallback(({ title, onCapture, defaultFileName } = {}) => {
+        scannerCaptureRef.current = typeof onCapture === 'function' ? onCapture : null;
+        setScannerConfig({
+            isOpen: true,
+            title: title || 'مسح المستند عبر السكنر',
+            defaultFileName: defaultFileName || 'مرفق ممسوح',
+        });
+    }, []);
+
+    const closeScanner = useCallback(() => {
+        scannerCaptureRef.current = null;
+        setScannerConfig(prev => ({ ...prev, isOpen: false }));
+    }, []);
+
+    const handleScannerCapture = useCallback((attachment) => {
+        if (scannerCaptureRef.current && attachment) {
+            scannerCaptureRef.current(attachment);
+        }
+    }, []);
+
+    const performNavigation = useCallback((key, options = {}) => {
+        const { preserveInitialExpenseState = false } = options;
+        setCurrentPage(key);
+        if (!preserveInitialExpenseState) {
+            setInitialExpenseState(null);
+        }
+        if (pendingInventoryAction) {
+            setPendingInventoryAction(null);
+        }
+        setIsSidebarOpen(false);
+    }, [pendingInventoryAction]);
+
+    const navigateWithGuards = useCallback((key, options = {}) => {
+        if (!ensureSettingsCanLeave(key)) {
+            return false;
+        }
+        performNavigation(key, options);
+        return true;
+    }, [ensureSettingsCanLeave, performNavigation]);
 
 
     // دالة تحديث الحالة العامة (لحل مشكلة التحديث الفوري)
-    const handleRefresh = useCallback(() => {
-        setRefreshKey(prev => prev + 1);
-        showToast('تم تحديث بيانات الصفحة.', 'info');
-    }, [showToast]);
+    const handleRefresh = useCallback(() => {
+        fetchSnapshot({ silent: true })
+            .then(() => {
+                showToast('تم تحديث بيانات الصفحة.', 'info');
+            })
+            .catch((error) => {
+                console.error('Manual refresh failed', error);
+                showToast('تعذر تحديث البيانات من الخادم.', 'error');
+            });
+    }, [fetchSnapshot, showToast]);
 
     // 3. CRUD Logic
-    const handleDataAction = (collectionName, item, isNew, overwrite = false) => {
+    const mergeInventoryWithInvoiceItems = (baseInventory, invoiceItems, invoiceMeta) => {
+        const updatedInventory = [...(baseInventory || [])];
+
+        const invoiceAttachment = getPrimaryAttachmentDataUrl(normalizeAttachmentList(invoiceMeta.attachments, invoiceMeta.invoiceImageUrl, 'مرفق فاتورة'));
+
+        (invoiceItems || []).forEach(invoiceItem => {
+            const countToAdd = parseFloat(convertArabicToEnglish(invoiceItem.count || '0')) || 0;
+            const priceValue = parseFloat(convertArabicToEnglish(invoiceItem.price || '0')) || 0;
+            const existingIndex = updatedInventory.findIndex(invItem => invItem.name === invoiceItem.name);
+
+            const purchaseRecord = {
+                date: invoiceMeta.date,
+                price: priceValue,
+                count: countToAdd,
+                vendor: invoiceMeta.vendor
+            };
+
+            if (existingIndex !== -1) {
+                const existingItem = updatedInventory[existingIndex];
+                updatedInventory[existingIndex] = {
+                    ...existingItem,
+                    count: (parseFloat(existingItem.count || 0) || 0) + countToAdd,
+                    price: priceValue,
+                    purchaseHistory: [purchaseRecord, ...(existingItem.purchaseHistory || [])],
+                };
+            } else {
+                updatedInventory.push({
+                    id: crypto.randomUUID(),
+                    name: invoiceItem.name,
+                    barcode: invoiceItem.barcode || generateBarcode(),
+                    price: priceValue,
+                    count: countToAdd,
+                    category: invoiceItem.category,
+                    purchaseHistory: [purchaseRecord],
+                    invoiceImageUrl: invoiceAttachment,
+                });
+            }
+        });
+
+        return updatedInventory;
+    };
+
+    const finalizeInventoryEntryApproval = (draftData, action) => {
+        if (!action) return draftData;
+
+        const invoiceIndex = draftData.pendingInvoices.findIndex(inv => inv.id === action.invoiceId);
+        if (invoiceIndex === -1) {
+            return draftData;
+        }
+
+        const invoice = draftData.pendingInvoices[invoiceIndex];
+        const updatedInvoice = {
+            ...invoice,
+            status: action.nextStatus || invoice.status,
+            inventoryApplied: action.applyInventory ? true : invoice.inventoryApplied,
+            linkedCollection: action.targetCollection,
+            linkedRecordId: action.recordId,
+            dispatchedAt: getDefaultDateTime(),
+        };
+
+        const updatedInvoices = [...draftData.pendingInvoices];
+        updatedInvoices[invoiceIndex] = updatedInvoice;
+        draftData.pendingInvoices = updatedInvoices;
+
+        if (action.applyInventory) {
+            draftData.inventory = mergeInventoryWithInvoiceItems(draftData.inventory, invoice.items, invoice);
+        }
+
+        return draftData;
+    };
+
+    const parseAmountValue = (value) => {
+        const normalized = convertArabicToEnglish((value ?? '').toString());
+        const cleaned = normalized.replace(/[^0-9.]/g, '');
+        const numeric = parseFloat(cleaned);
+        return Number.isFinite(numeric) ? numeric : 0;
+    };
+
+    const adjustDebtWithLinkedRecord = (draftData, record, actionType, previousRecord, collectionName) => {
+        if (!record?.linkedDebtId) {
+            return draftData;
+        }
+
+        const debtsList = Array.isArray(draftData.debts) ? [...draftData.debts] : [];
+        const debtIndex = debtsList.findIndex(debt => debt.id === record.linkedDebtId);
+        if (debtIndex === -1) {
+            return draftData;
+        }
+
+        const debt = debtsList[debtIndex] || {};
+        const payments = Array.isArray(debt.payments) ? [...debt.payments] : [];
+        const paymentId = record.linkedDebtPaymentId || record.id;
+        const baseTotal = parseAmountValue(debt.totalAmount ?? 0);
+
+        const updateLinkedInvoiceStatus = (remaining, totalPaid) => {
+            if (!debt.linkedInvoiceId || !Array.isArray(draftData.pendingInvoices)) {
+                return;
+            }
+
+            const invoicesList = [...draftData.pendingInvoices];
+            const invoiceIndex = invoicesList.findIndex(inv => inv.id === debt.linkedInvoiceId);
+            if (invoiceIndex === -1) {
+                return;
+            }
+
+            const invoice = invoicesList[invoiceIndex];
+            let nextStatus = invoice.status;
+
+            if (totalPaid > 0 && remaining <= 0) {
+                nextStatus = 'Dispatched';
+            } else if (totalPaid > 0 && remaining > 0) {
+                nextStatus = 'PartialPaid';
+            } else {
+                nextStatus = 'CreditApproved';
+            }
+
+            const updatedInvoice = {
+                ...invoice,
+                status: nextStatus,
+                debtRemainingAmount: remaining,
+                debtPaidAmount: totalPaid,
+                debtLastPaymentAt: totalPaid > 0 ? getDefaultDateTime() : invoice.debtLastPaymentAt || null,
+            };
+
+            if (totalPaid > 0 && remaining <= 0) {
+                updatedInvoice.debtSettledAt = getDefaultDateTime();
+            } else if (remaining > 0) {
+                updatedInvoice.debtSettledAt = null;
+            }
+
+            invoicesList[invoiceIndex] = updatedInvoice;
+            draftData.pendingInvoices = invoicesList;
+        };
+
+        if (actionType === 'delete') {
+            const filteredPayments = payments.filter(payment => payment.id !== paymentId);
+            const totalPaid = filteredPayments.reduce((sum, payment) => sum + parseAmountValue(payment.amount), 0);
+            const remaining = Math.max(0, baseTotal - totalPaid);
+            const sortedPayments = filteredPayments.slice().sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+            debtsList[debtIndex] = {
+                ...debt,
+                payments: sortedPayments,
+                remainingAmount: remaining,
+                status: remaining <= 0 ? 'settled' : 'active',
+                lastPaymentDate: sortedPayments[0]?.date || null,
+                updatedAt: getDefaultDateTime(),
+            };
+            draftData.debts = debtsList;
+            updateLinkedInvoiceStatus(remaining, totalPaid);
+            return draftData;
+        }
+
+        const previousAmount = previousRecord?.linkedDebtId === record.linkedDebtId ? parseAmountValue(previousRecord.amount) : 0;
+        const existingIndex = payments.findIndex(payment => payment.id === paymentId);
+        const totalPaidExcluding = payments.reduce((sum, payment, idx) => {
+            if (idx === existingIndex) return sum;
+            return sum + parseAmountValue(payment.amount);
+        }, 0);
+
+        const amount = parseAmountValue(record.amount ?? previousAmount);
+        const remainingAfter = Math.max(0, baseTotal - (totalPaidExcluding + amount));
+        const paymentDate = record.date || getDefaultDateTime();
+
+        const updatedPayment = {
+            ...(existingIndex !== -1 ? payments[existingIndex] : {}),
+            id: paymentId,
+            amount,
+            date: paymentDate,
+            recordCollection: collectionName,
+            recordId: record.id,
+            description: record.description || '',
+            remainingAfter,
+        };
+
+        const paymentAttachments = normalizeAttachmentList(record.attachments, record.invoiceImageUrl, 'مرفق');
+        if (paymentAttachments.length > 0) {
+            updatedPayment.attachments = paymentAttachments;
+            updatedPayment.invoiceImageUrl = getPrimaryAttachmentDataUrl(paymentAttachments);
+        } else if (record.invoiceImageUrl) {
+            updatedPayment.invoiceImageUrl = record.invoiceImageUrl;
+        }
+
+        if (existingIndex !== -1) {
+            payments[existingIndex] = updatedPayment;
+        } else {
+            payments.push(updatedPayment);
+        }
+
+        const sortedPayments = payments.slice().sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+        const totalPaid = sortedPayments.reduce((sum, payment) => sum + parseAmountValue(payment.amount), 0);
+        const remaining = Math.max(0, baseTotal - totalPaid);
+
+        debtsList[debtIndex] = {
+            ...debt,
+            payments: sortedPayments,
+            remainingAmount: remaining,
+            status: remaining <= 0 ? 'settled' : 'active',
+            lastPaymentDate: sortedPayments[0]?.date || paymentDate,
+            updatedAt: getDefaultDateTime(),
+        };
+
+        draftData.debts = debtsList;
+        updateLinkedInvoiceStatus(remaining, totalPaid);
+        return draftData;
+    };
+
+    const handleDataAction = (collectionName, item, isNew, overwrite = false, options = {}) => {
+        const { bypassPermissions = false, silent = false } = options;
         // **دعم التحديث الشامل للبيانات**
         if (collectionName === '___FULL_DATA_UPDATE___') {
-            saveData(item); // item هنا يحتوي على كل البيانات
-            setRefreshKey(prev => prev + 1);
+            saveData(item, { silent: true }); // item هنا يحتوي على كل البيانات
             return;
         }
-        
+
         // فحص صلاحيات الإضافة/التعديل
         const permissionKey = navItems.find(i => i.key === collectionName)?.key;
         const requiredAction = isNew ? 'add' : 'edit';
 
-        if (permissionKey && !currentUser?.permissions[permissionKey]?.[requiredAction]) {
+        if (!bypassPermissions && permissionKey && !currentUser?.permissions[permissionKey]?.[requiredAction]) {
             showToast(`ليس لديك صلاحية ${isNew ? 'إضافة' : 'تعديل'} سجلات في قسم ${navItems.find(i => i.key === collectionName)?.label}.`, 'error');
             return;
         }
 
-        const newData = { ...data };
+        let newData = { ...data };
         let collection = [...(newData[collectionName] || [])];
+        let newItemRef = null;
 
         if (overwrite) {
-             newData[collectionName] = item;
+            newData[collectionName] = item;
         } else if (isNew) {
             // إضافة سجل جديد
+            const shouldAssignInvoice = collectionName !== 'inventory' && collectionName !== 'inventoryWithdrawals' && collectionName !== 'debts';
+            const providedInvoiceNumber = shouldAssignInvoice ? convertArabicToEnglish((item.invoiceNumber || '').toString().trim()) : '';
+
             const newItem = {
                 ...item,
                 id: item.id || crypto.randomUUID(),
-                ...(collectionName !== 'inventory' && collectionName !== 'inventoryWithdrawals' ? { invoiceNumber: generateInvoiceNumber() } : {})
+                ...(shouldAssignInvoice ? { invoiceNumber: providedInvoiceNumber || generateInvoiceNumber() } : {}),
             };
             collection.push(newItem);
             newData[collectionName] = collection;
-            
-            if (collectionName !== 'inventory') {
-                showToast(`تم إضافة السجل بنجاح!`, 'success');
-            
-            // تسجيل النشاط
-            const moduleName = navItems.find(i => i.key === collectionName)?.label || collectionName;
-            logActivity("إضافة", moduleName, `${item.description || item.amount || item.name || "سجل جديد"}`);
+            newItemRef = newItem;
 
+            if (collectionName !== 'inventory') {
+                const moduleName = navItems.find(i => i.key === collectionName)?.label || collectionName;
+                logActivity("إضافة", moduleName, `${item.description || item.amount || item.name || "سجل جديد"}`);
+
+                if (!silent) {
+                    showToast(`تم إضافة السجل بنجاح!`, 'success');
+                }
             }
-            
+
             if (collectionName === 'inventory' && !newItem.purchaseHistory) {
-                 newItem.purchaseHistory = [];
+                newItem.purchaseHistory = [];
             }
             setInitialExpenseState(null);
+
+            if (collectionName === 'expenses' || collectionName === 'pendingExpenses') {
+                newData = adjustDebtWithLinkedRecord(newData, newItem, 'create', null, collectionName);
+            }
         } else {
             // تعديل سجل موجود
             const index = collection.findIndex(i => i.id === item.id);
             if (index !== -1) {
+                const previousItem = collection[index];
                 collection[index] = item;
                 newData[collectionName] = collection;
-                
+
                 // تسجيل النشاط
                 const moduleName = navItems.find(i => i.key === collectionName)?.label || collectionName;
                 logActivity("تعديل", moduleName, `${item.description || item.amount || item.name || "سجل"}`);
 
-                showToast(`تم تعديل السجل بنجاح!`, 'success');
+                if (!silent) {
+                    showToast(`تم تعديل السجل بنجاح!`, 'success');
+                }
+
+                if (collectionName === 'expenses' || collectionName === 'pendingExpenses') {
+                    newData = adjustDebtWithLinkedRecord(newData, item, 'update', previousItem, collectionName);
+                }
             } else if (collectionName === 'pendingInvoices' && item.status) {
                  const existingIndex = collection.findIndex(i => i.id === item.id);
                  if (existingIndex !== -1) {
                       collection[existingIndex] = item;
                  } else {
                       collection.push(item);
-                 }
-                 newData[collectionName] = collection;
+                }
+                newData[collectionName] = collection;
             }
         }
-        
-        saveData(newData);
-        setRefreshKey(prev => prev + 1);
+
+        if (pendingInventoryAction && collectionName === pendingInventoryAction.targetCollection) {
+            const addedItemId = (isNew ? (newItemRef?.id || item.id) : item.id) || null;
+            const matchesPending = addedItemId === pendingInventoryAction.recordId
+                || (item.linkedInvoiceId && item.linkedInvoiceId === pendingInventoryAction.invoiceId);
+
+            if (matchesPending) {
+                newData = finalizeInventoryEntryApproval(newData, pendingInventoryAction);
+                setPendingInventoryAction(null);
+            }
+        }
+
+        saveData(newData, { silent });
     };
 
     const handleDelete = (collectionName, id, showMessage = true, bypassPermissions = false) => {
@@ -7317,86 +12132,213 @@ const AccountingApp = () => {
         if (!bypassPermissions && permissionKey && !currentUser?.permissions[permissionKey]?.delete && collectionName !== 'inventoryDispatches') {
             showToast(`ليس لديك صلاحية حذف سجلات في قسم ${navItems.find(i => i.key === collectionName)?.label}.`, 'error');
             return;
-        }
-        
-        let newData = { ...data };
-        
-        // **مهم:** إذا تم حذف سجل صرف مخزني، يجب إعادة المواد للمخزون
-        if (collectionName === 'inventoryDispatches') {
-            const dispatchToDelete = data.inventoryDispatches.find(d => d.id === id);
-            if (dispatchToDelete) {
-                let updatedInventory = [...newData.inventory];
-                dispatchToDelete.items.forEach(dItem => {
-                    const index = updatedInventory.findIndex(i => i.id === dItem.itemId);
-                    if (index !== -1) {
-                        updatedInventory[index] = {
-                            ...updatedInventory[index],
-                            count: updatedInventory[index].count + dItem.count,
-                        };
-                    }
-                });
-                // تحديث المخزون بالكامل
-                newData.inventory = updatedInventory; 
-            }
-        }
-        
-        newData[collectionName] = newData[collectionName].filter(item => item.id !== id);
+        }
+
+        let newData = { ...data };
+
+        // **مهم:** إذا تم حذف سجل صرف مخزني، يجب إعادة المواد للمخزون
+        if (collectionName === 'inventoryDispatches') {
+            const dispatchToDelete = data.inventoryDispatches.find(d => d.id === id);
+            if (dispatchToDelete) {
+                let updatedInventory = [...newData.inventory];
+                dispatchToDelete.items.forEach(dItem => {
+                    const index = updatedInventory.findIndex(i => i.id === dItem.itemId);
+                    if (index !== -1) {
+                        updatedInventory[index] = {
+                            ...updatedInventory[index],
+                            count: updatedInventory[index].count + dItem.count,
+                        };
+                    }
+                });
+                // تحديث المخزون بالكامل
+                newData.inventory = updatedInventory;
+            }
+        }
+
+        if (collectionName === 'pendingInvoices') {
+            const invoiceToDelete = data.pendingInvoices.find(item => item.id === id);
+            if (invoiceToDelete) {
+                if (invoiceToDelete.inventoryApplied) {
+                    let updatedInventory = [...(newData.inventory || [])];
+                    (invoiceToDelete.items || []).forEach(invItem => {
+                        const index = updatedInventory.findIndex(i => i.name === invItem.name);
+                        if (index !== -1) {
+                            const currentCount = parseFloat(convertArabicToEnglish(updatedInventory[index].count || '0')) || 0;
+                            const decrement = parseFloat(convertArabicToEnglish(invItem.count || '0')) || 0;
+                            updatedInventory[index] = {
+                                ...updatedInventory[index],
+                                count: Math.max(currentCount - decrement, 0),
+                            };
+                        }
+                    });
+                    newData.inventory = updatedInventory;
+                }
+
+                if (invoiceToDelete.linkedCollection && invoiceToDelete.linkedRecordId) {
+                    const linkedCollection = invoiceToDelete.linkedCollection;
+                    if (newData[linkedCollection]) {
+                        newData[linkedCollection] = newData[linkedCollection].filter(record => record.id !== invoiceToDelete.linkedRecordId);
+                    }
+                }
+            }
+
+            if (pendingInventoryAction?.invoiceId === id) {
+                setPendingInventoryAction(null);
+            }
+        }
+
+        newData[collectionName] = newData[collectionName].filter(item => item.id !== id);
         
         // تسجيل النشاط
         const moduleName = navItems.find(i => i.key === collectionName)?.label || collectionName;
         const deletedItem = data[collectionName]?.find(item => item.id === id);
         logActivity("حذف", moduleName, `${deletedItem?.description || deletedItem?.amount || deletedItem?.name || "سجل"}`);
 
+        if ((collectionName === 'expenses' || collectionName === 'pendingExpenses') && deletedItem?.linkedDebtId) {
+            newData = adjustDebtWithLinkedRecord(newData, deletedItem, 'delete', null, collectionName);
+        }
 
-        if (showMessage) {
-           showToast('تم حذف السجل بنجاح.', 'warning');
-        }
-        
-        saveData(newData);
-        setRefreshKey(prev => prev + 1); // تحديث فوري بعد الحذف
-    };
+
+        if (showMessage) {
+            showToast('تم حذف السجل بنجاح.', 'warning');
+        }
+
+        saveData(newData, { silent: !showMessage });
+    };
     
-    // 4. Data Persistence (Local Storage for simplicity)
-    useEffect(() => {
-        try {
-            const savedData = localStorage.getItem(STORAGE_KEY);
-            if (savedData) {
-                // دمج البيانات المحفوظة مع الإعدادات الافتراضية الجديدة في حال عدم وجودها
-                const parsedData = JSON.parse(savedData);
-                
-                // تحديث صلاحيات المستخدمين الموجودين بدمجها مع BASE_PERMISSIONS
-                const updatedUsers = (parsedData.settings?.users || []).map(user => ({
-                    ...user,
-                    permissions: {
-                        ...BASE_PERMISSIONS,
-                        ...user.permissions
-                    }
-                }));
-                
-                setData(prev => ({
-                    ...defaultDataStructure,
-                    ...parsedData,
-                    settings: {
-                        ...defaultSettings,
-                        ...(parsedData.settings || {}),
-                        users: updatedUsers.length > 0 ? updatedUsers : defaultSettings.users
-                    }
-                }));
-            }
-        } catch (error) {
-            console.error("Failed to load data from localStorage", error);
-        }
-    }, []);
+    // 4. Data Synchronization with the central snapshot
+    const applySnapshot = useCallback((payload = {}) => {
+        const normalized = normalizeSnapshotData(payload?.data);
+        setData(normalized);
+        const nextVersion = typeof payload?.version === 'number' ? payload.version : 1;
+        setSnapshotVersion(nextVersion);
+        snapshotVersionRef.current = nextVersion;
+        setRefreshKey(prev => prev + 1);
+        return { normalized, version: nextVersion };
+    }, []);
 
-    const saveData = (newData) => {
-        setData(newData);
-        try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(newData));
-        } catch (error) {
-            console.error("Failed to save data to localStorage", error);
-            showToast('خطأ في حفظ البيانات محلياً. يرجى التحقق من مساحة التخزين.', 'error');
-        }
-    };
+    const fetchSnapshot = useCallback(async ({ silent = false } = {}) => {
+        try {
+            const res = await fetch('/api/snapshot');
+            if (!res.ok) {
+                throw new Error(await res.text());
+            }
+
+            const payload = await res.json();
+            applySnapshot(payload);
+            return payload;
+        } catch (error) {
+            console.error('Failed to fetch snapshot', error);
+            if (!silent) {
+                showToast('فشل في جلب بيانات الخادم.', 'error');
+            }
+            throw error;
+        }
+    }, [applySnapshot, showToast]);
+
+    const saveData = useCallback(async (newData, options = {}) => {
+        const { silent = false } = options;
+        const normalized = normalizeSnapshotData(newData);
+        setData(normalized);
+
+        try {
+            const res = await fetch('/api/snapshot', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-client-id': clientIdRef.current,
+                },
+                body: JSON.stringify({
+                    version: snapshotVersionRef.current,
+                    data: normalized,
+                }),
+            });
+
+            if (res.status === 409) {
+                const payload = await res.json();
+                applySnapshot(payload);
+                if (!silent) {
+                    showToast('تم تعديل البيانات بواسطة مستخدم آخر، تمت إعادة التحميل.', 'warning');
+                }
+                return { status: 'conflict' };
+            }
+
+            if (!res.ok) {
+                throw new Error(await res.text());
+            }
+
+            const payload = await res.json();
+            applySnapshot(payload);
+            return { status: 'ok' };
+        } catch (error) {
+            console.error('Failed to save snapshot', error);
+            if (!silent) {
+                showToast('فشل في حفظ البيانات على الخادم.', 'error');
+            }
+
+            try {
+                await fetchSnapshot({ silent: true });
+            } catch (refreshError) {
+                console.error('Failed to refresh snapshot after save failure', refreshError);
+            }
+
+            return { status: 'error', error };
+        }
+    }, [applySnapshot, fetchSnapshot, showToast]);
+
+    useEffect(() => {
+        snapshotVersionRef.current = snapshotVersion;
+    }, [snapshotVersion]);
+
+    useEffect(() => {
+        fetchSnapshot({ silent: true })
+            .catch((error) => {
+                console.error('Initial snapshot load failed', error);
+            })
+            .finally(() => {
+                setIsInitializing(false);
+            });
+    }, [fetchSnapshot]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+        const wsUrl = `${protocol}://${window.location.host}/ws`;
+        const socket = new WebSocket(wsUrl);
+        wsRef.current = socket;
+
+        socket.addEventListener('message', (event) => {
+            try {
+                const payload = JSON.parse(event.data);
+                if (payload?.event !== 'snapshot:updated') {
+                    return;
+                }
+
+                if (payload?.originId && payload.originId === clientIdRef.current) {
+                    return;
+                }
+
+                const incomingVersion = payload?.data?.version;
+                if (typeof incomingVersion === 'number' && incomingVersion <= snapshotVersionRef.current) {
+                    return;
+                }
+
+                fetchSnapshot({ silent: true }).catch((error) => {
+                    console.error('Failed to refresh after realtime update', error);
+                });
+            } catch (error) {
+                console.error('Failed to parse realtime payload', error);
+            }
+        });
+
+        return () => {
+            wsRef.current = null;
+            socket.close();
+        };
+    }, [fetchSnapshot]);
     
     // دالة تسجيل النشاطات
     const logActivity = (action, module, details = "") => {
@@ -7457,23 +12399,49 @@ const AccountingApp = () => {
     }, [data.employees]);
 
 
-    // 7. Routing and Navigation
-    const navItems = [
-        { key: 'dashboard', label: 'الرئيسية', icon: Home, component: DashboardComponent },
-        { key: 'revenues', label: 'الإيرادات', icon: TrendingUp, component: DataPageComponent, props: { title: 'الإيرادات', type: 'revenue', collectionName: 'revenues', categories: data.settings.revenueCategories, fields: [{ key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'category', label: 'فئة الإيراد', type: 'select', required: true }, { key: 'description', label: 'الوصف/المصدر', type: 'textarea' }], handleRefresh } },
-        { key: 'expenses', label: 'الصرفيات', icon: TrendingDown, component: DataPageComponent, props: { title: 'الصرفيات', type: 'expense', collectionName: 'expenses', categories: data.settings.expenseCategories, fields: [{ key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'category', label: 'فئة المصروف', type: 'select', required: true }, { key: 'description', label: 'الوصف المفصل', type: 'textarea', required: true }], handleRefresh } },
-        { key: 'advances', label: 'السلف', icon: Coins, component: DataPageComponent, props: { title: 'السلف', type: 'advance', collectionName: 'advances', categories: data.settings.advanceCategories, fields: [{ key: 'employeeName', label: 'الموظف المعني', type: 'select', required: true }, { key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'category', label: 'فئة السلفة', type: 'select', required: true }, { key: 'notes', label: 'ملاحظات', type: 'textarea' }], handleRefresh } },
-        { key: 'suspended', label: 'المعلقة (قيد التسوية)', icon: RotateCcw, component: DataPageComponent, props: { title: 'المعلقة (قيد التسوية)', type: 'suspended', collectionName: 'suspended', fields: [{ key: 'recipientName', label: 'اسم المستلم', required: true }, { key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'notes', label: 'ملاحظات', type: 'textarea' }], handleRefresh } },
-        { key: 'pendingExpenses', label: 'الصرفيات المعلقة', icon: Clock, component: PendingExpensesComponent, props: { handleRefresh, setCurrentPage, setInitialExpenseState } },
-        { key: 'employees', label: 'الموظفين', icon: Users, component: EmployeePageComponent, props: { handleRefresh } },
+    // 7. Routing and Navigation
+    const revenueFields = useMemo(() => ([
+        { key: 'amount', label: 'المبلغ', currency: true, required: true },
+        { key: 'category', label: 'فئة الإيراد', type: 'select', required: true },
+        { key: 'description', label: 'الوصف/المصدر', type: 'textarea' },
+    ]), []);
+
+    const expenseFields = useMemo(() => ([
+        { key: 'amount', label: 'المبلغ', currency: true, required: true },
+        { key: 'category', label: 'فئة المصروف', type: 'select', required: true },
+        { key: 'description', label: 'الوصف المفصل', type: 'textarea', required: true },
+    ]), []);
+
+    const advanceFields = useMemo(() => ([
+        { key: 'employeeName', label: 'الموظف المعني', type: 'select', required: true },
+        { key: 'amount', label: 'المبلغ', currency: true, required: true },
+        { key: 'category', label: 'فئة السلفة', type: 'select', required: true },
+        { key: 'notes', label: 'ملاحظات', type: 'textarea' },
+    ]), []);
+
+    const suspendedFields = useMemo(() => ([
+        { key: 'recipientName', label: 'اسم المستلم', required: true },
+        { key: 'amount', label: 'المبلغ', currency: true, required: true },
+        { key: 'notes', label: 'ملاحظات', type: 'textarea' },
+    ]), []);
+
+    const navItems = useMemo(() => ([
+        { key: 'dashboard', label: 'الرئيسية', icon: Home, component: DashboardComponent },
+        { key: 'revenues', label: 'الإيرادات', icon: TrendingUp, component: DataPageComponent, props: { title: 'الإيرادات', type: 'revenue', collectionName: 'revenues', categories: data.settings.revenueCategories, fields: revenueFields, handleRefresh } },
+        { key: 'expenses', label: 'الصرفيات', icon: TrendingDown, component: DataPageComponent, props: { title: 'الصرفيات', type: 'expense', collectionName: 'expenses', categories: data.settings.expenseCategories, fields: expenseFields, handleRefresh, openScanner } },
+        { key: 'advances', label: 'السلف', icon: Coins, component: DataPageComponent, props: { title: 'السلف', type: 'advance', collectionName: 'advances', categories: data.settings.advanceCategories, fields: advanceFields, handleRefresh } },
+        { key: 'suspended', label: 'المعلقة (قيد التسوية)', icon: RotateCcw, component: DataPageComponent, props: { title: 'المعلقة (قيد التسوية)', type: 'suspended', collectionName: 'suspended', fields: suspendedFields, handleRefresh } },
+        { key: 'debts', label: 'الديون', icon: FileText, component: DebtsPageComponent, props: { setInitialExpenseState, navigateWithGuards, openScanner } },
+        { key: 'pendingExpenses', label: 'الصرفيات المعلقة', icon: Clock, component: PendingExpensesComponent, props: { handleRefresh, setCurrentPage, setInitialExpenseState, openScanner } },
+        { key: 'employees', label: 'الموظفين', icon: Users, component: EmployeePageComponent, props: { handleRefresh, openScanner } },
         { key: 'payroll', label: 'الرواتب', icon: Calculator, component: PayrollPageComponent, props: { handleRefresh } },
-        { key: 'inventoryEntry', label: 'الإدخال المخزني', icon: ClipboardCheck, component: InventoryEntryComponent, props: { handleRefresh } },
+        { key: 'inventoryEntry', label: 'الإدخال المخزني', icon: ClipboardCheck, component: InventoryEntryComponent, props: { handleRefresh, openScanner, ensureSettingsCanLeave, performNavigation } },
         { key: 'inventoryWithdrawal', label: 'الاستخراج المخزني', icon: LogOut, component: InventoryWithdrawalComponent, props: { handleRefresh, handleDelete, handleDataAction } },
-        { key: 'inventory', label: 'المخزن والمواد', icon: Package, component: InventoryPageComponent, props: { handleRefresh, handleDataAction } },
-        { key: 'settings', label: 'الإعدادات', icon: Settings, component: SettingsPage, props: { handleSettingsUpdate } },
+        { key: 'inventory', label: 'المخزن والمواد', icon: Package, component: InventoryPageComponent, props: { handleRefresh, handleDataAction } },
+        { key: 'settings', label: 'الإعدادات', icon: Settings, component: SettingsPage, props: { handleSettingsUpdate, registerLeaveGuard: registerSettingsLeaveGuard } },
         { key: 'admin', label: 'الإدارة', icon: Shield, component: AdminPage, props: { handleDataAction, showToast } },
         { key: 'about', label: 'حول النظام', icon: Info, component: AboutPage, props: {} },
-    ];
+    ]), [data.settings.revenueCategories, data.settings.expenseCategories, data.settings.advanceCategories, handleRefresh, openScanner, setInitialExpenseState, navigateWithGuards, setCurrentPage, handleDelete, handleDataAction, handleSettingsUpdate, registerSettingsLeaveGuard, showToast, revenueFields, expenseFields, advanceFields, suspendedFields, ensureSettingsCanLeave, performNavigation]);
     
     // فلترة عناصر القائمة حسب صلاحيات المستخدم
     const visibleNavItems = useMemo(() => {
@@ -7510,34 +12478,33 @@ const AccountingApp = () => {
     // const currentUser = data.settings.users[0]; // تم استبداله بـ currentUser من state // المستخدم الافتراضي
     // ------------------------------------
 
-    const handleNavigationClick = (key) => {
-        // **الإصلاح الجذري لمشكلة التنقل:**
-        if (currentPage === 'settings' && key !== 'settings') {
-             // نرسل نية الانتقال إلى SettingsPage لتبدأ عملية التحقق من isDirty
-             const settingsPageInstance = navItems.find(i => i.key === 'settings');
-             
-             // نمرر النية إلى SettingsPage
-             // بما أننا لا نستطيع استخدام Refs/Instances مباشرة، سنعتمد على دالة callback خاصة من App
-             // SettingsPage ستستخدم onNavigateAttempt التي يتم تمريرها لفتح مودال التأكيد
-             handleSettingsNavigation(key);
-             return;
-        }
+    const handleNavigationClick = (key) => {
+        if (!ensureSettingsCanLeave(key)) {
+            return;
+        }
+        performNavigation(key);
+    };
 
-        setCurrentPage(key);
-        setInitialExpenseState(null); 
-        setIsSidebarOpen(false); // إغلاق الشريط الجانبي بعد التنقل في وضع الجوال
-    }
-    
-    // **دالة تنقل خاصة تستخدمها SettingsPage فقط بعد تأكيد الحفظ/الإلغاء**
-    const handleSettingsNavigation = (key) => {
-         setCurrentPage(key);
-         setInitialExpenseState(null); 
-         setIsSidebarOpen(false);
-    }
+    // **دالة تنقل خاصة تستخدمها SettingsPage فقط بعد تأكيد الحفظ/الإلغاء**
+    const handleSettingsNavigation = (key) => {
+        performNavigation(key);
+    };
 
 
 
 
+
+    // عرض شاشة الانتظار أثناء تحميل البيانات من الخادم
+    if (isInitializing) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950" dir="rtl">
+                <div className="text-center space-y-4">
+                    <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto" />
+                    <p className="text-gray-600 dark:text-gray-300 font-semibold">جاري تحميل البيانات من الخادم...</p>
+                </div>
+            </div>
+        );
+    }
 
     // عرض صفحة تسجيل الدخول إذا لم يكن هناك مستخدم مسجل
     if (!currentUser) {
@@ -7671,11 +12638,11 @@ const AccountingApp = () => {
 
                 <div className="max-w-full mx-auto"> {/* تم تغيير max-w-7xl إلى max-w-full لزيادة التجاوب */}
                     {PageComponent && (
-                        <PageComponent
-                            key={currentPage + refreshKey} // استخدام refreshKey لإجبار المكون على إعادة الرسم
-                            data={data}
-                            handleDataAction={handleDataAction}
-                            handleDelete={handleDelete}
+                            <PageComponent
+                                key={currentPage + refreshKey} // استخدام refreshKey لإجبار المكون على إعادة الرسم
+                                data={data}
+                                handleDataAction={handleDataAction}
+                                handleDelete={handleDelete}
                             handleSettingsUpdate={handleSettingsUpdate}
                             showToast={showToast}
                             setCurrentPage={setCurrentPage}
@@ -7686,10 +12653,12 @@ const AccountingApp = () => {
                             initialExpenseState={initialExpenseState} // تمرير حالة المصروف التلقائي
                             setInitialExpenseState={setInitialExpenseState} // تمرير دالة المسح
                             handleRefresh={handleRefresh}
-                            currentUser={currentUser} // تمرير صلاحيات المستخدم الافتراضي
-                            onNavigateAttempt={handleSettingsNavigation} // تمرير دالة التنقل الخاصة بـ SettingsPage
-                            {...pageProps}
-                        />
+                                currentUser={currentUser} // تمرير صلاحيات المستخدم الافتراضي
+                                onNavigateAttempt={handleSettingsNavigation} // تمرير دالة التنقل الخاصة بـ SettingsPage
+                                pendingInventoryAction={pendingInventoryAction}
+                                setPendingInventoryAction={setPendingInventoryAction}
+                                {...pageProps}
+                            />
                     )}
                 </div>
             </main>
@@ -7706,21 +12675,29 @@ const AccountingApp = () => {
             )}
             
             {/* Print Report Modal (for lists) */}
-            {isReportModalOpen && (
-                <PrintReportModal
-                    reportData={printReportData}
-                    title={CurrentComponent?.label || 'التقرير'}
-                    onClose={() => setIsReportModalOpen(false)}
-                    companyName={data.settings.companyName}
-                    companyLogoUrl={data.settings.companyLogoUrl}
-                />
-            )}
+            {isReportModalOpen && (
+                <PrintReportModal
+                    reportData={printReportData}
+                    title={CurrentComponent?.label || 'التقرير'}
+                    onClose={() => setIsReportModalOpen(false)}
+                    companyName={data.settings.companyName}
+                    companyLogoUrl={data.settings.companyLogoUrl}
+                />
+            )}
 
-            {/* About System Modal */}
+            <ScannerCaptureModal
+                isOpen={scannerConfig.isOpen}
+                title={scannerConfig.title}
+                defaultFileName={scannerConfig.defaultFileName}
+                onClose={closeScanner}
+                onCapture={handleScannerCapture}
+            />
+
+            {/* About System Modal */}
 
 
-            {/* Notification Toast */}
-            {toast.message && (
+            {/* Notification Toast */}
+            {toast.message && (
                 <NotificationToast
                     message={toast.message}
                     type={toast.type}

@@ -1,8 +1,56 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { ensureSnapshotInitialized, getSnapshot, saveSnapshot, VersionConflictError } from "./snapshot";
+import { attachRealtime, broadcast } from "./realtime";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  await ensureSnapshotInitialized();
+
+  // النسخة الكاملة للبيانات
+  app.get("/api/snapshot", async (_req, res) => {
+    try {
+      const snapshot = await getSnapshot();
+      res.json(snapshot);
+    } catch (error) {
+      console.error("Get snapshot error:", error);
+      res.status(500).json({ error: "فشل في جلب بيانات النظام" });
+    }
+  });
+
+  app.put("/api/snapshot", async (req, res) => {
+    try {
+      const { version, data } = req.body ?? {};
+
+      if (typeof version !== "number" || !data) {
+        return res.status(400).json({ error: "طلب غير صالح" });
+      }
+
+      const clientIdHeader = req.headers["x-client-id"];
+      const clientId = Array.isArray(clientIdHeader)
+        ? clientIdHeader[0]
+        : typeof clientIdHeader === "string"
+          ? clientIdHeader
+          : undefined;
+
+      const snapshot = await saveSnapshot({ version, data });
+
+      broadcast(
+        "snapshot:updated",
+        { version: snapshot.version, updatedAt: snapshot.updatedAt },
+        { originId: clientId },
+      );
+
+      res.json(snapshot);
+    } catch (error) {
+      if (error instanceof VersionConflictError && error.latest) {
+        return res.status(409).json(error.latest);
+      }
+
+      console.error("Update snapshot error:", error);
+      res.status(500).json({ error: "فشل في حفظ بيانات النظام" });
+    }
+  });
   // ===================================
   // API Routes للنظام
   // ===================================
@@ -580,6 +628,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   const httpServer = createServer(app);
+  attachRealtime(httpServer);
 
   return httpServer;
 }

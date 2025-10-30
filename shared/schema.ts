@@ -384,3 +384,15 @@ export const employeeDocumentsRelations = relations(employeeDocuments, ({ one })
     references: [users.id],
   }),
 }));
+
+// ===================================
+// 15. جدول النسخة المركزية للبيانات
+// ===================================
+export const dataSnapshots = pgTable("data_snapshots", {
+  key: text("key").primaryKey(),
+  data: jsonb("data").notNull().default(sql`'{}'::jsonb`),
+  version: integer("version").notNull().default(1),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type DataSnapshot = typeof dataSnapshots.$inferSelect;
