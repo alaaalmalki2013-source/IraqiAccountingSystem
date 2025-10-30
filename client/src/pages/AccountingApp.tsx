@@ -3359,7 +3359,7 @@ const DebtsPageComponent = React.memo(({ data, handleDataAction, handleDelete, s
             </div>
 
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 py-2">
-                <div className="flex flex-wrap items-center gap-2 order-2 md:order-1">
+                <div className="flex flex-wrap items-center gap-2 order-2 md:order-1 md:justify-start">
                     <button
                         type="button"
                         onClick={handleToolbarRefresh}
@@ -3401,9 +3401,6 @@ const DebtsPageComponent = React.memo(({ data, handleDataAction, handleDelete, s
                     />
                 </div>
                 <div className="flex flex-wrap gap-2 order-1 md:order-2 justify-end">
-                    <ActionButton onClick={handleToolbarRefresh} className="bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-100">
-                        تحديث
-                    </ActionButton>
                     <ActionButton onClick={openNewDebtModal} disabled={!canAddDebt}>
                         <Plus className="w-5 h-5 ml-2" />
                         إضافة دين
