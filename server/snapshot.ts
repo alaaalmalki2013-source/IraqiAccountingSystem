@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { dataSnapshots } from "@shared/schema";
 import { db } from "./db";
 import { cloneDefaultData, normalizeSnapshotData, type AccountingSnapshot } from "@shared/data";
@@ -65,45 +65,26 @@ export async function saveSnapshot({ version, data }: SaveSnapshotOptions): Prom
       .where(eq(dataSnapshots.key, SNAPSHOT_KEY))
       .for("update");
 
-    if (!current) {
-      const normalized = normalizeSnapshotData(data as AccountingSnapshot);
-      const updatedAt = new Date();
-
-      await tx.insert(dataSnapshots).values({
-        key: SNAPSHOT_KEY,
-        data: normalized,
-        version: Math.max(version, 1),
-        updatedAt,
-      });
-
-      return {
-        data: normalized,
-        version: Math.max(version, 1),
-        updatedAt: updatedAt.toISOString(),
-      } satisfies SnapshotPayload;
-    }
-
-    if (current.version !== version) {
-      const latest = {
-        data: normalizeSnapshotData(current.data as AccountingSnapshot | undefined),
-        version: current.version,
-        updatedAt: current.updatedAt?.toISOString?.() ?? new Date().toISOString(),
-      } satisfies SnapshotPayload;
-      throw new VersionConflictError("Snapshot version mismatch", latest);
-    }
-
     const normalized = normalizeSnapshotData(data as AccountingSnapshot);
-    const nextVersion = version + 1;
+    const nextVersion = (current?.version ?? Math.max(version, 1) - 1) + 1;
     const updatedAt = new Date();
 
     await tx
-      .update(dataSnapshots)
-      .set({
+      .insert(dataSnapshots)
+      .values({
+        key: SNAPSHOT_KEY,
         data: normalized,
         version: nextVersion,
         updatedAt,
       })
-      .where(eq(dataSnapshots.key, SNAPSHOT_KEY));
+      .onConflictDoUpdate({
+        target: dataSnapshots.key,
+        set: {
+          data: sql`EXCLUDED.data`,
+          version: sql`EXCLUDED.version`,
+          updatedAt: sql`EXCLUDED.updated_at`,
+        },
+      });
 
     return {
       data: normalized,
