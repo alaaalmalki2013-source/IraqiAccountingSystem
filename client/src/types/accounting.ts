@@ -50,13 +50,14 @@ export const ROLE_PERMISSIONS = {
         expenses: { view: true, add: true, edit: true, delete: true },
         advances: { view: true, add: true, edit: true, delete: true },
         suspended: { view: true, add: true, edit: true, delete: true },
+        debts: { view: true, add: true, edit: true, delete: true, pay: true },
         pendingExpenses: { view: true, add: true, edit: true, delete: true, approve: true, cancel: true },
         employees: { view: true, add: true, edit: true, delete: true },
         payroll: { view: true, add: true, edit: true, delete: true, pay: true },
         inventoryEntry: { view: true, add: true, edit: true, delete: true, approve: true, credit: true, cancel: true },
         inventoryWithdrawal: { view: true, add: true, edit: true, delete: true },
         inventory: { view: true, add: true, edit: true, delete: true },
-        settings: { view: true },
+        settings: { view: true, manageCategories: true, manageVendors: true, manageRepresentatives: true },
         admin: { view: true }
     },
     
@@ -67,13 +68,14 @@ export const ROLE_PERMISSIONS = {
         expenses: { view: true, add: true, edit: true, delete: true },
         advances: { view: true, add: true, edit: true, delete: true },
         suspended: { view: true, add: true, edit: true, delete: true },
+        debts: { view: true, add: true, edit: true, delete: true, pay: true },
         pendingExpenses: { view: true, add: true, edit: true, delete: true, approve: true, cancel: true },
         employees: { view: true, add: true, edit: true, delete: true },
         payroll: { view: true, add: true, edit: true, delete: true, pay: true },
         inventoryEntry: { view: true, add: true, edit: true, delete: true, approve: true, credit: true, cancel: true },
         inventoryWithdrawal: { view: true, add: true, edit: true, delete: true },
         inventory: { view: true, add: true, edit: true, delete: true },
-        settings: { view: true },
+        settings: { view: true, manageCategories: true, manageVendors: true, manageRepresentatives: true },
         admin: { view: false }
     },
     
@@ -84,13 +86,14 @@ export const ROLE_PERMISSIONS = {
         expenses: { view: true, add: false, edit: false, delete: false },
         advances: { view: true, add: false, edit: false, delete: false },
         suspended: { view: true, add: false, edit: false, delete: false },
+        debts: { view: true, add: false, edit: false, delete: false, pay: false },
         pendingExpenses: { view: true, add: false, edit: false, delete: false, approve: false, cancel: false },
         employees: { view: true, add: false, edit: false, delete: false },
         payroll: { view: true, add: false, edit: false, delete: false, pay: false },
         inventoryEntry: { view: true, add: false, edit: false, delete: false, approve: false, credit: false, cancel: false },
         inventoryWithdrawal: { view: true, add: false, edit: false, delete: false },
         inventory: { view: true, add: false, edit: false, delete: false },
-        settings: { view: false },
+        settings: { view: false, manageCategories: false, manageVendors: false, manageRepresentatives: false },
         admin: { view: false }
     },
     
@@ -101,13 +104,14 @@ export const ROLE_PERMISSIONS = {
         expenses: { view: false, add: false, edit: false, delete: false },
         advances: { view: false, add: false, edit: false, delete: false },
         suspended: { view: false, add: false, edit: false, delete: false },
+        debts: { view: false, add: false, edit: false, delete: false, pay: false },
         pendingExpenses: { view: false, add: false, edit: false, delete: false, approve: false, cancel: false },
         employees: { view: false, add: false, edit: false, delete: false },
         payroll: { view: false, add: false, edit: false, delete: false, pay: false },
         inventoryEntry: { view: true, add: false, edit: false, delete: false, approve: false, credit: false, cancel: false },
         inventoryWithdrawal: { view: true, add: false, edit: false, delete: false },
         inventory: { view: true, add: false, edit: false, delete: false },
-        settings: { view: false },
+        settings: { view: false, manageCategories: false, manageVendors: false, manageRepresentatives: false },
         admin: { view: false }
     },
     
@@ -118,13 +122,14 @@ export const ROLE_PERMISSIONS = {
         expenses: { view: true, add: false, edit: false, delete: false },
         advances: { view: true, add: false, edit: false, delete: false },
         suspended: { view: true, add: false, edit: false, delete: false },
+        debts: { view: true, add: false, edit: false, delete: false, pay: true },
         pendingExpenses: { view: true, add: true, edit: false, delete: false, approve: true, cancel: false },
         employees: { view: true, add: false, edit: false, delete: false },
         payroll: { view: true, add: false, edit: false, delete: false, pay: false },
         inventoryEntry: { view: true, add: true, edit: false, delete: false, approve: true, credit: true, cancel: false },
         inventoryWithdrawal: { view: true, add: false, edit: false, delete: false },
         inventory: { view: true, add: false, edit: false, delete: false },
-        settings: { view: false },
+        settings: { view: false, manageCategories: false, manageVendors: false, manageRepresentatives: false },
         admin: { view: false }
     },
     
@@ -135,13 +140,14 @@ export const ROLE_PERMISSIONS = {
         expenses: { view: false, add: false, edit: false, delete: false },
         advances: { view: false, add: false, edit: false, delete: false },
         suspended: { view: true, add: true, edit: true, delete: true },
+        debts: { view: true, add: false, edit: false, delete: false, pay: true },
         pendingExpenses: { view: true, add: true, edit: true, delete: true, approve: false, cancel: false },
         employees: { view: false, add: false, edit: false, delete: false },
         payroll: { view: false, add: false, edit: false, delete: false, pay: false },
         inventoryEntry: { view: true, add: false, edit: false, delete: false, approve: false, credit: false, cancel: false },
         inventoryWithdrawal: { view: true, add: false, edit: false, delete: false },
         inventory: { view: false, add: false, edit: false, delete: false },
-        settings: { view: false },
+        settings: { view: false, manageCategories: false, manageVendors: false, manageRepresentatives: false },
         admin: { view: false }
     }
 };
@@ -179,6 +185,7 @@ export const defaultSettings = {
 export const defaultDataStructure = {
     revenues: [],
     expenses: [],
+    debts: [],
     employees: [],
     advances: [],
     suspended: [],

@@ -36,7 +36,8 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const t = (key: TranslationKey): string => {
-    return translations[language][key] || key;
+    const languageTranslations = translations[language] as Record<TranslationKey, string>;
+    return languageTranslations[key] ?? translations.ar[key] ?? key;
   };
 
   const dir = language === 'ar' ? 'rtl' : 'ltr';

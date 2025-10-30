@@ -1,8 +1,9 @@
 // About Page Component - نظام المحاسبة العراقي
-import { 
-    Shield, CheckCircle, Users, TrendingUp, TrendingDown, Package, 
+import {
+    Shield, CheckCircle, Users, TrendingUp, TrendingDown, Package,
     Globe, Moon, Smartphone, Lock, Clock, FileText, Database,
-    Zap, RefreshCw, Calendar, BarChart, Settings, DollarSign
+    Zap, RefreshCw, Calendar, BarChart, Settings, DollarSign,
+    Scan, Image as ImageIcon, Filter
 } from 'lucide-react';
 
 export const AboutPage = () => {
@@ -20,7 +21,7 @@ export const AboutPage = () => {
         {
             icon: <Clock className="w-8 h-8" />,
             title: 'الصرفيات المعلقة',
-            description: 'نظام موافقات للمصروفات مع الاحتفاظ الدائم بالسجلات للمراجعة'
+            description: 'مزامنة مباشرة مع الديون وفواتير الإدخال مع بقاء التتبع في لوحة واحدة للمراجعة'
         },
         {
             icon: <Users className="w-8 h-8" />,
@@ -30,17 +31,27 @@ export const AboutPage = () => {
         {
             icon: <DollarSign className="w-8 h-8" />,
             title: 'نظام الرواتب',
-            description: 'حساب آلي للرواتب مع المكافآت والاستقطاعات وطباعة القسائم'
+            description: 'حساب آلي للرواتب مع احتساب غياب جزئي وطباعة كشف السلف والمرفقات'
         },
         {
             icon: <Package className="w-8 h-8" />,
             title: 'إدارة المخزون',
-            description: 'تتبع كامل للمواد مع الباركود، فواتير الإدخال والاستخراج'
+            description: 'تتبع كامل للمواد مع الباركود وربط تلقائي بالفواتير الآجلة والديون'
+        },
+        {
+            icon: <FileText className="w-8 h-8" />,
+            title: 'إدارة الديون',
+            description: 'متابعة الديون السابقة والآجلة، تسجيل الدفعات، وربطها بالمصروفات المعتمدة'
         },
         {
             icon: <Shield className="w-8 h-8" />,
             title: 'نظام الصلاحيات',
             description: '6 مستويات صلاحيات مختلفة مع تحكم دقيق بالوصول'
+        },
+        {
+            icon: <Scan className="w-8 h-8" />,
+            title: 'تكامل السكنر المباشر',
+            description: 'التقاط المستندات من الطابعات متعددة الوظائف وإضافتها كمرفقات في ثوانٍ'
         },
         {
             icon: <Globe className="w-8 h-8" />,
@@ -68,6 +79,11 @@ export const AboutPage = () => {
             description: 'إمكانية استيراد وتصدير البيانات من وإلى ملفات Excel'
         },
         {
+            icon: <ImageIcon className="w-8 h-8" />,
+            title: 'عارض المرفقات التفاعلي',
+            description: 'تكبير وتحريك ومراجعة عدة صور أو ملفات PDF داخل النظام دون مغادرته'
+        },
+        {
             icon: <Lock className="w-8 h-8" />,
             title: 'صلاحية النظام',
             description: 'تحديد تاريخ انتهاء للنظام مع وصول حصري للأدمن بعد الانتهاء'
@@ -80,7 +96,12 @@ export const AboutPage = () => {
         {
             icon: <RefreshCw className="w-8 h-8" />,
             title: 'سجل النشاطات',
-            description: 'تسجيل تلقائي لجميع العمليات مع فلترة وبحث متقدم'
+            description: 'تسجيل تلقائي لجميع العمليات مع عرض تفصيلي قابل للتصفح'
+        },
+        {
+            icon: <Filter className="w-8 h-8" />,
+            title: 'فلاتر وتقارير موحدة',
+            description: 'لوحات موحدة للفلاتر والبطاقات مع تحكم بالنطاق الزمني وعدد السجلات المعروضة'
         },
         {
             icon: <Calendar className="w-8 h-8" />,
@@ -133,7 +154,7 @@ export const AboutPage = () => {
                     Iraqi Accounting System
                 </p>
                 <div className="inline-block px-6 py-2 bg-white/20 rounded-full">
-                    <span className="text-white font-bold text-lg">الإصدار V3.0</span>
+                    <span className="text-white font-bold text-lg">الإصدار v 0.4</span>
                 </div>
             </div>
 
