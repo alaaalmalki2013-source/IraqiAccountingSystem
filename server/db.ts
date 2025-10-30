@@ -1,4 +1,4 @@
-import { Pool } from "pg";
+import pg from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import * as schema from "@shared/schema";
 
@@ -11,6 +11,8 @@ if (!connectionString) {
 }
 
 const sslEnabled = (process.env.DB_SSL ?? "").toLowerCase() === "true";
+
+const { Pool } = pg;
 
 export const pool = new Pool({
   connectionString,
