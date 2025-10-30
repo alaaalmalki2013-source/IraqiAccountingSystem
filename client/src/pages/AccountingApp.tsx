@@ -62,7 +62,8 @@ import {
     Shield,
     FileDown,
     Mail,
-    Key
+    Key,
+    Scan
 } from 'lucide-react';
 
 // استيراد الثوابت والأنواع
@@ -191,6 +192,25 @@ const createAttachmentFromFile = async (file) => {
     });
 };
 
+const createAttachmentFromDataUrl = (dataUrl, name = 'مرفق ممسوح') => {
+    if (!dataUrl) {
+        return null;
+    }
+
+    const mimeMatch = dataUrl.match(/^data:([^;]+);/);
+    const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+    const estimatedSize = Math.round((dataUrl.length * 3) / 4);
+
+    return ensureAttachmentShape({
+        id: generateClientSideId(),
+        name,
+        type: mimeType,
+        size: estimatedSize,
+        dataUrl,
+        uploadedAt: new Date().toISOString(),
+    }, name);
+};
+
 const isImageAttachment = (attachment) => {
     if (!attachment) {
         return false;
@@ -223,6 +243,143 @@ const NotificationToast = React.memo(({ message, type, onClose }) => {
             </button>
         </div>
     );
+});
+
+const ScannerCaptureModal = React.memo(({ isOpen, title, onClose, onCapture, defaultFileName = 'مرفق ممسوح' }) => {
+    const videoRef = useRef(null);
+    const streamRef = useRef(null);
+    const [isInitializing, setIsInitializing] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
+
+    const stopStream = useCallback(() => {
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+            streamRef.current = null;
+        }
+    }, []);
+
+    const initializeStream = useCallback(async () => {
+        if (!isOpen) {
+            return;
+        }
+
+        setErrorMessage('');
+        setIsInitializing(true);
+
+        try {
+            if (!navigator.mediaDevices?.getUserMedia) {
+                throw new Error('unsupported');
+            }
+
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'environment' },
+                audio: false,
+            });
+
+            streamRef.current = stream;
+
+            if (videoRef.current) {
+                videoRef.current.srcObject = stream;
+                await videoRef.current.play();
+            }
+        } catch (error) {
+            console.error('Failed to initialize scanner stream', error);
+            setErrorMessage('تعذر الوصول إلى الكاميرا. يرجى التأكد من السماح للمتصفح باستخدامها أو جرب جهازًا آخر.');
+            stopStream();
+        } finally {
+            setIsInitializing(false);
+        }
+    }, [isOpen, stopStream]);
+
+    useEffect(() => {
+        if (isOpen) {
+            initializeStream();
+        }
+
+        return () => {
+            stopStream();
+        };
+    }, [isOpen, initializeStream, stopStream]);
+
+    const handleClose = useCallback(() => {
+        stopStream();
+        onClose();
+    }, [onClose, stopStream]);
+
+    const handleCapture = useCallback(async () => {
+        if (!videoRef.current) {
+            return;
+        }
+
+        try {
+            const video = videoRef.current;
+            const canvas = document.createElement('canvas');
+            const width = video.videoWidth || 1280;
+            const height = video.videoHeight || 720;
+            canvas.width = width;
+            canvas.height = height;
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, width, height);
+
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+            const attachment = createAttachmentFromDataUrl(dataUrl, defaultFileName);
+
+            if (attachment && typeof onCapture === 'function') {
+                onCapture(attachment);
+            }
+
+            handleClose();
+        } catch (error) {
+            console.error('Failed to capture scanner frame', error);
+            setErrorMessage('حدث خطأ أثناء التقاط الصورة. يرجى المحاولة مرة أخرى.');
+        }
+    }, [defaultFileName, handleClose, onCapture]);
+
+    if (!isOpen) {
+        return null;
+    }
+
+    return (
+        <Modal title={title || 'مسح المستند عبر السكنر'} onClose={handleClose} size="xl">
+            <div className="space-y-4">
+                {errorMessage && (
+                    <div className="p-3 rounded-xl bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-200 text-sm font-semibold">
+                        {errorMessage}
+                    </div>
+                )}
+
+                <div className="relative rounded-2xl overflow-hidden bg-black">
+                    <video
+                        ref={videoRef}
+                        playsInline
+                        autoPlay
+                        muted
+                        className="w-full h-full object-contain max-h-[60vh]"
+                    />
+                    {isInitializing && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/60 text-white text-sm">
+                            جاري تهيئة الكاميرا...
+                        </div>
+                    )}
+                </div>
+
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <p className="text-sm text-gray-600 dark:text-gray-300">
+                        وجّه المستند أمام الكاميرا ثم اضغط زر المسح لحفظه كصورة ضمن المرفقات.
+                    </p>
+                    <button
+                        type="button"
+                        onClick={handleCapture}
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white shadow-lg transition"
+                        disabled={isInitializing}
+                    >
+                        <Scan className="w-5 h-5" />
+                        مسح المستند الآن
+                    </button>
+                </div>
+            </div>
+        </Modal>
+    );
 });
 
 // حقل إدخال موحد
@@ -1413,10 +1570,11 @@ const DashboardComponent = React.memo(({ data, upcomingBirthdays }) => {
 /**
  * 3.2. DataPage Component (لإدارة الإيرادات، الصرفيات، السلف، المعلقة)
  */
-const DataPageComponent = React.memo(({ 
-    type, title, collectionName, fields, categories, data, 
-    handleDataAction, handleDelete, setPrintItem, setPrintReportData, 
-    setIsReportModalOpen, showToast, initialExpenseState, handleRefresh, setInitialExpenseState
+const DataPageComponent = React.memo(({
+    type, title, collectionName, fields, categories, data,
+    handleDataAction, handleDelete, setPrintItem, setPrintReportData,
+    setIsReportModalOpen, showToast, initialExpenseState, handleRefresh, setInitialExpenseState,
+    openScanner,
 }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [currentItem, setCurrentItem] = useState(null);
@@ -1495,6 +1653,7 @@ const DataPageComponent = React.memo(({ 
     const attachmentsList = Array.isArray(formState.attachments) ? formState.attachments : [];
     const [previewAttachment, setPreviewAttachment] = useState(null);
     const [previewZoomed, setPreviewZoomed] = useState(false);
+    const scannerAvailable = typeof openScanner === 'function';
 
     useEffect(() => {
         if (previewAttachment) {
@@ -1749,6 +1908,34 @@ const DataPageComponent = React.memo(({ 
             event.target.value = '';
         }
     };
+
+    const handleScanAttachment = useCallback(() => {
+        if (collectionName !== 'expenses' || typeof openScanner !== 'function') {
+            return;
+        }
+
+        const timestamp = new Date().toISOString().split('T')[0];
+
+        openScanner({
+            title: 'مسح فاتورة المصروف',
+            defaultFileName: `فاتورة-${timestamp}`,
+            onCapture: (attachment) => {
+                if (!attachment) {
+                    return;
+                }
+                setFormState(prev => {
+                    const existing = Array.isArray(prev.attachments) ? prev.attachments : [];
+                    const updated = [...existing, attachment];
+                    return {
+                        ...prev,
+                        attachments: updated,
+                        invoiceImageUrl: getPrimaryAttachmentDataUrl(updated),
+                    };
+                });
+                showToast('تم التقاط صورة الفاتورة عبر السكنر.', 'success');
+            },
+        });
+    }, [collectionName, openScanner, showToast]);
 
     const removeAttachment = (attachmentId) => {
         if (collectionName !== 'expenses') {
@@ -2299,11 +2486,11 @@ const DataPageComponent = React.memo(({ 
                             </>
                         )}
                         
-                        {fields.map(field => {
-                            const isAutoFilled = collectionName === 'expenses' && initialExpenseState && !currentItem &&
-                                (field.key === 'amount' || field.key === 'description' || field.key === 'category');
-                            
-                            // Check if field is category selection for expense/revenue
+        {fields.map(field => {
+            const isAutoFilled = collectionName === 'expenses' && initialExpenseState && !currentItem &&
+                (field.key === 'amount' || field.key === 'description' || field.key === 'category');
+
+            // Check if field is category selection for expense/revenue
                             if (field.type === 'select' && categories && field.key !== 'employeeName') {
                                 return (
                                     <div key={field.key} className="flex flex-col space-y-1 text-right">
@@ -2372,12 +2559,65 @@ const DataPageComponent = React.memo(({ 
                                     readOnly={isAutoFilled}
                                 />
                             );
-                        })}
-                        
-                        {initialExpenseState && collectionName === 'expenses' && !currentItem && (
-                            <div className="p-3 bg-indigo-50 dark:bg-indigo-900/50 border border-indigo-200 dark:border-indigo-700 rounded-xl text-indigo-800 dark:text-indigo-200 font-semibold text-center">
-                                تم تعبئة جميع الحقول تلقائياً من فاتورة الإدخال. يرجى الضغط على **إضافة** للتأكيد وإتمام الصرف.
-                            </div>
+        })}
+
+        {collectionName === 'expenses' && (
+            <div className="space-y-2 text-right">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">مرفقات الصرفية (صور / مستندات)</label>
+                <div className="flex flex-col sm:flex-row gap-2">
+                    <input
+                        type="file"
+                        accept="image/*,application/pdf"
+                        multiple
+                        onChange={handleAttachmentsUpload}
+                        className="flex-1 p-3 border border-dashed border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 focus:ring-teal-500 focus:border-teal-500"
+                    />
+                    <button
+                        type="button"
+                        onClick={handleScanAttachment}
+                        disabled={!scannerAvailable}
+                        className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl transition shadow ${scannerAvailable ? 'bg-emerald-500 hover:bg-emerald-600 text-white' : 'bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'}`}
+                        title={scannerAvailable ? 'التقاط صورة عبر السكنر' : 'السكنر غير متاح في هذا الجهاز'}
+                    >
+                        <Scan className="w-5 h-5" />
+                        مسح عبر السكنر
+                    </button>
+                </div>
+                {attachmentsList.length > 0 && (
+                    <div className="space-y-2">
+                        {attachmentsList.map(attachment => (
+                            <div
+                                key={attachment.id}
+                                className="flex items-center justify-between gap-3 p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-sm text-gray-800 dark:text-gray-100"
+                            >
+                                <span className="flex-1 truncate font-medium">{attachment.name}</span>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => handleAttachmentPreview(attachment)}
+                                        className="px-3 py-1 text-xs rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800/60"
+                                    >
+                                        معاينة
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => removeAttachment(attachment.id)}
+                                        className="px-3 py-1 text-xs rounded-lg bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-200 hover:bg-red-200 dark:hover:bg-red-800/60"
+                                    >
+                                        حذف
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        )}
+
+        {initialExpenseState && collectionName === 'expenses' && !currentItem && (
+            <div className="p-3 bg-indigo-50 dark:bg-indigo-900/50 border border-indigo-200 dark:border-indigo-700 rounded-xl text-indigo-800 dark:text-indigo-200 font-semibold text-center">
+                تم تعبئة جميع الحقول تلقائياً من فاتورة الإدخال. يرجى الضغط على **إضافة** للتأكيد وإتمام الصرف.
+            </div>
                         )}
 
                         <ActionButton type="submit" className="w-full bg-teal-600 hover:bg-teal-700">
@@ -2462,7 +2702,7 @@ const DataPageComponent = React.memo(({ 
 /**
  * 3.2.b DebtsPage Component (إدارة الديون)
  */
-const DebtsPageComponent = React.memo(({ data, handleDataAction, handleDelete, showToast, setInitialExpenseState, navigateWithGuards, currentUser, handleRefresh }) => {
+const DebtsPageComponent = React.memo(({ data, handleDataAction, handleDelete, showToast, setInitialExpenseState, navigateWithGuards, currentUser, handleRefresh, openScanner }) => {
     const initialRange = useMemo(() => getCurrentMonthRange(), []);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
@@ -2476,6 +2716,7 @@ const DebtsPageComponent = React.memo(({ data, handleDataAction, handleDelete, s
     const [globalSearch, setGlobalSearch] = useState('');
     const [originFilter, setOriginFilter] = useState('all');
     const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
+    const scannerAvailable = typeof openScanner === 'function';
 
     const resolveDebtType = useCallback((debt) => {
         if (!debt) {
@@ -2804,6 +3045,32 @@ const DebtsPageComponent = React.memo(({ data, handleDataAction, handleDelete, s
         };
         reader.readAsDataURL(file);
     };
+
+    const handleScanDebtAttachment = useCallback(() => {
+        if (typeof openScanner !== 'function') {
+            return;
+        }
+
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+
+        openScanner({
+            title: 'مسح مستند الدين',
+            defaultFileName: `دين-${timestamp}`,
+            onCapture: (attachment) => {
+                if (!attachment) {
+                    return;
+                }
+
+                const sourceUrl = attachment.dataUrl || attachment.url || attachment.attachmentUrl || '';
+                if (!sourceUrl) {
+                    return;
+                }
+
+                setDebtForm(prev => ({ ...prev, attachmentUrl: sourceUrl }));
+                showToast('تم التقاط المستند وإضافته إلى الدين.', 'success');
+            },
+        });
+    }, [openScanner, showToast]);
 
     const handleDebtSubmit = (e) => {
         e.preventDefault();
@@ -3230,7 +3497,7 @@ const DebtsPageComponent = React.memo(({ data, handleDataAction, handleDelete, s
             {isModalOpen && (
                 <Modal title={editingDebt ? 'تعديل الدين' : 'إضافة دين جديد'} onClose={() => { setIsModalOpen(false); setEditingDebt(null); }}>
                     <form onSubmit={handleDebtSubmit} className="space-y-5">
-                        <div className="flex flex-col space-y-1 text-right">
+                        <div className="space-y-2 text-right">
                             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">اسم الشركة</label>
                             <select
                                 value={debtForm.companyName}
@@ -3244,7 +3511,7 @@ const DebtsPageComponent = React.memo(({ data, handleDataAction, handleDelete, s
                                 ))}
                             </select>
                         </div>
-                        <div className="flex flex-col space-y-1 text-right">
+                        <div className="space-y-2 text-right">
                             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">اسم المورد</label>
                             <select
                                 value={debtForm.vendorName}
@@ -3257,7 +3524,7 @@ const DebtsPageComponent = React.memo(({ data, handleDataAction, handleDelete, s
                                 ))}
                             </select>
                         </div>
-                        <div className="flex flex-col space-y-1 text-right">
+                        <div className="space-y-2 text-right">
                             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">الصنف</label>
                             <select
                                 value={debtForm.category}
@@ -3284,14 +3551,26 @@ const DebtsPageComponent = React.memo(({ data, handleDataAction, handleDelete, s
                             onChange={(e) => setDebtForm(prev => ({ ...prev, description: e.target.value }))}
                             placeholder="أدخل تفاصيل الدين أو شروطه"
                         />
-                        <div className="flex flex-col space-y-1 text-right">
+                        <div className="space-y-2 text-right">
                             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">رفع ملف مرفق</label>
-                            <input
-                                type="file"
-                                accept="image/*,application/pdf"
-                                onChange={handleAttachmentChange}
-                                className="w-full p-2 border border-dashed border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                            />
+                            <div className="flex flex-col sm:flex-row gap-2">
+                                <input
+                                    type="file"
+                                    accept="image/*,application/pdf"
+                                    onChange={handleAttachmentChange}
+                                    className="flex-1 p-2 border border-dashed border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={handleScanDebtAttachment}
+                                    disabled={!scannerAvailable}
+                                    className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl shadow transition ${scannerAvailable ? 'bg-emerald-500 hover:bg-emerald-600 text-white' : 'bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'}`}
+                                    title={scannerAvailable ? 'التقاط صورة عبر السكنر' : 'السكنر غير متاح في هذا الجهاز'}
+                                >
+                                    <Scan className="w-5 h-5" />
+                                    مسح عبر السكنر
+                                </button>
+                            </div>
                             {debtForm.attachmentUrl && (
                                 <button type="button" className="text-sm text-blue-600 dark:text-blue-300 underline" onClick={() => setImagePreviewUrl(debtForm.attachmentUrl)}>
                                     معاينة المرفق
@@ -3426,7 +3705,7 @@ const DebtsPageComponent = React.memo(({ data, handleDataAction, handleDelete, s
 /**
  * 3.3. PendingExpenses Component - الصرفيات المعلقة
  */
-const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDelete, showToast, setCurrentPage, setInitialExpenseState, handleRefresh, initialExpenseState, currentUser }) => {
+const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDelete, showToast, setCurrentPage, setInitialExpenseState, handleRefresh, initialExpenseState, currentUser, openScanner }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [currentItem, setCurrentItem] = useState(null);
     const [viewItem, setViewItem] = useState(null);
@@ -3459,6 +3738,7 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
     const [previewAttachment, setPreviewAttachment] = useState(null);
     const [previewZoomed, setPreviewZoomed] = useState(false);
     const attachmentsList = Array.isArray(formState.attachments) ? formState.attachments : [];
+    const scannerAvailable = typeof openScanner === 'function';
 
     const canAddPending = !!currentUser?.permissions?.pendingExpenses?.add;
     const canEditPending = !!currentUser?.permissions?.pendingExpenses?.edit;
@@ -3667,6 +3947,36 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
             event.target.value = '';
         }
     };
+
+    const handleScanAttachment = useCallback(() => {
+        if (typeof openScanner !== 'function') {
+            return;
+        }
+
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+
+        openScanner({
+            title: 'مسح مرفق الصرفية المعلقة',
+            defaultFileName: `صرفية-معلقة-${timestamp}`,
+            onCapture: (attachment) => {
+                if (!attachment) {
+                    return;
+                }
+
+                setFormState(prev => {
+                    const existing = Array.isArray(prev.attachments) ? prev.attachments : [];
+                    const updated = [...existing, attachment];
+                    return {
+                        ...prev,
+                        attachments: updated,
+                        invoiceImageUrl: getPrimaryAttachmentDataUrl(updated) || prev.invoiceImageUrl,
+                    };
+                });
+
+                showToast('تم التقاط المرفق عبر السكنر وإضافته للصرفية المعلقة.', 'success');
+            },
+        });
+    }, [openScanner, setFormState, showToast]);
 
     const removeAttachment = (attachmentId) => {
         setFormState(prev => {
@@ -4357,46 +4667,58 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                             </>
                         )}
 
-                        {formState.type === 'expense' && (
-                            <div className="flex flex-col space-y-1 text-right">
-                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">مرفقات الصرفية (صور / مستندات)</label>
+                    {formState.type === 'expense' && (
+                        <div className="space-y-2 text-right">
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">مرفقات الصرفية (صور / مستندات)</label>
+                            <div className="flex flex-col sm:flex-row gap-2">
                                 <input
                                     type="file"
                                     accept="image/*,application/pdf"
                                     multiple
                                     onChange={handleAttachmentsUpload}
-                                    className="w-full p-3 border border-dashed border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500 transition duration-150 text-right"
+                                    className="flex-1 p-3 border border-dashed border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500 transition duration-150"
                                 />
-                                {attachmentsList.length > 0 && (
-                                    <div className="space-y-2 mt-2">
-                                        {attachmentsList.map(attachment => (
-                                            <div key={attachment.id} className="flex items-center justify-between gap-3 p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100">
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="text-sm font-medium truncate">{attachment.name}</p>
-                                                    {attachment.type && <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{attachment.type}</p>}
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleAttachmentPreview(attachment)}
-                                                        className="px-3 py-1 text-xs rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800/50"
-                                                    >
-                                                        معاينة
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => removeAttachment(attachment.id)}
-                                                        className="px-2 py-1 text-xs rounded-lg bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-200 hover:bg-red-200 dark:hover-bg-red-800/50"
-                                                    >
-                                                        إزالة
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
+                                <button
+                                    type="button"
+                                    onClick={handleScanAttachment}
+                                    disabled={!scannerAvailable}
+                                    className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl shadow transition ${scannerAvailable ? 'bg-emerald-500 hover:bg-emerald-600 text-white' : 'bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'}`}
+                                    title={scannerAvailable ? 'التقاط صورة عبر السكنر' : 'السكنر غير متاح في هذا الجهاز'}
+                                >
+                                    <Scan className="w-5 h-5" />
+                                    مسح عبر السكنر
+                                </button>
                             </div>
-                        )}
+                            {attachmentsList.length > 0 && (
+                                <div className="space-y-2">
+                                    {attachmentsList.map(attachment => (
+                                        <div key={attachment.id} className="flex items-center justify-between gap-3 p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100">
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-medium truncate">{attachment.name}</p>
+                                                {attachment.type && <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{attachment.type}</p>}
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleAttachmentPreview(attachment)}
+                                                    className="px-3 py-1 text-xs rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800/50"
+                                                >
+                                                    معاينة
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeAttachment(attachment.id)}
+                                                    className="px-2 py-1 text-xs rounded-lg bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-200 hover:bg-red-200 dark:hover:bg-red-800/50"
+                                                >
+                                                    إزالة
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                         <ActionButton type="submit" className="w-full bg-teal-600 hover:bg-teal-700">
                             <Save className="w-5 h-5 ml-2" />
@@ -4607,7 +4929,7 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
 /**
  * 3.3. EmployeePage Component
  */
-const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete, setPrintReportData, setIsReportModalOpen, showToast, handleRefresh }) => {
+const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete, setPrintReportData, setIsReportModalOpen, showToast, handleRefresh, openScanner }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     const [currentEmployee, setCurrentEmployee] = useState(null);
@@ -4618,6 +4940,7 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
     const searchActive = useMemo(() => globalSearch.trim().length > 0, [globalSearch]);
     const [employeeDocPreview, setEmployeeDocPreview] = useState(null);
     const [employeeDocZoomed, setEmployeeDocZoomed] = useState(false);
+    const scannerAvailable = typeof openScanner === 'function';
 
     useEffect(() => {
         if (employeeDocPreview) {
@@ -4745,6 +5068,37 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
             event.target.value = '';
         }
     };
+
+    const handleScanEmployeeDoc = useCallback(() => {
+        if (typeof openScanner !== 'function') {
+            return;
+        }
+
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+
+        openScanner({
+            title: 'مسح مستند الموظف',
+            defaultFileName: `مستند-موظف-${timestamp}`,
+            onCapture: (attachment) => {
+                if (!attachment) {
+                    return;
+                }
+
+                const sourceUrl = attachment.dataUrl || attachment.url || attachment.attachmentUrl || '';
+                if (!sourceUrl) {
+                    return;
+                }
+
+                setFormState(prev => ({
+                    ...prev,
+                    docUrl: sourceUrl,
+                    docName: attachment.name || `مستند-${timestamp}`,
+                    docType: attachment.type || 'image/jpeg',
+                }));
+                showToast('تم التقاط المستند الشخصي عبر السكنر.', 'success');
+            },
+        });
+    }, [openScanner, showToast]);
 
     const handleRemoveEmployeeDoc = () => {
         setFormState(prev => ({ ...prev, docUrl: '', docName: '', docType: '' }));
@@ -5077,14 +5431,26 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
                             currency 
                         />
                         
-                        <div className="flex flex-col space-y-1 text-right">
+                        <div className="space-y-2 text-right">
                             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">المستندات الشخصية (صورة / PDF)</label>
-                            <input
-                                type="file"
-                                accept="image/*,application/pdf"
-                                onChange={handleEmployeeDocUpload}
-                                className="w-full p-3 border border-dashed border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500 transition duration-150 text-right"
-                            />
+                            <div className="flex flex-col sm:flex-row gap-2">
+                                <input
+                                    type="file"
+                                    accept="image/*,application/pdf"
+                                    onChange={handleEmployeeDocUpload}
+                                    className="flex-1 p-3 border border-dashed border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500 transition duration-150"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={handleScanEmployeeDoc}
+                                    disabled={!scannerAvailable}
+                                    className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl shadow transition ${scannerAvailable ? 'bg-emerald-500 hover:bg-emerald-600 text-white' : 'bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'}`}
+                                    title={scannerAvailable ? 'التقاط صورة عبر السكنر' : 'السكنر غير متاح في هذا الجهاز'}
+                                >
+                                    <Scan className="w-5 h-5" />
+                                    مسح عبر السكنر
+                                </button>
+                            </div>
                             {formState.docUrl && (
                                 <div className="flex items-center justify-between gap-3 p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100">
                                     <div className="flex-1 min-w-0">
@@ -6283,7 +6649,7 @@ const InventoryPageComponent = React.memo(({ data, showToast, handleRefresh, han
 /**
  * 3.5. InventoryEntryComponent (الادخال المخزني)
  */
-const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDelete, setCurrentPage, showToast, setInitialExpenseState, handleRefresh, currentUser, setPendingInventoryAction }) => {
+const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDelete, setCurrentPage, showToast, setInitialExpenseState, handleRefresh, currentUser, setPendingInventoryAction, openScanner }) => {
     const [isNewInvoiceModalOpen, setIsNewInvoiceModalOpen] = useState(false);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     const [isCancelModalOpen, setIsCancelModalOpen] = useState(false); 
@@ -6357,6 +6723,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
     const invoiceAttachments = Array.isArray(invoiceForm.attachments) ? invoiceForm.attachments : [];
     const [invoiceAttachmentPreview, setInvoiceAttachmentPreview] = useState(null);
     const [invoicePreviewZoomed, setInvoicePreviewZoomed] = useState(false);
+    const scannerAvailable = typeof openScanner === 'function';
 
     useEffect(() => {
         if (invoiceAttachmentPreview) {
@@ -6556,6 +6923,36 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
             event.target.value = '';
         }
     };
+
+    const handleScanInvoiceAttachment = useCallback(() => {
+        if (typeof openScanner !== 'function') {
+            return;
+        }
+
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+
+        openScanner({
+            title: 'مسح فاتورة المورد',
+            defaultFileName: `فاتورة-مورد-${timestamp}`,
+            onCapture: (attachment) => {
+                if (!attachment) {
+                    return;
+                }
+
+                setInvoiceForm(prev => {
+                    const existing = Array.isArray(prev.attachments) ? prev.attachments : [];
+                    const updated = [...existing, attachment];
+                    return {
+                        ...prev,
+                        attachments: updated,
+                        invoiceImageUrl: getPrimaryAttachmentDataUrl(updated) || prev.invoiceImageUrl,
+                    };
+                });
+
+                showToast('تم التقاط صورة الفاتورة عبر السكنر.', 'success');
+            },
+        });
+    }, [openScanner, setInvoiceForm, showToast]);
 
     const handleRemoveInvoiceAttachment = (id) => {
         setInvoiceForm(prev => {
@@ -7174,15 +7571,27 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                                 </select>
                             </div>
                             
-                            <div className="md:col-span-2 flex flex-col space-y-2 text-right">
+                            <div className="md:col-span-2 space-y-2 text-right">
                                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300">مرفقات الفاتورة (صور / مستندات PDF)</label>
-                                <input
-                                    type="file"
-                                    accept="image/*,application/pdf"
-                                    multiple
-                                    onChange={handleInvoiceAttachmentUpload}
-                                    className="w-full p-3 border border-dashed border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500 transition duration-150 text-right"
-                                />
+                                <div className="flex flex-col sm:flex-row gap-2">
+                                    <input
+                                        type="file"
+                                        accept="image/*,application/pdf"
+                                        multiple
+                                        onChange={handleInvoiceAttachmentUpload}
+                                        className="flex-1 p-3 border border-dashed border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500 transition duration-150"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={handleScanInvoiceAttachment}
+                                        disabled={!scannerAvailable}
+                                        className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl shadow transition ${scannerAvailable ? 'bg-emerald-500 hover:bg-emerald-600 text-white' : 'bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'}`}
+                                        title={scannerAvailable ? 'التقاط صورة عبر السكنر' : 'السكنر غير متاح في هذا الجهاز'}
+                                    >
+                                        <Scan className="w-5 h-5" />
+                                        مسح عبر السكنر
+                                    </button>
+                                </div>
                                 {invoiceAttachments.length > 0 && (
                                     <div className="space-y-2">
                                         {invoiceAttachments.map(attachment => (
@@ -10433,6 +10842,12 @@ const AccountingApp = () => {
     const [currentUser, setCurrentUser] = useState(null); // المستخدم المسجل حالياً
     const [pendingInventoryAction, setPendingInventoryAction] = useState(null);
     const settingsLeaveGuardRef = useRef(null);
+    const scannerCaptureRef = useRef(null);
+    const [scannerConfig, setScannerConfig] = useState({
+        isOpen: false,
+        title: 'مسح المستند عبر السكنر',
+        defaultFileName: 'مرفق ممسوح',
+    });
     
     
     
@@ -10598,6 +11013,26 @@ const AccountingApp = () => {
         }
         return true;
     }, [currentPage]);
+
+    const openScanner = useCallback(({ title, onCapture, defaultFileName } = {}) => {
+        scannerCaptureRef.current = typeof onCapture === 'function' ? onCapture : null;
+        setScannerConfig({
+            isOpen: true,
+            title: title || 'مسح المستند عبر السكنر',
+            defaultFileName: defaultFileName || 'مرفق ممسوح',
+        });
+    }, []);
+
+    const closeScanner = useCallback(() => {
+        scannerCaptureRef.current = null;
+        setScannerConfig(prev => ({ ...prev, isOpen: false }));
+    }, []);
+
+    const handleScannerCapture = useCallback((attachment) => {
+        if (scannerCaptureRef.current && attachment) {
+            scannerCaptureRef.current(attachment);
+        }
+    }, []);
 
     const performNavigation = useCallback((key, options = {}) => {
         const { preserveInitialExpenseState = false } = options;
@@ -11083,14 +11518,14 @@ const AccountingApp = () => {
     const navItems = [
         { key: 'dashboard', label: 'الرئيسية', icon: Home, component: DashboardComponent },
         { key: 'revenues', label: 'الإيرادات', icon: TrendingUp, component: DataPageComponent, props: { title: 'الإيرادات', type: 'revenue', collectionName: 'revenues', categories: data.settings.revenueCategories, fields: [{ key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'category', label: 'فئة الإيراد', type: 'select', required: true }, { key: 'description', label: 'الوصف/المصدر', type: 'textarea' }], handleRefresh } },
-        { key: 'expenses', label: 'الصرفيات', icon: TrendingDown, component: DataPageComponent, props: { title: 'الصرفيات', type: 'expense', collectionName: 'expenses', categories: data.settings.expenseCategories, fields: [{ key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'category', label: 'فئة المصروف', type: 'select', required: true }, { key: 'description', label: 'الوصف المفصل', type: 'textarea', required: true }], handleRefresh } },
+        { key: 'expenses', label: 'الصرفيات', icon: TrendingDown, component: DataPageComponent, props: { title: 'الصرفيات', type: 'expense', collectionName: 'expenses', categories: data.settings.expenseCategories, fields: [{ key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'category', label: 'فئة المصروف', type: 'select', required: true }, { key: 'description', label: 'الوصف المفصل', type: 'textarea', required: true }], handleRefresh, openScanner } },
         { key: 'advances', label: 'السلف', icon: Coins, component: DataPageComponent, props: { title: 'السلف', type: 'advance', collectionName: 'advances', categories: data.settings.advanceCategories, fields: [{ key: 'employeeName', label: 'الموظف المعني', type: 'select', required: true }, { key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'category', label: 'فئة السلفة', type: 'select', required: true }, { key: 'notes', label: 'ملاحظات', type: 'textarea' }], handleRefresh } },
         { key: 'suspended', label: 'المعلقة (قيد التسوية)', icon: RotateCcw, component: DataPageComponent, props: { title: 'المعلقة (قيد التسوية)', type: 'suspended', collectionName: 'suspended', fields: [{ key: 'recipientName', label: 'اسم المستلم', required: true }, { key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'notes', label: 'ملاحظات', type: 'textarea' }], handleRefresh } },
-        { key: 'debts', label: 'الديون', icon: FileText, component: DebtsPageComponent, props: { setInitialExpenseState, navigateWithGuards } },
-        { key: 'pendingExpenses', label: 'الصرفيات المعلقة', icon: Clock, component: PendingExpensesComponent, props: { handleRefresh, setCurrentPage, setInitialExpenseState } },
-        { key: 'employees', label: 'الموظفين', icon: Users, component: EmployeePageComponent, props: { handleRefresh } },
+        { key: 'debts', label: 'الديون', icon: FileText, component: DebtsPageComponent, props: { setInitialExpenseState, navigateWithGuards, openScanner } },
+        { key: 'pendingExpenses', label: 'الصرفيات المعلقة', icon: Clock, component: PendingExpensesComponent, props: { handleRefresh, setCurrentPage, setInitialExpenseState, openScanner } },
+        { key: 'employees', label: 'الموظفين', icon: Users, component: EmployeePageComponent, props: { handleRefresh, openScanner } },
         { key: 'payroll', label: 'الرواتب', icon: Calculator, component: PayrollPageComponent, props: { handleRefresh } },
-        { key: 'inventoryEntry', label: 'الإدخال المخزني', icon: ClipboardCheck, component: InventoryEntryComponent, props: { handleRefresh } },
+        { key: 'inventoryEntry', label: 'الإدخال المخزني', icon: ClipboardCheck, component: InventoryEntryComponent, props: { handleRefresh, openScanner } },
         { key: 'inventoryWithdrawal', label: 'الاستخراج المخزني', icon: LogOut, component: InventoryWithdrawalComponent, props: { handleRefresh, handleDelete, handleDataAction } },
         { key: 'inventory', label: 'المخزن والمواد', icon: Package, component: InventoryPageComponent, props: { handleRefresh, handleDataAction } },
         { key: 'settings', label: 'الإعدادات', icon: Settings, component: SettingsPage, props: { handleSettingsUpdate, registerLeaveGuard: registerSettingsLeaveGuard } },
@@ -11318,21 +11753,29 @@ const AccountingApp = () => {
             )}
             
             {/* Print Report Modal (for lists) */}
-            {isReportModalOpen && (
-                <PrintReportModal
-                    reportData={printReportData}
-                    title={CurrentComponent?.label || 'التقرير'}
-                    onClose={() => setIsReportModalOpen(false)}
-                    companyName={data.settings.companyName}
-                    companyLogoUrl={data.settings.companyLogoUrl}
-                />
-            )}
+            {isReportModalOpen && (
+                <PrintReportModal
+                    reportData={printReportData}
+                    title={CurrentComponent?.label || 'التقرير'}
+                    onClose={() => setIsReportModalOpen(false)}
+                    companyName={data.settings.companyName}
+                    companyLogoUrl={data.settings.companyLogoUrl}
+                />
+            )}
 
-            {/* About System Modal */}
+            <ScannerCaptureModal
+                isOpen={scannerConfig.isOpen}
+                title={scannerConfig.title}
+                defaultFileName={scannerConfig.defaultFileName}
+                onClose={closeScanner}
+                onCapture={handleScannerCapture}
+            />
+
+            {/* About System Modal */}
 
 
-            {/* Notification Toast */}
-            {toast.message && (
+            {/* Notification Toast */}
+            {toast.message && (
                 <NotificationToast
                     message={toast.message}
                     type={toast.type}
