@@ -265,6 +265,16 @@ const FILTER_CARD_THEMES = {
     }
 };
 
+const DEBT_TYPES = {
+    MANUAL: 'manual',
+    INVENTORY: 'inventoryCredit',
+};
+
+const DEBT_TYPE_LABELS = {
+    [DEBT_TYPES.MANUAL]: 'الديون السابقة',
+    [DEBT_TYPES.INVENTORY]: 'فواتير آجلة',
+};
+
 const mergeFilterThemes = (baseTheme, customTheme) => {
     if (!customTheme) {
         return baseTheme;
@@ -2239,7 +2249,21 @@ const DebtsPageComponent = React.memo(({ data, handleDataAction, handleDelete, s
     const [filterDateTo, setFilterDateTo] = useState(initialRange.end);
     const [filterCategory, setFilterCategory] = useState('الكل');
     const [globalSearch, setGlobalSearch] = useState('');
+    const [originFilter, setOriginFilter] = useState('all');
     const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
+
+    const resolveDebtType = useCallback((debt) => {
+        if (!debt) {
+            return DEBT_TYPES.MANUAL;
+        }
+        if (debt.debtType) {
+            return debt.debtType;
+        }
+        if (debt.linkedInvoiceId || debt.debtSource === DEBT_TYPES.INVENTORY || debt.source === DEBT_TYPES.INVENTORY) {
+            return DEBT_TYPES.INVENTORY;
+        }
+        return DEBT_TYPES.MANUAL;
+    }, []);
 
     const defaultForm = useMemo(() => ({
         companyName: data.settings.vendors[0] || '',
@@ -2305,7 +2329,7 @@ const DebtsPageComponent = React.memo(({ data, handleDataAction, handleDelete, s
         }
     }, [representativesForVendor, debtForm.vendorName]);
 
-    const filteredDebts = useMemo(() => {
+    const baseFilteredDebts = useMemo(() => {
         let list = debts.slice().sort((a, b) => new Date(b.updatedAt || b.date || 0) - new Date(a.updatedAt || a.date || 0));
 
         if (filterDateFrom) {
@@ -2354,6 +2378,34 @@ const DebtsPageComponent = React.memo(({ data, handleDataAction, handleDelete, s
         return list;
     }, [debts, filterDateFrom, filterDateTo, filterCategory, globalSearch]);
 
+    const sourceBreakdown = useMemo(() => {
+        const initial = {
+            [DEBT_TYPES.MANUAL]: { total: 0, remaining: 0, count: 0 },
+            [DEBT_TYPES.INVENTORY]: { total: 0, remaining: 0, count: 0 },
+        };
+
+        baseFilteredDebts.forEach(debt => {
+            const type = resolveDebtType(debt);
+            const total = normalizeAmount(debt.totalAmount ?? 0);
+            const remaining = normalizeAmount(debt.remainingAmount ?? total);
+            if (!initial[type]) {
+                initial[type] = { total: 0, remaining: 0, count: 0 };
+            }
+            initial[type].total += total;
+            initial[type].remaining += remaining;
+            initial[type].count += 1;
+        });
+
+        return initial;
+    }, [baseFilteredDebts, normalizeAmount, resolveDebtType]);
+
+    const filteredDebts = useMemo(() => {
+        if (originFilter === 'all') {
+            return baseFilteredDebts;
+        }
+        return baseFilteredDebts.filter(debt => resolveDebtType(debt) === originFilter);
+    }, [baseFilteredDebts, originFilter, resolveDebtType]);
+
     const categoryTotals = useMemo(() => {
         const totals = {};
         filteredDebts.forEach(debt => {
@@ -2391,7 +2443,20 @@ const DebtsPageComponent = React.memo(({ data, handleDataAction, handleDelete, s
         setFilterDateFrom(initialRange.start);
         setFilterDateTo(initialRange.end);
         setGlobalSearch('');
+        setOriginFilter('all');
     };
+
+    const handleOriginFilterToggle = (type) => {
+        setOriginFilter(prev => (prev === type ? 'all' : type));
+    };
+
+    const isOriginActive = (type) => originFilter === type;
+
+    const handleCategoryCardClick = (category) => {
+        setFilterCategory(prev => (prev === category ? 'الكل' : category));
+    };
+
+    const isCategoryActive = (category) => filterCategory === category;
 
     const handleAttachmentChange = (event) => {
         const file = event.target.files?.[0];
@@ -2436,6 +2501,9 @@ const DebtsPageComponent = React.memo(({ data, handleDataAction, handleDelete, s
 
         const remainingAmount = Math.max(0, totalAmountValue - totalPaid);
 
+        const debtType = editingDebt ? resolveDebtType(editingDebt) : DEBT_TYPES.MANUAL;
+        const createdAt = editingDebt?.createdAt || editingDebt?.date || getDefaultDateTime();
+
         const payload = {
             ...(editingDebt || {}),
             companyName: debtForm.companyName,
@@ -2448,7 +2516,9 @@ const DebtsPageComponent = React.memo(({ data, handleDataAction, handleDelete, s
             payments: existingPayments,
             status: remainingAmount <= 0 ? 'settled' : 'active',
             date: editingDebt?.date || getDefaultDateTime(),
+            createdAt,
             updatedAt: getDefaultDateTime(),
+            debtType,
         };
 
         handleDataAction('debts', payload, !editingDebt);
@@ -2578,7 +2648,7 @@ const DebtsPageComponent = React.memo(({ data, handleDataAction, handleDelete, s
                     <p className="text-sm md:text-base text-gray-500 dark:text-gray-400">متابعة الديون وتسجيل الدفعات وفق الصلاحيات.</p>
                 </div>
                 <div className="flex flex-wrap gap-2 justify-end">
-                    <ActionButton onClick={resetFilters} className="bg-gray-200 hover:bg-gray-300 text-gray-800" >
+                    <ActionButton onClick={resetFilters} className="bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-100" >
                         <RotateCcw className="w-5 h-5 ml-2" />
                         إظهار الكل
                     </ActionButton>
@@ -2589,7 +2659,7 @@ const DebtsPageComponent = React.memo(({ data, handleDataAction, handleDelete, s
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 <FilterStatCard
                     title="إجمالي الديون"
                     value={formatCurrencyDisplay(overviewTotals.totalAmount)}
@@ -2610,12 +2680,28 @@ const DebtsPageComponent = React.memo(({ data, handleDataAction, handleDelete, s
                     icon={AlertTriangle}
                     variant="warning"
                 />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
                 <FilterStatCard
-                    title="عدد السجلات"
-                    value={overviewTotals.count.toString()}
-                    subtitle="إجمالي الديون"
-                    icon={List}
-                    variant="info"
+                    title={DEBT_TYPE_LABELS[DEBT_TYPES.MANUAL]}
+                    value={formatCurrencyDisplay(sourceBreakdown[DEBT_TYPES.MANUAL]?.total || 0)}
+                    subtitle={`المتبقي: ${formatCurrencyDisplay(Math.max(sourceBreakdown[DEBT_TYPES.MANUAL]?.remaining || 0, 0))}`}
+                    meta={`عدد السجلات: ${sourceBreakdown[DEBT_TYPES.MANUAL]?.count || 0}`}
+                    icon={Briefcase}
+                    onClick={() => handleOriginFilterToggle(DEBT_TYPES.MANUAL)}
+                    active={isOriginActive(DEBT_TYPES.MANUAL)}
+                    themeKey="blue"
+                />
+                <FilterStatCard
+                    title={DEBT_TYPE_LABELS[DEBT_TYPES.INVENTORY]}
+                    value={formatCurrencyDisplay(sourceBreakdown[DEBT_TYPES.INVENTORY]?.total || 0)}
+                    subtitle={`المتبقي: ${formatCurrencyDisplay(Math.max(sourceBreakdown[DEBT_TYPES.INVENTORY]?.remaining || 0, 0))}`}
+                    meta={`عدد السجلات: ${sourceBreakdown[DEBT_TYPES.INVENTORY]?.count || 0}`}
+                    icon={Truck}
+                    onClick={() => handleOriginFilterToggle(DEBT_TYPES.INVENTORY)}
+                    active={isOriginActive(DEBT_TYPES.INVENTORY)}
+                    themeKey="emerald"
                 />
             </div>
 
@@ -2628,7 +2714,9 @@ const DebtsPageComponent = React.memo(({ data, handleDataAction, handleDelete, s
                             value={formatCurrencyDisplay(item.total)}
                             subtitle="مبالغ متبقية"
                             icon={FolderOpen}
-                            variant="muted"
+                            onClick={() => handleCategoryCardClick(item.category)}
+                            active={isCategoryActive(item.category)}
+                            themeKey="gray"
                         />
                     ))}
                 </div>
@@ -5951,16 +6039,62 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
         let updatedInvoice;
         if (isCreditApproval) {
             // اعتماد آجل (تحديث المخزون فقط، تغيير الحالة لـ CreditApproved)
-            updatedInvoice = { ...invoice, status: 'CreditApproved', inventoryApplied: true };
+            const parseAmount = (value) => {
+                const normalized = convertArabicToEnglish((value ?? '').toString());
+                const cleaned = normalized.replace(/[^0-9.]/g, '');
+                const numeric = parseFloat(cleaned);
+                return Number.isFinite(numeric) ? numeric : 0;
+            };
+
+            const invoiceTotalValue = parseAmount(invoice.totalAmount ?? 0);
+            const debtsList = Array.isArray(data.debts) ? data.debts : [];
+            const existingDebt = debtsList.find(debt => debt.linkedInvoiceId === invoice.id);
+            const existingPayments = Array.isArray(existingDebt?.payments) ? existingDebt.payments : [];
+            const paymentsTotal = existingPayments.reduce((sum, payment) => sum + parseAmount(payment.amount), 0);
+            const remainingAmount = Math.max(0, invoiceTotalValue - paymentsTotal);
+
+            const debtRecord = {
+                ...(existingDebt || {}),
+                id: existingDebt?.id || crypto.randomUUID(),
+                companyName: invoice.vendor || existingDebt?.companyName || '',
+                vendorName: invoice.representative || existingDebt?.vendorName || '',
+                category: invoice.expenseCategory || existingDebt?.category || '',
+                totalAmount: invoiceTotalValue,
+                remainingAmount,
+                description: invoice.notes || existingDebt?.description || '',
+                attachmentUrl: invoice.invoiceImageUrl || existingDebt?.attachmentUrl || '',
+                payments: existingPayments,
+                status: remainingAmount <= 0 ? 'settled' : 'active',
+                date: existingDebt?.date || invoice.date || getDefaultDateTime(),
+                createdAt: existingDebt?.createdAt || invoice.date || getDefaultDateTime(),
+                updatedAt: getDefaultDateTime(),
+                debtType: DEBT_TYPES.INVENTORY,
+                linkedInvoiceId: invoice.id,
+                sourceInvoiceNumber: invoice.invoiceNumber || existingDebt?.sourceInvoiceNumber || '',
+            };
+
+            handleDataAction('debts', debtRecord, !existingDebt, false, { bypassPermissions: true, silent: true });
+
+            updatedInvoice = {
+                ...invoice,
+                status: 'CreditApproved',
+                inventoryApplied: true,
+                linkedDebtId: debtRecord.id,
+                debtType: DEBT_TYPES.INVENTORY,
+            };
+
             handleDataAction('pendingInvoices', updatedInvoice, false);
             handleDataAction('inventory', updatedInventory, true, true);
             setIsDetailsModalOpen(false);
             setStatusFilter(prev => Array.isArray(prev) ? [...prev.filter(s => s !== 'Pending'), 'CreditApproved'] : ['CreditApproved']); // تحديث الفلتر فورا
             showToast(`تم اعتماد الفاتورة #${invoice.invoiceNumber} كـ **آجل** وإضافة المواد للمخزون.`, 'success');
-            return;
-        }
+            return;
+        }
         
         // 3. تسجيلها كمصروف وتغيير حالتها إلى "مصروفة" (كاش أو صرف الآجل)
+        const linkedDebtId = invoice.linkedDebtId || (Array.isArray(data.debts) ? data.debts.find(debt => debt.linkedInvoiceId === invoice.id)?.id : null);
+        const linkedDebtPaymentId = linkedDebtId ? crypto.randomUUID() : null;
+
         const expenseRecord = {
             id: crypto.randomUUID(),
             type: 'expense',
@@ -5975,6 +6109,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
             notes: invoice.notes || '',
             invoiceImageUrl: invoice.invoiceImageUrl || '',
             inventoryItems: invoice.items,
+            ...(linkedDebtId ? { linkedDebtId, linkedDebtPaymentId } : {}),
         };
 
         // 4. إرسال بيانات المصروف إلى صفحة المصروفات وفتح المودال هناك
@@ -6041,11 +6176,20 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
             cancelledInvoice.linkedRecordId = null;
         }
 
-        handleDataAction('pendingInvoices', cancelledInvoice, false); // تعديل السجل بدلاً من حذفه
-        setIsCancelModalOpen(false);
-        setCurrentInvoice(null); 
-        setCancellationReason('');
-        
+        if (invoice.linkedDebtId) {
+            handleDelete('debts', invoice.linkedDebtId, false, true);
+        } else {
+            const relatedDebt = Array.isArray(data.debts) ? data.debts.find(debt => debt.linkedInvoiceId === invoice.id) : null;
+            if (relatedDebt) {
+                handleDelete('debts', relatedDebt.id, false, true);
+            }
+        }
+
+        handleDataAction('pendingInvoices', cancelledInvoice, false); // تعديل السجل بدلاً من حذفه
+        setIsCancelModalOpen(false);
+        setCurrentInvoice(null);
+        setCancellationReason('');
+
         // **الإصلاح الجذري 1:** تحديث الفلتر مباشرة بعد الإلغاء
         setStatusFilter(prev => Array.isArray(prev) ? [...prev.filter(s => s !== invoice.status), 'Cancelled'] : ['Cancelled']);
         setGlobalSearch(''); 
@@ -9840,19 +9984,20 @@ const AccountingApp = () => {
         return draftData;
     };
 
-    const handleDataAction = (collectionName, item, isNew, overwrite = false) => {
+    const handleDataAction = (collectionName, item, isNew, overwrite = false, options = {}) => {
+        const { bypassPermissions = false, silent = false } = options;
         // **دعم التحديث الشامل للبيانات**
         if (collectionName === '___FULL_DATA_UPDATE___') {
             saveData(item); // item هنا يحتوي على كل البيانات
             setRefreshKey(prev => prev + 1);
             return;
         }
-        
+
         // فحص صلاحيات الإضافة/التعديل
         const permissionKey = navItems.find(i => i.key === collectionName)?.key;
         const requiredAction = isNew ? 'add' : 'edit';
 
-        if (permissionKey && !currentUser?.permissions[permissionKey]?.[requiredAction]) {
+        if (!bypassPermissions && permissionKey && !currentUser?.permissions[permissionKey]?.[requiredAction]) {
             showToast(`ليس لديك صلاحية ${isNew ? 'إضافة' : 'تعديل'} سجلات في قسم ${navItems.find(i => i.key === collectionName)?.label}.`, 'error');
             return;
         }
@@ -9875,11 +10020,12 @@ const AccountingApp = () => {
             newItemRef = newItem;
 
             if (collectionName !== 'inventory') {
-                showToast(`تم إضافة السجل بنجاح!`, 'success');
-
-                // تسجيل النشاط
                 const moduleName = navItems.find(i => i.key === collectionName)?.label || collectionName;
                 logActivity("إضافة", moduleName, `${item.description || item.amount || item.name || "سجل جديد"}`);
+
+                if (!silent) {
+                    showToast(`تم إضافة السجل بنجاح!`, 'success');
+                }
             }
 
             if (collectionName === 'inventory' && !newItem.purchaseHistory) {
@@ -9902,7 +10048,9 @@ const AccountingApp = () => {
                 const moduleName = navItems.find(i => i.key === collectionName)?.label || collectionName;
                 logActivity("تعديل", moduleName, `${item.description || item.amount || item.name || "سجل"}`);
 
-                showToast(`تم تعديل السجل بنجاح!`, 'success');
+                if (!silent) {
+                    showToast(`تم تعديل السجل بنجاح!`, 'success');
+                }
 
                 if (collectionName === 'expenses' || collectionName === 'pendingExpenses') {
                     newData = adjustDebtWithLinkedRecord(newData, item, 'update', previousItem, collectionName);
