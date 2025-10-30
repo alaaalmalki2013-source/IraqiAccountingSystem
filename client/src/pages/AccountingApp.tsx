@@ -1347,6 +1347,8 @@ const DataPageComponent = React.memo(({ 
                 representative: initialDispatch.representative,
                 invoiceImageUrl: initialDispatch.invoiceImageUrl,
                 inventoryItems: initialDispatch.inventoryItems,
+                linkedDebtId: initialDispatch.linkedDebtId,
+                linkedDebtPaymentId: initialDispatch.linkedDebtPaymentId,
             };
         }
 
@@ -2220,6 +2222,731 @@ const DataPageComponent = React.memo(({ 
 
 
 
+
+
+/**
+ * 3.2.b DebtsPage Component (إدارة الديون)
+ */
+const DebtsPageComponent = React.memo(({ data, handleDataAction, handleDelete, showToast, setInitialExpenseState, navigateWithGuards, currentUser }) => {
+    const initialRange = useMemo(() => getCurrentMonthRange(), []);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+    const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+    const [editingDebt, setEditingDebt] = useState(null);
+    const [activeDebt, setActiveDebt] = useState(null);
+    const [paymentAmount, setPaymentAmount] = useState('');
+    const [filterDateFrom, setFilterDateFrom] = useState(initialRange.start);
+    const [filterDateTo, setFilterDateTo] = useState(initialRange.end);
+    const [filterCategory, setFilterCategory] = useState('الكل');
+    const [globalSearch, setGlobalSearch] = useState('');
+    const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
+
+    const defaultForm = useMemo(() => ({
+        companyName: data.settings.vendors[0] || '',
+        vendorName: '',
+        category: data.settings.expenseCategories[0] || '',
+        totalAmount: '',
+        description: '',
+        attachmentUrl: '',
+    }), [data.settings.vendors, data.settings.expenseCategories]);
+
+    const [debtForm, setDebtForm] = useState(defaultForm);
+
+    const canAddDebt = !!currentUser?.permissions?.debts?.add;
+    const canEditDebt = !!currentUser?.permissions?.debts?.edit;
+    const canDeleteDebt = !!currentUser?.permissions?.debts?.delete;
+    const canPayDebt = !!currentUser?.permissions?.debts?.pay;
+
+    useEffect(() => {
+        if (editingDebt) {
+            setDebtForm({
+                companyName: editingDebt.companyName || defaultForm.companyName,
+                vendorName: editingDebt.vendorName || '',
+                category: editingDebt.category || defaultForm.category,
+                totalAmount: editingDebt.totalAmount?.toString() || editingDebt.totalAmount || '',
+                description: editingDebt.description || '',
+                attachmentUrl: editingDebt.attachmentUrl || '',
+            });
+        } else {
+            setDebtForm(defaultForm);
+        }
+    }, [editingDebt, defaultForm]);
+
+    const normalizeAmount = useCallback((value) => {
+        const normalized = convertArabicToEnglish((value ?? '').toString());
+        const cleaned = normalized.replace(/[^0-9.]/g, '');
+        const numeric = parseFloat(cleaned);
+        return Number.isFinite(numeric) ? numeric : 0;
+    }, []);
+
+    const debts = useMemo(() => Array.isArray(data.debts) ? data.debts : [], [data.debts]);
+
+    const representativesForVendor = useMemo(() => {
+        return data.settings.representatives.filter(rep => rep.vendor === debtForm.companyName);
+    }, [data.settings.representatives, debtForm.companyName]);
+
+    useEffect(() => {
+        if (!debtForm.companyName && data.settings.vendors[0]) {
+            setDebtForm(prev => ({ ...prev, companyName: data.settings.vendors[0] }));
+        }
+    }, [data.settings.vendors, debtForm.companyName]);
+
+    useEffect(() => {
+        if (representativesForVendor.length === 0 && debtForm.vendorName) {
+            setDebtForm(prev => ({ ...prev, vendorName: '' }));
+            return;
+        }
+
+        if (representativesForVendor.length > 0) {
+            const hasMatch = representativesForVendor.some(rep => rep.name === debtForm.vendorName);
+            if (!hasMatch) {
+                setDebtForm(prev => ({ ...prev, vendorName: representativesForVendor[0].name }));
+            }
+        }
+    }, [representativesForVendor, debtForm.vendorName]);
+
+    const filteredDebts = useMemo(() => {
+        let list = debts.slice().sort((a, b) => new Date(b.updatedAt || b.date || 0) - new Date(a.updatedAt || a.date || 0));
+
+        if (filterDateFrom) {
+            list = list.filter(item => {
+                const recordDate = (item.date || item.createdAt || '').slice(0, 10);
+                return recordDate ? recordDate >= filterDateFrom : true;
+            });
+        }
+
+        if (filterDateTo) {
+            list = list.filter(item => {
+                const recordDate = (item.date || item.createdAt || '').slice(0, 10);
+                return recordDate ? recordDate <= filterDateTo : true;
+            });
+        }
+
+        if (filterCategory !== 'الكل') {
+            list = list.filter(item => (item.category || '') === filterCategory);
+        }
+
+        if (globalSearch) {
+            const searchLower = normalizeTextForSearch(globalSearch);
+            const numericSearch = normalizeTextForSearch(globalSearch, true);
+            const hasTextSearch = searchLower.length > 0;
+            const hasNumericSearch = numericSearch.length > 0;
+
+            list = list.filter(item => {
+                let textMatch = false;
+                if (hasTextSearch) {
+                    const matchesCompany = item.companyName && normalizeTextForSearch(item.companyName).includes(searchLower);
+                    const matchesVendor = item.vendorName && normalizeTextForSearch(item.vendorName).includes(searchLower);
+                    const matchesCategory = item.category && normalizeTextForSearch(item.category).includes(searchLower);
+                    const matchesDescription = item.description && normalizeTextForSearch(item.description).includes(searchLower);
+                    textMatch = matchesCompany || matchesVendor || matchesCategory || matchesDescription;
+                }
+
+                const numericMatch = hasNumericSearch ? (
+                    (!!item.totalAmount && normalizeTextForSearch(item.totalAmount.toString(), true).includes(numericSearch)) ||
+                    (!!item.remainingAmount && normalizeTextForSearch(item.remainingAmount.toString(), true).includes(numericSearch))
+                ) : false;
+
+                return textMatch || numericMatch;
+            });
+        }
+
+        return list;
+    }, [debts, filterDateFrom, filterDateTo, filterCategory, globalSearch]);
+
+    const categoryTotals = useMemo(() => {
+        const totals = {};
+        filteredDebts.forEach(debt => {
+            const key = debt.category || 'غير مصنف';
+            totals[key] = (totals[key] || 0) + normalizeAmount(debt.remainingAmount ?? debt.totalAmount ?? 0);
+        });
+        return Object.entries(totals).map(([category, total]) => ({ category, total }));
+    }, [filteredDebts, normalizeAmount]);
+
+    const overviewTotals = useMemo(() => {
+        return filteredDebts.reduce((acc, debt) => {
+            const total = normalizeAmount(debt.totalAmount ?? 0);
+            const remaining = normalizeAmount(debt.remainingAmount ?? total);
+            acc.totalAmount += total;
+            acc.totalRemaining += remaining;
+            acc.count += 1;
+            return acc;
+        }, { totalAmount: 0, totalRemaining: 0, count: 0 });
+    }, [filteredDebts, normalizeAmount]);
+
+    const totalPaidValue = overviewTotals.totalAmount - overviewTotals.totalRemaining;
+
+    const {
+        paginatedItems: paginatedDebts,
+        totalItems: totalFilteredDebts,
+        pageSize: debtsPageSize,
+        currentPage: debtsCurrentPage,
+        totalPages: debtsTotalPages,
+        changePageSize: changeDebtsPageSize,
+        goToPage: goToDebtsPage,
+    } = usePagination(filteredDebts);
+
+    const resetFilters = () => {
+        setFilterCategory('الكل');
+        setFilterDateFrom(initialRange.start);
+        setFilterDateTo(initialRange.end);
+        setGlobalSearch('');
+    };
+
+    const handleAttachmentChange = (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            setDebtForm(prev => ({ ...prev, attachmentUrl: e.target?.result || '' }));
+            showToast('تم تحميل الملف بنجاح.', 'success');
+        };
+        reader.onerror = () => {
+            showToast('تعذّر قراءة الملف. يرجى المحاولة مرة أخرى.', 'error');
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const handleDebtSubmit = (e) => {
+        e.preventDefault();
+
+        if (!debtForm.companyName) {
+            showToast('يرجى اختيار اسم الشركة.', 'error');
+            return;
+        }
+
+        const totalAmountValue = normalizeAmount(debtForm.totalAmount);
+        if (totalAmountValue <= 0) {
+            showToast('يرجى إدخال مبلغ إجمالي صحيح.', 'error');
+            return;
+        }
+
+        const existingPayments = Array.isArray(editingDebt?.payments) ? editingDebt.payments : [];
+        const totalPaid = existingPayments.reduce((sum, payment) => sum + normalizeAmount(payment.amount), 0);
+        if (!editingDebt && totalPaid > 0) {
+            showToast('لا يمكن إدخال دفعات مسبقة لدين جديد.', 'error');
+            return;
+        }
+
+        if (totalPaid > totalAmountValue) {
+            showToast('إجمالي الدفعات أكبر من المبلغ الكلي للدين.', 'error');
+            return;
+        }
+
+        const remainingAmount = Math.max(0, totalAmountValue - totalPaid);
+
+        const payload = {
+            ...(editingDebt || {}),
+            companyName: debtForm.companyName,
+            vendorName: debtForm.vendorName,
+            category: debtForm.category,
+            totalAmount: totalAmountValue,
+            remainingAmount,
+            description: debtForm.description,
+            attachmentUrl: debtForm.attachmentUrl || '',
+            payments: existingPayments,
+            status: remainingAmount <= 0 ? 'settled' : 'active',
+            date: editingDebt?.date || getDefaultDateTime(),
+            updatedAt: getDefaultDateTime(),
+        };
+
+        handleDataAction('debts', payload, !editingDebt);
+        setIsModalOpen(false);
+        setEditingDebt(null);
+    };
+
+    const openNewDebtModal = () => {
+        if (!canAddDebt) {
+            showToast('لا تملك صلاحية إضافة دين جديد.', 'error');
+            return;
+        }
+        setEditingDebt(null);
+        setIsModalOpen(true);
+    };
+
+    const openEditModal = (debt) => {
+        if (!canEditDebt) {
+            showToast('لا تملك صلاحية تعديل هذا الدين.', 'error');
+            return;
+        }
+        setEditingDebt(debt);
+        setIsModalOpen(true);
+    };
+
+    const openDetailsModal = (debt) => {
+        setActiveDebt(debt);
+        setIsDetailsModalOpen(true);
+    };
+
+    const openPaymentModal = (debt) => {
+        if (!canPayDebt) {
+            showToast('لا تملك صلاحية تسجيل دفعة.', 'error');
+            return;
+        }
+        setActiveDebt(debt);
+        setPaymentAmount('');
+        setIsPaymentModalOpen(true);
+    };
+
+    const handleDeleteDebt = (debt) => {
+        if (!canDeleteDebt) {
+            showToast('لا تملك صلاحية حذف الدين.', 'error');
+            return;
+        }
+        handleDelete('debts', debt.id);
+        setIsDetailsModalOpen(false);
+    };
+
+    const handlePaymentSubmit = (e) => {
+        e.preventDefault();
+        if (!activeDebt) return;
+
+        const amountValue = normalizeAmount(paymentAmount);
+        if (amountValue <= 0) {
+            showToast('يرجى إدخال مبلغ دفعة صالح.', 'error');
+            return;
+        }
+
+        const remaining = normalizeAmount(activeDebt.remainingAmount ?? activeDebt.totalAmount ?? 0);
+        if (amountValue > remaining) {
+            showToast('لا يمكن أن تتجاوز الدفعة المبلغ المتبقي.', 'error');
+            return;
+        }
+
+        const canDirectExpense = !!currentUser?.permissions?.expenses?.add && !!currentUser?.permissions?.expenses?.view;
+        const canPendingExpense = !!currentUser?.permissions?.pendingExpenses?.add && !!currentUser?.permissions?.pendingExpenses?.view;
+
+        if (!canDirectExpense && !canPendingExpense) {
+            showToast('لا تملك صلاحية تسجيل الدفعة كمصروف.', 'error');
+            return;
+        }
+
+        const paymentId = crypto.randomUUID();
+        const targetCollection = canDirectExpense ? 'expenses' : 'pendingExpenses';
+        const expenseDraft = {
+            id: paymentId,
+            type: 'expense',
+            status: 'pending',
+            date: getDefaultDateTime(),
+            amount: amountValue.toString(),
+            category: activeDebt.category || data.settings.expenseCategories[0] || '',
+            description: `دفعة على دين ${activeDebt.companyName}`,
+            vendor: activeDebt.vendorName || '',
+            representative: '',
+            notes: activeDebt.description || '',
+            invoiceImageUrl: activeDebt.attachmentUrl || '',
+            linkedDebtId: activeDebt.id,
+            linkedDebtPaymentId: paymentId,
+        };
+
+        const navigated = navigateWithGuards(targetCollection, { preserveInitialExpenseState: true });
+        if (!navigated) {
+            return;
+        }
+
+        setInitialExpenseState(expenseDraft);
+        setIsPaymentModalOpen(false);
+        setIsDetailsModalOpen(false);
+
+        showToast(
+            canDirectExpense
+                ? 'تم تجهيز بيانات الدفعة. يرجى اعتمادها من صفحة الصرفيات.'
+                : 'تم تجهيز بيانات الدفعة. يرجى اعتمادها من صفحة الصرفيات المعلقة.',
+            'info'
+        );
+    };
+
+    return (
+        <div className="space-y-6">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl md:text-3xl font-extrabold text-gray-800 dark:text-gray-100">إدارة الديون</h1>
+                    <p className="text-sm md:text-base text-gray-500 dark:text-gray-400">متابعة الديون وتسجيل الدفعات وفق الصلاحيات.</p>
+                </div>
+                <div className="flex flex-wrap gap-2 justify-end">
+                    <ActionButton onClick={resetFilters} className="bg-gray-200 hover:bg-gray-300 text-gray-800" >
+                        <RotateCcw className="w-5 h-5 ml-2" />
+                        إظهار الكل
+                    </ActionButton>
+                    <ActionButton onClick={openNewDebtModal} disabled={!canAddDebt}>
+                        <Plus className="w-5 h-5 ml-2" />
+                        إضافة دين
+                    </ActionButton>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                <FilterStatCard
+                    title="إجمالي الديون"
+                    value={formatCurrencyDisplay(overviewTotals.totalAmount)}
+                    subtitle="القيمة الكلية"
+                    icon={FileText}
+                />
+                <FilterStatCard
+                    title="إجمالي المدفوع"
+                    value={formatCurrencyDisplay(Math.max(totalPaidValue, 0))}
+                    subtitle="مجموع الدفعات"
+                    icon={DollarSign}
+                    variant="success"
+                />
+                <FilterStatCard
+                    title="المتبقي"
+                    value={formatCurrencyDisplay(Math.max(overviewTotals.totalRemaining, 0))}
+                    subtitle="مبالغ لم تُسدّد"
+                    icon={AlertTriangle}
+                    variant="warning"
+                />
+                <FilterStatCard
+                    title="عدد السجلات"
+                    value={overviewTotals.count.toString()}
+                    subtitle="إجمالي الديون"
+                    icon={List}
+                    variant="info"
+                />
+            </div>
+
+            {categoryTotals.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {categoryTotals.map(item => (
+                        <FilterStatCard
+                            key={item.category}
+                            title={item.category}
+                            value={formatCurrencyDisplay(item.total)}
+                            subtitle="مبالغ متبقية"
+                            icon={FolderOpen}
+                            variant="muted"
+                        />
+                    ))}
+                </div>
+            )}
+
+            <div className="grid grid-cols-1 xl:grid-cols-4 gap-4 items-end">
+                <div className="flex flex-col space-y-1">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">من تاريخ</label>
+                    <input
+                        type="date"
+                        value={filterDateFrom}
+                        onChange={(e) => setFilterDateFrom(e.target.value)}
+                        className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                    />
+                </div>
+                <div className="flex flex-col space-y-1">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">إلى تاريخ</label>
+                    <input
+                        type="date"
+                        value={filterDateTo}
+                        onChange={(e) => setFilterDateTo(e.target.value)}
+                        className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                    />
+                </div>
+                <div className="flex flex-col space-y-1">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">الفئة</label>
+                    <select
+                        value={filterCategory}
+                        onChange={(e) => setFilterCategory(e.target.value)}
+                        className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                    >
+                        <option value="الكل">الكل</option>
+                        {data.settings.expenseCategories.map(category => (
+                            <option key={category} value={category}>{category}</option>
+                        ))}
+                    </select>
+                </div>
+                <div className="flex flex-col space-y-1">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">بحث</label>
+                    <div className="relative">
+                        <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+                        <input
+                            type="text"
+                            placeholder="ابحث باسم الشركة، المورد أو المبلغ"
+                            value={globalSearch}
+                            onChange={(e) => setGlobalSearch(e.target.value)}
+                            className="w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                        />
+                    </div>
+                </div>
+            </div>
+
+            <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                        <thead className="bg-gradient-to-l from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">
+                            <tr>
+                                <th className="px-6 py-3 text-right text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">الشركة</th>
+                                <th className="px-6 py-3 text-right text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">المورد</th>
+                                <th className="px-6 py-3 text-right text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">الفئة</th>
+                                <th className="px-6 py-3 text-right text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">المبلغ الكلي</th>
+                                <th className="px-6 py-3 text-right text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">المتبقي</th>
+                                <th className="px-6 py-3 text-right text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">آخر تحديث</th>
+                                <th className="px-6 py-3 text-right text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                            {paginatedDebts.map(debt => {
+                                const remaining = normalizeAmount(debt.remainingAmount ?? debt.totalAmount ?? 0);
+                                const total = normalizeAmount(debt.totalAmount ?? 0);
+                                const lastUpdate = formatDateTimeDDMMYYYY(debt.updatedAt || debt.date || getDefaultDateTime());
+                                return (
+                                    <tr key={debt.id} className="hover:bg-amber-50 dark:hover:bg-amber-900/30 transition" onClick={() => openDetailsModal(debt)}>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-gray-100">{debt.companyName || 'غير محدد'}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{debt.vendorName || '---'}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{debt.category || '---'}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{formatCurrencyDisplay(total)}</td>
+                                        <td className={`px-6 py-4 whitespace-nowrap text-sm font-bold ${remaining > 0 ? 'text-amber-600 dark:text-amber-300' : 'text-green-600 dark:text-green-300'}`}>{formatCurrencyDisplay(remaining)}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">{lastUpdate}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                                            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                                <button
+                                                    onClick={() => openDetailsModal(debt)}
+                                                    className="px-3 py-1 rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-200"
+                                                >
+                                                    عرض
+                                                </button>
+                                                <button
+                                                    onClick={() => openPaymentModal(debt)}
+                                                    disabled={!canPayDebt}
+                                                    className={`px-3 py-1 rounded-lg ${canPayDebt ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-200' : 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400 cursor-not-allowed'}`}
+                                                >
+                                                    إعطاء دفعة
+                                                </button>
+                                                <button
+                                                    onClick={() => openEditModal(debt)}
+                                                    disabled={!canEditDebt}
+                                                    className={`p-2 rounded-lg ${canEditDebt ? 'text-amber-600 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-900/30' : 'text-gray-400 cursor-not-allowed'}`}
+                                                >
+                                                    <Edit className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteDebt(debt)}
+                                                    disabled={!canDeleteDebt}
+                                                    className={`p-2 rounded-lg ${canDeleteDebt ? 'text-red-600 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-900/30' : 'text-gray-400 cursor-not-allowed'}`}
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                            {paginatedDebts.length === 0 && (
+                                <tr>
+                                    <td colSpan={7} className="px-6 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+                                        لا توجد سجلات مطابقة للبحث المحدد.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+                <div className="px-4">
+                    <PaginationControls
+                        pageSize={debtsPageSize}
+                        onPageSizeChange={changeDebtsPageSize}
+                        currentPage={debtsCurrentPage}
+                        totalPages={debtsTotalPages}
+                        onPageChange={goToDebtsPage}
+                        totalItems={totalFilteredDebts}
+                    />
+                </div>
+            </div>
+
+            {isModalOpen && (
+                <Modal title={editingDebt ? 'تعديل الدين' : 'إضافة دين جديد'} onClose={() => { setIsModalOpen(false); setEditingDebt(null); }}>
+                    <form onSubmit={handleDebtSubmit} className="space-y-5">
+                        <div className="flex flex-col space-y-1 text-right">
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">اسم الشركة</label>
+                            <select
+                                value={debtForm.companyName}
+                                onChange={(e) => setDebtForm(prev => ({ ...prev, companyName: e.target.value }))}
+                                required
+                                className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                            >
+                                <option value="" disabled>اختر الشركة</option>
+                                {data.settings.vendors.map(vendor => (
+                                    <option key={vendor} value={vendor}>{vendor}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="flex flex-col space-y-1 text-right">
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">اسم المورد</label>
+                            <select
+                                value={debtForm.vendorName}
+                                onChange={(e) => setDebtForm(prev => ({ ...prev, vendorName: e.target.value }))}
+                                className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                            >
+                                <option value="">لا يوجد</option>
+                                {representativesForVendor.map(rep => (
+                                    <option key={rep.name} value={rep.name}>{rep.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="flex flex-col space-y-1 text-right">
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">الصنف</label>
+                            <select
+                                value={debtForm.category}
+                                onChange={(e) => setDebtForm(prev => ({ ...prev, category: e.target.value }))}
+                                required
+                                className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                            >
+                                {data.settings.expenseCategories.map(category => (
+                                    <option key={category} value={category}>{category}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <InputField
+                            label="المبلغ الكلي"
+                            type="number"
+                            value={debtForm.totalAmount}
+                            onChange={(e) => setDebtForm(prev => ({ ...prev, totalAmount: e.target.value }))}
+                            required
+                        />
+                        <InputField
+                            label="التفاصيل"
+                            textarea
+                            value={debtForm.description}
+                            onChange={(e) => setDebtForm(prev => ({ ...prev, description: e.target.value }))}
+                            placeholder="أدخل تفاصيل الدين أو شروطه"
+                        />
+                        <div className="flex flex-col space-y-1 text-right">
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">رفع ملف مرفق</label>
+                            <input
+                                type="file"
+                                accept="image/*,application/pdf"
+                                onChange={handleAttachmentChange}
+                                className="w-full p-2 border border-dashed border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                            />
+                            {debtForm.attachmentUrl && (
+                                <button type="button" className="text-sm text-blue-600 dark:text-blue-300 underline" onClick={() => setImagePreviewUrl(debtForm.attachmentUrl)}>
+                                    معاينة المرفق
+                                </button>
+                            )}
+                        </div>
+                        <ActionButton type="submit" className="w-full">
+                            <Save className="w-5 h-5 ml-2" />
+                            حفظ
+                        </ActionButton>
+                    </form>
+                </Modal>
+            )}
+
+            {isDetailsModalOpen && activeDebt && (
+                <Modal title={`تفاصيل دين ${activeDebt.companyName || ''}`} onClose={() => setIsDetailsModalOpen(false)} size="xl">
+                    <div className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="p-4 rounded-2xl bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700">
+                                <p className="text-sm text-blue-800 dark:text-blue-200">المبلغ الكلي</p>
+                                <p className="text-xl font-bold text-blue-900 dark:text-blue-100">{formatCurrencyDisplay(normalizeAmount(activeDebt.totalAmount ?? 0))}</p>
+                            </div>
+                            <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-600">
+                                <p className="text-sm text-amber-800 dark:text-amber-200">المتبقي</p>
+                                <p className="text-xl font-bold text-amber-900 dark:text-amber-100">{formatCurrencyDisplay(normalizeAmount(activeDebt.remainingAmount ?? activeDebt.totalAmount ?? 0))}</p>
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <p className="text-sm text-gray-600 dark:text-gray-300">التفاصيل:</p>
+                            <p className="text-base text-gray-800 dark:text-gray-200 whitespace-pre-line">{activeDebt.description || 'لا توجد تفاصيل إضافية.'}</p>
+                        </div>
+
+                        {activeDebt.attachmentUrl && (
+                            <div className="space-y-2">
+                                <p className="text-sm text-gray-600 dark:text-gray-300">المرفقات:</p>
+                                <button
+                                    onClick={() => setImagePreviewUrl(activeDebt.attachmentUrl)}
+                                    className="px-4 py-2 rounded-xl bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-200"
+                                >
+                                    عرض المرفق
+                                </button>
+                            </div>
+                        )}
+
+                        <div className="flex flex-wrap gap-3">
+                            <ActionButton onClick={() => openPaymentModal(activeDebt)} disabled={!canPayDebt} className="bg-green-600 hover:bg-green-700">
+                                <Coins className="w-5 h-5 ml-2" />
+                                إعطاء دفعة
+                            </ActionButton>
+                            <ActionButton onClick={() => openEditModal(activeDebt)} disabled={!canEditDebt} className="bg-amber-500 hover:bg-amber-600">
+                                <Edit2 className="w-5 h-5 ml-2" />
+                                تعديل
+                            </ActionButton>
+                            <ActionButton onClick={() => handleDeleteDebt(activeDebt)} disabled={!canDeleteDebt} className="bg-red-600 hover:bg-red-700">
+                                <Trash2 className="w-5 h-5 ml-2" />
+                                حذف
+                            </ActionButton>
+                        </div>
+
+                        <div>
+                            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3">سجل الدفعات</h3>
+                            <div className="space-y-3">
+                                {Array.isArray(activeDebt.payments) && activeDebt.payments.length > 0 ? (
+                                    activeDebt.payments
+                                        .slice()
+                                        .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+                                        .map(payment => (
+                                            <div key={payment.id} className="p-4 rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60">
+                                                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                                                    <div>
+                                                        <p className="text-sm text-gray-500 dark:text-gray-400">تاريخ الدفع</p>
+                                                        <p className="text-base font-semibold text-gray-800 dark:text-gray-200">{formatDateTimeDDMMYYYY(payment.date || getDefaultDateTime())}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm text-gray-500 dark:text-gray-400">المبلغ المدفوع</p>
+                                                        <p className="text-base font-semibold text-green-700 dark:text-green-300">{formatCurrencyDisplay(normalizeAmount(payment.amount))}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm text-gray-500 dark:text-gray-400">المتبقي بعد الدفع</p>
+                                                        <p className="text-base font-semibold text-amber-600 dark:text-amber-300">{formatCurrencyDisplay(normalizeAmount(payment.remainingAfter ?? activeDebt.remainingAmount ?? 0))}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))
+                                ) : (
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">لم يتم تسجيل أي دفعات لهذا الدين بعد.</p>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </Modal>
+            )}
+
+            {isPaymentModalOpen && activeDebt && (
+                <Modal title={`تسجيل دفعة على دين ${activeDebt.companyName || ''}`} onClose={() => setIsPaymentModalOpen(false)}>
+                    <form onSubmit={handlePaymentSubmit} className="space-y-5">
+                        <p className="text-sm text-gray-600 dark:text-gray-300">
+                            المتبقي الحالي: <span className="font-semibold text-amber-600 dark:text-amber-300">{formatCurrencyDisplay(normalizeAmount(activeDebt.remainingAmount ?? activeDebt.totalAmount ?? 0))}</span>
+                        </p>
+                        <InputField
+                            label="مبلغ الدفعة"
+                            type="number"
+                            value={paymentAmount}
+                            onChange={(e) => setPaymentAmount(e.target.value)}
+                            required
+                        />
+                        <ActionButton type="submit" className="w-full">
+                            <Save className="w-5 h-5 ml-2" />
+                            إضافة الدفعة
+                        </ActionButton>
+                    </form>
+                </Modal>
+            )}
+
+            {imagePreviewUrl && (
+                <Modal title="معاينة المرفق" onClose={() => setImagePreviewUrl(null)} size="xl">
+                    <div className="flex justify-center">
+                        <img
+                            src={imagePreviewUrl}
+                            alt="Debt Attachment"
+                            className="max-h-[70vh] w-auto rounded-xl border border-gray-200 dark:border-gray-700"
+                            onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = 'https://placehold.co/600x400/1f2937/fff?text=Attachment'; }}
+                        />
+                    </div>
+                </Modal>
+            )}
+        </div>
+    );
+});
+
 /**
  * 3.3. PendingExpenses Component - الصرفيات المعلقة
  */
@@ -2286,7 +3013,9 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                 inventoryItems: [],
                 linkedInvoiceId: null,
                 fromInventoryEntry: false,
-                invoiceNumber: ''
+                invoiceNumber: '',
+                linkedDebtId: '',
+                linkedDebtPaymentId: ''
             });
             setSelectedVendor('');
         }
@@ -2311,7 +3040,9 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                 inventoryItems: initialExpenseState.inventoryItems || [],
                 linkedInvoiceId: initialExpenseState.linkedInvoiceId || null,
                 fromInventoryEntry: initialExpenseState.fromInventoryEntry || false,
-                invoiceNumber: initialExpenseState.invoiceNumber || ''
+                invoiceNumber: initialExpenseState.invoiceNumber || '',
+                linkedDebtId: initialExpenseState.linkedDebtId || '',
+                linkedDebtPaymentId: initialExpenseState.linkedDebtPaymentId || ''
             });
             setSelectedVendor(initialExpenseState.vendor || '');
             setCurrentItem(null);
@@ -8922,6 +9653,14 @@ const AccountingApp = () => {
         setIsSidebarOpen(false);
     }, [pendingInventoryAction]);
 
+    const navigateWithGuards = useCallback((key, options = {}) => {
+        if (!ensureSettingsCanLeave(key)) {
+            return false;
+        }
+        performNavigation(key, options);
+        return true;
+    }, [ensureSettingsCanLeave, performNavigation]);
+
 
     // دالة تحديث الحالة العامة (لحل مشكلة التحديث الفوري)
     const handleRefresh = useCallback(() => {
@@ -8999,6 +9738,95 @@ const AccountingApp = () => {
         return draftData;
     };
 
+    const parseAmountValue = (value) => {
+        const normalized = convertArabicToEnglish((value ?? '').toString());
+        const cleaned = normalized.replace(/[^0-9.]/g, '');
+        const numeric = parseFloat(cleaned);
+        return Number.isFinite(numeric) ? numeric : 0;
+    };
+
+    const adjustDebtWithLinkedRecord = (draftData, record, actionType, previousRecord, collectionName) => {
+        if (!record?.linkedDebtId) {
+            return draftData;
+        }
+
+        const debtsList = Array.isArray(draftData.debts) ? [...draftData.debts] : [];
+        const debtIndex = debtsList.findIndex(debt => debt.id === record.linkedDebtId);
+        if (debtIndex === -1) {
+            return draftData;
+        }
+
+        const debt = debtsList[debtIndex] || {};
+        const payments = Array.isArray(debt.payments) ? [...debt.payments] : [];
+        const paymentId = record.linkedDebtPaymentId || record.id;
+        const baseTotal = parseAmountValue(debt.totalAmount ?? 0);
+
+        if (actionType === 'delete') {
+            const filteredPayments = payments.filter(payment => payment.id !== paymentId);
+            const totalPaid = filteredPayments.reduce((sum, payment) => sum + parseAmountValue(payment.amount), 0);
+            const remaining = Math.max(0, baseTotal - totalPaid);
+            const sortedPayments = filteredPayments.slice().sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+            debtsList[debtIndex] = {
+                ...debt,
+                payments: sortedPayments,
+                remainingAmount: remaining,
+                status: remaining <= 0 ? 'settled' : 'active',
+                lastPaymentDate: sortedPayments[0]?.date || null,
+                updatedAt: getDefaultDateTime(),
+            };
+            draftData.debts = debtsList;
+            return draftData;
+        }
+
+        const previousAmount = previousRecord?.linkedDebtId === record.linkedDebtId ? parseAmountValue(previousRecord.amount) : 0;
+        const existingIndex = payments.findIndex(payment => payment.id === paymentId);
+        const totalPaidExcluding = payments.reduce((sum, payment, idx) => {
+            if (idx === existingIndex) return sum;
+            return sum + parseAmountValue(payment.amount);
+        }, 0);
+
+        const amount = parseAmountValue(record.amount ?? previousAmount);
+        const remainingAfter = Math.max(0, baseTotal - (totalPaidExcluding + amount));
+        const paymentDate = record.date || getDefaultDateTime();
+
+        const updatedPayment = {
+            ...(existingIndex !== -1 ? payments[existingIndex] : {}),
+            id: paymentId,
+            amount,
+            date: paymentDate,
+            recordCollection: collectionName,
+            recordId: record.id,
+            description: record.description || '',
+            remainingAfter,
+        };
+
+        if (record.invoiceImageUrl) {
+            updatedPayment.invoiceImageUrl = record.invoiceImageUrl;
+        }
+
+        if (existingIndex !== -1) {
+            payments[existingIndex] = updatedPayment;
+        } else {
+            payments.push(updatedPayment);
+        }
+
+        const sortedPayments = payments.slice().sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+        const totalPaid = sortedPayments.reduce((sum, payment) => sum + parseAmountValue(payment.amount), 0);
+        const remaining = Math.max(0, baseTotal - totalPaid);
+
+        debtsList[debtIndex] = {
+            ...debt,
+            payments: sortedPayments,
+            remainingAmount: remaining,
+            status: remaining <= 0 ? 'settled' : 'active',
+            lastPaymentDate: sortedPayments[0]?.date || paymentDate,
+            updatedAt: getDefaultDateTime(),
+        };
+
+        draftData.debts = debtsList;
+        return draftData;
+    };
+
     const handleDataAction = (collectionName, item, isNew, overwrite = false) => {
         // **دعم التحديث الشامل للبيانات**
         if (collectionName === '___FULL_DATA_UPDATE___') {
@@ -9027,7 +9855,7 @@ const AccountingApp = () => {
             const newItem = {
                 ...item,
                 id: item.id || crypto.randomUUID(),
-                ...(collectionName !== 'inventory' && collectionName !== 'inventoryWithdrawals' ? { invoiceNumber: generateInvoiceNumber() } : {})
+                ...(collectionName !== 'inventory' && collectionName !== 'inventoryWithdrawals' && collectionName !== 'debts' ? { invoiceNumber: generateInvoiceNumber() } : {})
             };
             collection.push(newItem);
             newData[collectionName] = collection;
@@ -9045,18 +9873,27 @@ const AccountingApp = () => {
                 newItem.purchaseHistory = [];
             }
             setInitialExpenseState(null);
+
+            if (collectionName === 'expenses' || collectionName === 'pendingExpenses') {
+                newData = adjustDebtWithLinkedRecord(newData, newItem, 'create', null, collectionName);
+            }
         } else {
             // تعديل سجل موجود
             const index = collection.findIndex(i => i.id === item.id);
             if (index !== -1) {
+                const previousItem = collection[index];
                 collection[index] = item;
                 newData[collectionName] = collection;
-                
+
                 // تسجيل النشاط
                 const moduleName = navItems.find(i => i.key === collectionName)?.label || collectionName;
                 logActivity("تعديل", moduleName, `${item.description || item.amount || item.name || "سجل"}`);
 
                 showToast(`تم تعديل السجل بنجاح!`, 'success');
+
+                if (collectionName === 'expenses' || collectionName === 'pendingExpenses') {
+                    newData = adjustDebtWithLinkedRecord(newData, item, 'update', previousItem, collectionName);
+                }
             } else if (collectionName === 'pendingInvoices' && item.status) {
                  const existingIndex = collection.findIndex(i => i.id === item.id);
                  if (existingIndex !== -1) {
@@ -9160,10 +9997,14 @@ const AccountingApp = () => {
         const deletedItem = data[collectionName]?.find(item => item.id === id);
         logActivity("حذف", moduleName, `${deletedItem?.description || deletedItem?.amount || deletedItem?.name || "سجل"}`);
 
+        if ((collectionName === 'expenses' || collectionName === 'pendingExpenses') && deletedItem?.linkedDebtId) {
+            newData = adjustDebtWithLinkedRecord(newData, deletedItem, 'delete', null, collectionName);
+        }
 
-        if (showMessage) {
-           showToast('تم حذف السجل بنجاح.', 'warning');
-        }
+
+        if (showMessage) {
+           showToast('تم حذف السجل بنجاح.', 'warning');
+        }
         
         saveData(newData);
         setRefreshKey(prev => prev + 1); // تحديث فوري بعد الحذف
@@ -9276,7 +10117,8 @@ const AccountingApp = () => {
         { key: 'revenues', label: 'الإيرادات', icon: TrendingUp, component: DataPageComponent, props: { title: 'الإيرادات', type: 'revenue', collectionName: 'revenues', categories: data.settings.revenueCategories, fields: [{ key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'category', label: 'فئة الإيراد', type: 'select', required: true }, { key: 'description', label: 'الوصف/المصدر', type: 'textarea' }], handleRefresh } },
         { key: 'expenses', label: 'الصرفيات', icon: TrendingDown, component: DataPageComponent, props: { title: 'الصرفيات', type: 'expense', collectionName: 'expenses', categories: data.settings.expenseCategories, fields: [{ key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'category', label: 'فئة المصروف', type: 'select', required: true }, { key: 'description', label: 'الوصف المفصل', type: 'textarea', required: true }], handleRefresh } },
         { key: 'advances', label: 'السلف', icon: Coins, component: DataPageComponent, props: { title: 'السلف', type: 'advance', collectionName: 'advances', categories: data.settings.advanceCategories, fields: [{ key: 'employeeName', label: 'الموظف المعني', type: 'select', required: true }, { key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'category', label: 'فئة السلفة', type: 'select', required: true }, { key: 'notes', label: 'ملاحظات', type: 'textarea' }], handleRefresh } },
-        { key: 'suspended', label: 'المعلقة (قيد التسوية)', icon: RotateCcw, component: DataPageComponent, props: { title: 'المعلقة (قيد التسوية)', type: 'suspended', collectionName: 'suspended', fields: [{ key: 'recipientName', label: 'اسم المستلم', required: true }, { key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'notes', label: 'ملاحظات', type: 'textarea' }], handleRefresh } },
+        { key: 'suspended', label: 'المعلقة (قيد التسوية)', icon: RotateCcw, component: DataPageComponent, props: { title: 'المعلقة (قيد التسوية)', type: 'suspended', collectionName: 'suspended', fields: [{ key: 'recipientName', label: 'اسم المستلم', required: true }, { key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'notes', label: 'ملاحظات', type: 'textarea' }], handleRefresh } },
+        { key: 'debts', label: 'الديون', icon: FileText, component: DebtsPageComponent, props: { setInitialExpenseState, navigateWithGuards } },
         { key: 'pendingExpenses', label: 'الصرفيات المعلقة', icon: Clock, component: PendingExpensesComponent, props: { handleRefresh, setCurrentPage, setInitialExpenseState } },
         { key: 'employees', label: 'الموظفين', icon: Users, component: EmployeePageComponent, props: { handleRefresh } },
         { key: 'payroll', label: 'الرواتب', icon: Calculator, component: PayrollPageComponent, props: { handleRefresh } },
