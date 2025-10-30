@@ -7284,15 +7284,22 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
             };
 
             const invoiceTotalValue = parseAmount(invoice.totalAmount ?? 0);
-            const debtsList = Array.isArray(data.debts) ? data.debts : [];
-            const existingDebt = debtsList.find(debt => debt.linkedInvoiceId === invoice.id);
+            const debtsList = Array.isArray(data.debts)
+                ? data.debts.map(debt => ({
+                    ...debt,
+                    payments: Array.isArray(debt.payments) ? debt.payments.map(payment => ({ ...payment })) : [],
+                }))
+                : [];
+            const existingDebtIndex = debtsList.findIndex(debt => debt.linkedInvoiceId === invoice.id);
+            const existingDebt = existingDebtIndex !== -1 ? debtsList[existingDebtIndex] : undefined;
             const existingPayments = Array.isArray(existingDebt?.payments) ? existingDebt.payments : [];
             const paymentsTotal = existingPayments.reduce((sum, payment) => sum + parseAmount(payment.amount), 0);
             const remainingAmount = Math.max(0, invoiceTotalValue - paymentsTotal);
+            const debtId = existingDebt?.id || crypto.randomUUID();
 
             const debtRecord = {
                 ...(existingDebt || {}),
-                id: existingDebt?.id || crypto.randomUUID(),
+                id: debtId,
                 companyName: invoice.vendor || existingDebt?.companyName || '',
                 vendorName: invoice.representative || existingDebt?.vendorName || '',
                 category: invoice.expenseCategory || existingDebt?.category || '',
@@ -7310,19 +7317,59 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                 sourceInvoiceNumber: invoice.invoiceNumber || existingDebt?.sourceInvoiceNumber || '',
             };
 
-            handleDataAction('debts', debtRecord, !existingDebt, false, { bypassPermissions: true, silent: true });
+            if (existingDebtIndex !== -1) {
+                debtsList[existingDebtIndex] = debtRecord;
+            } else {
+                debtsList.push(debtRecord);
+            }
 
-            updatedInvoice = {
+            const updatedInvoice = {
                 ...invoice,
                 status: 'CreditApproved',
                 inventoryApplied: true,
-                linkedDebtId: debtRecord.id,
+                linkedDebtId: debtId,
                 debtType: DEBT_TYPES.INVENTORY,
             };
 
-            handleDataAction('pendingInvoices', updatedInvoice, false);
-            handleDataAction('inventory', updatedInventory, true, true);
+            const pendingInvoicesList = Array.isArray(data.pendingInvoices)
+                ? data.pendingInvoices.map(inv => (inv.id === invoice.id ? { ...updatedInvoice } : { ...inv }))
+                : [];
+
+            if (!pendingInvoicesList.some(inv => inv.id === invoice.id)) {
+                pendingInvoicesList.push({ ...updatedInvoice });
+            }
+
+            const existingActivityLog = Array.isArray(data.activityLog) ? data.activityLog.slice() : [];
+            const nowTimestamp = new Date().toISOString();
+            const username = currentUser?.username || 'المستخدم';
+            const debtLogEntry = {
+                id: crypto.randomUUID(),
+                timestamp: nowTimestamp,
+                username,
+                action: existingDebt ? 'تعديل' : 'إضافة',
+                module: 'الديون',
+                details: `فاتورة #${invoice.invoiceNumber || invoice.id} للمورد ${invoice.vendor || '---'}`,
+            };
+            const inventoryLogEntry = {
+                id: crypto.randomUUID(),
+                timestamp: nowTimestamp,
+                username,
+                action: 'تعديل',
+                module: 'الإدخال المخزني',
+                details: `اعتماد فاتورة الإدخال كـ آجل للمورد ${invoice.vendor || '---'}`,
+            };
+            const updatedActivityLog = [debtLogEntry, inventoryLogEntry, ...existingActivityLog].slice(0, 500);
+
+            handleDataAction('___FULL_DATA_UPDATE___', {
+                ...data,
+                debts: debtsList,
+                pendingInvoices: pendingInvoicesList,
+                inventory: updatedInventory,
+                activityLog: updatedActivityLog,
+            });
+
             setIsDetailsModalOpen(false);
+            setCurrentInvoice(null);
             setStatusFilter(prev => Array.isArray(prev) ? [...prev.filter(s => s !== 'Pending'), 'CreditApproved'] : ['CreditApproved']); // تحديث الفلتر فورا
             showToast(`تم اعتماد الفاتورة #${invoice.invoiceNumber} كـ **آجل** وإضافة المواد للمخزون.`, 'success');
             return;
