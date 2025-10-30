@@ -100,6 +100,106 @@ import { useLanguage } from '../contexts/LanguageContext';
 // 2. المكونات الأساسية (UI PRIMITIVES)
 // =================================================================
 
+const generateClientSideId = () => {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+        return crypto.randomUUID();
+    }
+    return `att_${Math.random().toString(16).slice(2)}_${Date.now()}`;
+};
+
+const ensureAttachmentShape = (attachment, fallbackName = 'مرفق') => {
+    if (!attachment) {
+        return null;
+    }
+
+    const dataUrl = attachment.dataUrl || attachment.url || attachment.attachmentUrl || attachment.src || '';
+    if (!dataUrl) {
+        return null;
+    }
+
+    const inferredType = attachment.type || (dataUrl.startsWith('data:') ? dataUrl.slice(5, dataUrl.indexOf(';')) : '');
+
+    return {
+        id: attachment.id || generateClientSideId(),
+        name: attachment.name || attachment.fileName || fallbackName,
+        type: inferredType,
+        size: attachment.size || 0,
+        dataUrl,
+        uploadedAt: attachment.uploadedAt || new Date().toISOString(),
+    };
+};
+
+const normalizeAttachmentList = (source, fallbackUrl = '', fallbackName = 'مرفق') => {
+    if (!source && !fallbackUrl) {
+        return [];
+    }
+
+    let normalized = [];
+
+    if (Array.isArray(source)) {
+        normalized = source
+            .map(item => ensureAttachmentShape(item, item?.name || fallbackName))
+            .filter(Boolean);
+    } else if (source && typeof source === 'object') {
+        const ensured = ensureAttachmentShape(source, source?.name || fallbackName);
+        if (ensured) {
+            normalized = [ensured];
+        }
+    }
+
+    if (normalized.length === 0 && fallbackUrl) {
+        const ensured = ensureAttachmentShape({ dataUrl: fallbackUrl, name: fallbackName });
+        if (ensured) {
+            normalized = [ensured];
+        }
+    }
+
+    return normalized;
+};
+
+const getPrimaryAttachmentDataUrl = (attachments = []) => {
+    if (!Array.isArray(attachments) || attachments.length === 0) {
+        return '';
+    }
+
+    const primary = attachments.find(att => att && (att.dataUrl || att.url || att.attachmentUrl));
+    if (!primary) {
+        return '';
+    }
+
+    return primary.dataUrl || primary.url || primary.attachmentUrl || '';
+};
+
+const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        resolve(event?.target?.result || '');
+    };
+    reader.onerror = () => reject(new Error('failed_to_read_file'));
+    reader.readAsDataURL(file);
+});
+
+const createAttachmentFromFile = async (file) => {
+    const dataUrl = await readFileAsDataUrl(file);
+    return ensureAttachmentShape({
+        id: generateClientSideId(),
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        dataUrl,
+        uploadedAt: new Date().toISOString(),
+    });
+};
+
+const isImageAttachment = (attachment) => {
+    if (!attachment) {
+        return false;
+    }
+    const type = attachment.type || '';
+    const dataUrl = attachment.dataUrl || attachment.url || attachment.attachmentUrl || '';
+    return (type && type.startsWith('image')) || /^data:image\//.test(dataUrl);
+};
+
 // مكون التنبيه المنبثق
 const NotificationToast = React.memo(({ message, type, onClose }) => {
     const isSuccess = type === 'success';
@@ -1334,7 +1434,8 @@ const DataPageComponent = React.memo(({ 
         const base = 2; // التاريخ + الإجراءات
         const vendorColumn = collectionName === 'expenses' ? 1 : 0;
         const invoiceColumn = collectionName !== 'revenues' ? 1 : 0;
-        return fields.length + base + vendorColumn + invoiceColumn;
+        const attachmentsColumn = collectionName === 'expenses' ? 1 : 0;
+        return fields.length + base + vendorColumn + invoiceColumn + attachmentsColumn;
     }, [fields.length, collectionName]);
     
     // دالة تهيئة النماذج لتبسيط useEffect
@@ -1364,19 +1465,47 @@ const DataPageComponent = React.memo(({ 
 
         const baseId = item?.id || initialDispatch?.id || baseState?.id || null;
 
+        if (collectionName === 'expenses') {
+            const attachments = normalizeAttachmentList(
+                item?.attachments || initialDispatch?.attachments,
+                item?.invoiceImageUrl || initialDispatch?.invoiceImageUrl,
+                'مرفق'
+            );
+
+            baseState = {
+                ...baseState,
+                attachments,
+                invoiceImageUrl: getPrimaryAttachmentDataUrl(attachments) || baseState.invoiceImageUrl || '',
+            };
+        } else {
+            baseState = {
+                ...baseState,
+                attachments: normalizeAttachmentList(item?.attachments, item?.invoiceImageUrl, 'مرفق'),
+            };
+        }
+
         return {
             ...baseState,
             id: baseId,
         };
     }, [fields, collectionName, data.employees]);
 
-    const [formState, setFormState] = useState(() => getInitialFormState(currentItem, initialExpenseState));
-    const [selectedVendor, setSelectedVendor] = useState(collectionName === 'expenses' && formState.vendor ? formState.vendor : '');
+    const [formState, setFormState] = useState(() => getInitialFormState(currentItem, initialExpenseState));
+    const [selectedVendor, setSelectedVendor] = useState(collectionName === 'expenses' && formState.vendor ? formState.vendor : '');
+    const attachmentsList = Array.isArray(formState.attachments) ? formState.attachments : [];
+    const [previewAttachment, setPreviewAttachment] = useState(null);
+    const [previewZoomed, setPreviewZoomed] = useState(false);
 
-    // إعادة تهيئة FormState عند تغيير currentItem أو initialExpenseState
-    useEffect(() => {
-        setFormState(getInitialFormState(currentItem, initialExpenseState));
-        if (collectionName === 'expenses') {
+    useEffect(() => {
+        if (previewAttachment) {
+            setPreviewZoomed(false);
+        }
+    }, [previewAttachment]);
+
+    // إعادة تهيئة FormState عند تغيير currentItem أو initialExpenseState
+    useEffect(() => {
+        setFormState(getInitialFormState(currentItem, initialExpenseState));
+        if (collectionName === 'expenses') {
             setSelectedVendor(currentItem?.vendor || initialExpenseState?.vendor || '');
         }
     }, [currentItem, initialExpenseState, getInitialFormState, collectionName]);
@@ -1541,21 +1670,30 @@ const DataPageComponent = React.memo(({ 
     } = usePagination(filteredList);
 
 
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        
-        let itemToSave = collectionName === 'expenses' ? {
-            ...formState,
-            vendor: selectedVendor,
-            // Pass inventory items only if present (i.e., this came from dispatch flow)
-            inventoryItems: formState.inventoryItems || [],
-        } : formState;
-        
-        // تحقق إضافي لحقول المصروفات
+    const handleSubmit = (e) => {
+        e.preventDefault();
+
+        let itemToSave = collectionName === 'expenses' ? {
+            ...formState,
+            vendor: selectedVendor,
+            // Pass inventory items only if present (i.e., this came from dispatch flow)
+            inventoryItems: formState.inventoryItems || [],
+        } : formState;
+
+        if (collectionName === 'expenses') {
+            const normalizedAttachments = normalizeAttachmentList(itemToSave.attachments, itemToSave.invoiceImageUrl, 'مرفق');
+            itemToSave = {
+                ...itemToSave,
+                attachments: normalizedAttachments,
+                invoiceImageUrl: getPrimaryAttachmentDataUrl(normalizedAttachments),
+            };
+        }
+
+        // تحقق إضافي لحقول المصروفات
         if (collectionName === 'expenses' && itemToSave.vendor && !itemToSave.representative) {
             showToast('يجب اختيار المندوب عند اختيار المورد.', 'error');
-            return;
-        }
+            return;
+        }
 
 
         handleDataAction(collectionName, itemToSave, !currentItem);
@@ -1574,18 +1712,77 @@ const DataPageComponent = React.memo(({ 
         setIsModalOpen(true);
     };
     
-    const handlePrint = (item) => {
-        setPrintItem({ 
-            ...item, 
-            collectionName, 
-            employeeName: item.employeeId ? data.employees.find(e => e.id === item.employeeId)?.name : null
-        });
-    };
-    
-    const handlePrintAll = () => {
-        if (filteredList.length === 0) {
-             showToast('لا توجد بيانات لطباعة التقرير.', "error");
-             return;
+    const handlePrint = (item) => {
+        setPrintItem({
+            ...item,
+            collectionName,
+            employeeName: item.employeeId ? data.employees.find(e => e.id === item.employeeId)?.name : null
+        });
+    };
+
+    const handleAttachmentsUpload = async (event) => {
+        if (collectionName !== 'expenses') {
+            return;
+        }
+
+        const files = Array.from(event.target.files || []);
+        if (files.length === 0) {
+            return;
+        }
+
+        try {
+            const newAttachments = await Promise.all(files.map(createAttachmentFromFile));
+            setFormState(prev => {
+                const existing = Array.isArray(prev.attachments) ? prev.attachments : [];
+                const updated = [...existing, ...newAttachments];
+                return {
+                    ...prev,
+                    attachments: updated,
+                    invoiceImageUrl: getPrimaryAttachmentDataUrl(updated),
+                };
+            });
+            showToast('تم تحميل المرفقات بنجاح.', 'success');
+        } catch (error) {
+            console.error('Failed to upload attachments', error);
+            showToast('تعذر تحميل المرفقات. يرجى المحاولة مرة أخرى.', 'error');
+        } finally {
+            event.target.value = '';
+        }
+    };
+
+    const removeAttachment = (attachmentId) => {
+        if (collectionName !== 'expenses') {
+            return;
+        }
+        setFormState(prev => {
+            const existing = Array.isArray(prev.attachments) ? prev.attachments : [];
+            const updated = existing.filter(att => att.id !== attachmentId);
+            return {
+                ...prev,
+                attachments: updated,
+                invoiceImageUrl: getPrimaryAttachmentDataUrl(updated),
+            };
+        });
+    };
+
+    const handleAttachmentPreview = (attachment) => {
+        if (!attachment) {
+            return;
+        }
+        if (isImageAttachment(attachment)) {
+            setPreviewAttachment(attachment);
+        } else {
+            const newWindow = window.open(attachment.dataUrl || attachment.url || attachment.attachmentUrl, '_blank');
+            if (!newWindow) {
+                showToast('يرجى السماح بالنوافذ المنبثقة لعرض المستند.', 'warning');
+            }
+        }
+    };
+
+    const handlePrintAll = () => {
+        if (filteredList.length === 0) {
+             showToast('لا توجد بيانات لطباعة التقرير.', "error");
+             return;
         }
         const exportContent = filteredList.map(item => {
             const baseItem = {
@@ -1934,6 +2131,9 @@ const DataPageComponent = React.memo(({ 
                             {collectionName !== 'revenues' && (
                                 <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">رقم الفاتورة</th>
                             )}
+                            {collectionName === 'expenses' && (
+                                <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">المرفقات</th>
+                            )}
                             <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">الإجراءات</th>
                         </tr>
                     </thead>
@@ -1987,6 +2187,31 @@ const DataPageComponent = React.memo(({ 
                                     )}
                                     {collectionName !== 'revenues' && (
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300 font-mono">{highlightText(item.invoiceNumber || 'N/A', globalSearch)}</td>
+                                    )}
+                                    {collectionName === 'expenses' && (
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm" onClick={(e) => e.stopPropagation()}>
+                                            {(() => {
+                                                const attachments = normalizeAttachmentList(item.attachments, item.invoiceImageUrl, 'مرفق');
+                                                if (attachments.length === 0) {
+                                                    return <span className="text-gray-400 dark:text-gray-500 text-xs">لا توجد</span>;
+                                                }
+
+                                                return (
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {attachments.map(attachment => (
+                                                            <button
+                                                                key={attachment.id}
+                                                                type="button"
+                                                                onClick={() => handleAttachmentPreview(attachment)}
+                                                                className="px-3 py-1 rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800/60 text-xs font-semibold transition"
+                                                            >
+                                                                {attachment.name || 'مرفق'}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                );
+                                            })()}
+                                        </td>
                                     )}
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium" onClick={(e) => e.stopPropagation()}>
                                         <div className="flex space-x-3 space-x-reverse">
@@ -2237,7 +2462,7 @@ const DataPageComponent = React.memo(({ 
 /**
  * 3.2.b DebtsPage Component (إدارة الديون)
  */
-const DebtsPageComponent = React.memo(({ data, handleDataAction, handleDelete, showToast, setInitialExpenseState, navigateWithGuards, currentUser }) => {
+const DebtsPageComponent = React.memo(({ data, handleDataAction, handleDelete, showToast, setInitialExpenseState, navigateWithGuards, currentUser, handleRefresh }) => {
     const initialRange = useMemo(() => getCurrentMonthRange(), []);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
@@ -2276,10 +2501,110 @@ const DebtsPageComponent = React.memo(({ data, handleDataAction, handleDelete, s
 
     const [debtForm, setDebtForm] = useState(defaultForm);
 
+    const importInputRef = useRef(null);
+
     const canAddDebt = !!currentUser?.permissions?.debts?.add;
     const canEditDebt = !!currentUser?.permissions?.debts?.edit;
     const canDeleteDebt = !!currentUser?.permissions?.debts?.delete;
     const canPayDebt = !!currentUser?.permissions?.debts?.pay;
+
+    const handlePrintDebts = useCallback(() => {
+        window.print();
+    }, []);
+
+    const handleExportDebts = useCallback(() => {
+        if (filteredDebts.length === 0) {
+            showToast('لا توجد بيانات للتصدير.', 'error');
+            return;
+        }
+
+        const exportRows = filteredDebts.map(debt => ({
+            'اسم الشركة': debt.companyName || '---',
+            'اسم المورد': debt.vendorName || '---',
+            'الفئة': debt.category || '---',
+            'المبلغ الكلي': normalizeAmount(debt.totalAmount ?? 0),
+            'المتبقي': normalizeAmount(debt.remainingAmount ?? debt.totalAmount ?? 0),
+            'آخر تحديث': formatDateTimeDDMMYYYY(debt.updatedAt || debt.date || getDefaultDateTime()),
+        }));
+
+        exportToCsv(exportRows, `تقرير_الديون_${new Date().toISOString().slice(0, 10)}`);
+        showToast('تم تصدير الديون بنجاح.', 'success');
+    }, [filteredDebts, normalizeAmount, showToast]);
+
+    const triggerImportDialog = () => {
+        importInputRef.current?.click();
+    };
+
+    const handleImportDebts = async (event) => {
+        const file = event.target.files?.[0];
+        if (!file) {
+            return;
+        }
+
+        try {
+            const buffer = await file.arrayBuffer();
+            const workbook = XLSX.read(buffer, { type: 'array' });
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const rows = XLSX.utils.sheet_to_json(sheet);
+
+            if (!Array.isArray(rows) || rows.length === 0) {
+                showToast('الملف لا يحتوي على بيانات صالحة.', 'error');
+                event.target.value = '';
+                return;
+            }
+
+            let addedCount = 0;
+
+            rows.forEach((row, index) => {
+                const companyName = row['اسم الشركة'] || row['الشركة'] || row['Company'] || '';
+                const vendorName = row['اسم المورد'] || row['المورد'] || row['Vendor'] || '';
+                const category = row['الفئة'] || row['Category'] || '';
+                const totalAmountRaw = row['المبلغ الكلي'] || row['Total'] || row['TotalAmount'] || '';
+                const remainingRaw = row['المتبقي'] || row['Remaining'] || '';
+                const description = row['التفاصيل'] || row['الوصف'] || row['Description'] || '';
+
+                if (!companyName || !totalAmountRaw) {
+                    return;
+                }
+
+                const totalAmountValue = normalizeAmount(totalAmountRaw);
+                const remainingAmountValue = remainingRaw ? normalizeAmount(remainingRaw) : totalAmountValue;
+
+                if (Number.isNaN(totalAmountValue) || totalAmountValue <= 0) {
+                    return;
+                }
+
+                const payload = {
+                    companyName,
+                    vendorName,
+                    category: category || data.settings.expenseCategories[0] || '',
+                    totalAmount: totalAmountValue,
+                    remainingAmount: Math.max(0, remainingAmountValue),
+                    description,
+                    payments: [],
+                    status: remainingAmountValue <= 0 ? 'settled' : 'active',
+                    date: getDefaultDateTime(),
+                    createdAt: getDefaultDateTime(),
+                    updatedAt: getDefaultDateTime(),
+                    debtType: DEBT_TYPES.MANUAL,
+                };
+
+                handleDataAction('debts', payload, true, false, { silent: addedCount > 0 });
+                addedCount += 1;
+            });
+
+            if (addedCount === 0) {
+                showToast('لم يتم العثور على سجلات ديون صالحة في الملف.', 'warning');
+            } else {
+                showToast(`تم استيراد ${addedCount} من سجلات الديون بنجاح.`, 'success');
+            }
+        } catch (error) {
+            console.error('Debt import failed', error);
+            showToast('تعذّر قراءة ملف الديون. يرجى التحقق من التنسيق.', 'error');
+        } finally {
+            event.target.value = '';
+        }
+    };
 
     useEffect(() => {
         if (editingDebt) {
@@ -2438,13 +2763,20 @@ const DebtsPageComponent = React.memo(({ data, handleDataAction, handleDelete, s
         goToPage: goToDebtsPage,
     } = usePagination(filteredDebts);
 
-    const resetFilters = () => {
+    const resetFilters = useCallback(() => {
         setFilterCategory('الكل');
         setFilterDateFrom(initialRange.start);
         setFilterDateTo(initialRange.end);
         setGlobalSearch('');
         setOriginFilter('all');
-    };
+    }, [initialRange]);
+
+    const handleToolbarRefresh = useCallback(() => {
+        if (typeof handleRefresh === 'function') {
+            handleRefresh();
+        }
+        resetFilters();
+    }, [handleRefresh, resetFilters]);
 
     const handleOriginFilterToggle = (type) => {
         setOriginFilter(prev => (prev === type ? 'all' : type));
@@ -2647,16 +2979,6 @@ const DebtsPageComponent = React.memo(({ data, handleDataAction, handleDelete, s
                     <h1 className="text-2xl md:text-3xl font-extrabold text-gray-800 dark:text-gray-100">إدارة الديون</h1>
                     <p className="text-sm md:text-base text-gray-500 dark:text-gray-400">متابعة الديون وتسجيل الدفعات وفق الصلاحيات.</p>
                 </div>
-                <div className="flex flex-wrap gap-2 justify-end">
-                    <ActionButton onClick={resetFilters} className="bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-100" >
-                        <RotateCcw className="w-5 h-5 ml-2" />
-                        إظهار الكل
-                    </ActionButton>
-                    <ActionButton onClick={openNewDebtModal} disabled={!canAddDebt}>
-                        <Plus className="w-5 h-5 ml-2" />
-                        إضافة دين
-                    </ActionButton>
-                </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -2766,6 +3088,59 @@ const DebtsPageComponent = React.memo(({ data, handleDataAction, handleDelete, s
                             className="w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                         />
                     </div>
+                </div>
+            </div>
+
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 py-2">
+                <div className="flex flex-wrap items-center gap-2 order-2 md:order-1">
+                    <button
+                        type="button"
+                        onClick={handleToolbarRefresh}
+                        className="p-2 rounded-full bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 transition"
+                        title="تحديث"
+                    >
+                        <RotateCcw className="w-5 h-5" />
+                    </button>
+                    <button
+                        type="button"
+                        onClick={handlePrintDebts}
+                        className="p-2 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white transition"
+                        title="طباعة"
+                    >
+                        <Printer className="w-5 h-5" />
+                    </button>
+                    <button
+                        type="button"
+                        onClick={triggerImportDialog}
+                        className="p-2 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white transition"
+                        title="استيراد"
+                    >
+                        <Upload className="w-5 h-5" />
+                    </button>
+                    <button
+                        type="button"
+                        onClick={handleExportDebts}
+                        className="p-2 rounded-full bg-amber-500 hover:bg-amber-600 text-white transition"
+                        title="تصدير"
+                    >
+                        <FileDown className="w-5 h-5" />
+                    </button>
+                    <input
+                        ref={importInputRef}
+                        type="file"
+                        accept=".xlsx,.xls"
+                        className="hidden"
+                        onChange={handleImportDebts}
+                    />
+                </div>
+                <div className="flex flex-wrap gap-2 order-1 md:order-2 justify-end">
+                    <ActionButton onClick={handleToolbarRefresh} className="bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-100">
+                        تحديث
+                    </ActionButton>
+                    <ActionButton onClick={openNewDebtModal} disabled={!canAddDebt}>
+                        <Plus className="w-5 h-5 ml-2" />
+                        إضافة دين
+                    </ActionButton>
                 </div>
             </div>
 
@@ -3071,7 +3446,8 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
         inventoryItems: [],
         linkedInvoiceId: null,
         fromInventoryEntry: false,
-        invoiceNumber: ''
+        invoiceNumber: '',
+        attachments: [],
     });
     const [selectedVendor, setSelectedVendor] = useState('');
     const [globalSearch, setGlobalSearch] = useState('');
@@ -3080,7 +3456,9 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
     const [selectedFile, setSelectedFile] = useState(null);
     const [filterTypes, setFilterTypes] = useState([]); // مصفوفة للسماح باختيار متعدد: ['expense', 'advance']
     const [filterStatuses, setFilterStatuses] = useState([]); // مصفوفة للسماح باختيار متعدد: ['pending', 'cancelled', 'paid']
-    const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
+    const [previewAttachment, setPreviewAttachment] = useState(null);
+    const [previewZoomed, setPreviewZoomed] = useState(false);
+    const attachmentsList = Array.isArray(formState.attachments) ? formState.attachments : [];
 
     const canAddPending = !!currentUser?.permissions?.pendingExpenses?.add;
     const canEditPending = !!currentUser?.permissions?.pendingExpenses?.edit;
@@ -3093,7 +3471,12 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
 
     useEffect(() => {
         if (currentItem) {
-            setFormState(currentItem);
+            const normalizedAttachments = normalizeAttachmentList(currentItem.attachments, currentItem.invoiceImageUrl, 'مرفق');
+            setFormState({
+                ...currentItem,
+                attachments: normalizedAttachments,
+                invoiceImageUrl: getPrimaryAttachmentDataUrl(normalizedAttachments) || currentItem.invoiceImageUrl || '',
+            });
             if (currentItem.type === 'expense') {
                 setSelectedVendor(currentItem.vendor || '');
             }
@@ -3116,15 +3499,23 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                 fromInventoryEntry: false,
                 invoiceNumber: '',
                 linkedDebtId: '',
-                linkedDebtPaymentId: ''
+                linkedDebtPaymentId: '',
+                attachments: [],
             });
             setSelectedVendor('');
         }
     }, [currentItem, data.employees]);
 
     useEffect(() => {
+        if (previewAttachment) {
+            setPreviewZoomed(false);
+        }
+    }, [previewAttachment]);
+
+    useEffect(() => {
         if (initialExpenseState) {
             const normalizedAmount = convertArabicToEnglish((initialExpenseState.amount ?? '').toString());
+            const normalizedAttachments = normalizeAttachmentList(initialExpenseState.attachments, initialExpenseState.invoiceImageUrl, 'مرفق');
             setFormState({
                 id: initialExpenseState.id || null,
                 type: 'expense',
@@ -3137,13 +3528,14 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                 employeeId: data.employees[0]?.id || '',
                 notes: initialExpenseState.notes || '',
                 status: 'pending',
-                invoiceImageUrl: initialExpenseState.invoiceImageUrl || '',
+                invoiceImageUrl: getPrimaryAttachmentDataUrl(normalizedAttachments) || initialExpenseState.invoiceImageUrl || '',
                 inventoryItems: initialExpenseState.inventoryItems || [],
                 linkedInvoiceId: initialExpenseState.linkedInvoiceId || null,
                 fromInventoryEntry: initialExpenseState.fromInventoryEntry || false,
                 invoiceNumber: initialExpenseState.invoiceNumber || '',
                 linkedDebtId: initialExpenseState.linkedDebtId || '',
-                linkedDebtPaymentId: initialExpenseState.linkedDebtPaymentId || ''
+                linkedDebtPaymentId: initialExpenseState.linkedDebtPaymentId || '',
+                attachments: normalizedAttachments,
             });
             setSelectedVendor(initialExpenseState.vendor || '');
             setCurrentItem(null);
@@ -3244,6 +3636,65 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
         setGlobalSearch('');
     }, [initialRange.start, initialRange.end]);
 
+    const handleAttachmentsUpload = async (event) => {
+        if (formState.type !== 'expense') {
+            showToast('يمكن إضافة مرفقات فقط للصرفيات.', 'warning');
+            event.target.value = '';
+            return;
+        }
+
+        const files = Array.from(event.target.files || []);
+        if (files.length === 0) {
+            return;
+        }
+
+        try {
+            const newAttachments = await Promise.all(files.map(createAttachmentFromFile));
+            setFormState(prev => {
+                const existing = Array.isArray(prev.attachments) ? prev.attachments : [];
+                const updated = [...existing, ...newAttachments];
+                return {
+                    ...prev,
+                    attachments: updated,
+                    invoiceImageUrl: getPrimaryAttachmentDataUrl(updated),
+                };
+            });
+            showToast('تم تحميل المرفقات بنجاح.', 'success');
+        } catch (error) {
+            console.error('Failed to upload attachments for pending expense', error);
+            showToast('تعذر تحميل المرفقات. يرجى المحاولة مرة أخرى.', 'error');
+        } finally {
+            event.target.value = '';
+        }
+    };
+
+    const removeAttachment = (attachmentId) => {
+        setFormState(prev => {
+            const existing = Array.isArray(prev.attachments) ? prev.attachments : [];
+            const updated = existing.filter(att => att.id !== attachmentId);
+            return {
+                ...prev,
+                attachments: updated,
+                invoiceImageUrl: getPrimaryAttachmentDataUrl(updated),
+            };
+        });
+    };
+
+    const handleAttachmentPreview = (attachment) => {
+        if (!attachment) {
+            return;
+        }
+
+        if (isImageAttachment(attachment)) {
+            setPreviewAttachment(attachment);
+        } else {
+            const newWindow = window.open(attachment.dataUrl || attachment.url || attachment.attachmentUrl, '_blank');
+            if (!newWindow) {
+                showToast('يرجى السماح بالنوافذ المنبثقة لعرض المستند.', 'warning');
+            }
+        }
+    };
+
     const handleSubmit = (e) => {
         e.preventDefault();
 
@@ -3259,10 +3710,24 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
             return;
         }
 
-        const itemToSave = formState.type === 'expense' ? {
+        let itemToSave = formState.type === 'expense' ? {
             ...formState,
             vendor: selectedVendor
         } : formState;
+
+        if (formState.type === 'expense') {
+            const normalizedAttachments = normalizeAttachmentList(itemToSave.attachments, itemToSave.invoiceImageUrl, 'مرفق');
+            itemToSave = {
+                ...itemToSave,
+                attachments: normalizedAttachments,
+                invoiceImageUrl: getPrimaryAttachmentDataUrl(normalizedAttachments),
+            };
+        } else {
+            itemToSave = {
+                ...itemToSave,
+                attachments: Array.isArray(itemToSave.attachments) ? itemToSave.attachments : [],
+            };
+        }
 
         // vendor اختياري، لكن إذا تم اختياره، يجب اختيار representative
         if (formState.type === 'expense' && selectedVendor && !itemToSave.representative) {
@@ -3286,7 +3751,8 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
             inventoryItems: itemToSave.inventoryItems || [],
             linkedInvoiceId: itemToSave.linkedInvoiceId || null,
             fromInventoryEntry: itemToSave.fromInventoryEntry || false,
-            invoiceNumber: itemToSave.invoiceNumber || ''
+            invoiceNumber: itemToSave.invoiceNumber || '',
+            attachments: Array.isArray(itemToSave.attachments) ? itemToSave.attachments : [],
         };
 
         handleDataAction('pendingExpenses', pendingItem, isNew);
@@ -3309,6 +3775,8 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
         }
 
         if (item.type === 'expense') {
+            const expenseAttachments = normalizeAttachmentList(item.attachments, item.invoiceImageUrl, 'مرفق');
+            const primaryAttachment = getPrimaryAttachmentDataUrl(expenseAttachments);
             const expenseData = {
                 id: crypto.randomUUID(),
                 invoiceNumber: generateInvoiceNumber(),
@@ -3318,7 +3786,10 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                 description: item.description || '',
                 vendor: item.vendor || '',
                 representative: item.representative || '',
-                invoiceImageUrl: item.invoiceImageUrl || ''
+                invoiceImageUrl: primaryAttachment || '',
+                attachments: expenseAttachments,
+                linkedDebtId: item.linkedDebtId || null,
+                linkedDebtPaymentId: item.linkedDebtPaymentId || null,
             };
             updatedData.expenses = [...updatedData.expenses, expenseData];
         } else {
@@ -3335,7 +3806,14 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
         }
 
         updatedData.pendingExpenses = updatedData.pendingExpenses.map(p =>
-            p.id === item.id ? { ...p, status: 'paid' } : p
+            p.id === item.id
+                ? {
+                    ...p,
+                    status: 'paid',
+                    attachments: Array.isArray(item.attachments) ? item.attachments : [],
+                    invoiceImageUrl: item.invoiceImageUrl || p.invoiceImageUrl || '',
+                }
+                : p
         );
 
         handleDataAction('___FULL_DATA_UPDATE___', updatedData, false);
@@ -3545,7 +4023,7 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                             <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">المبلغ</th>
                             <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">التفاصيل</th>
                             <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">الحالة</th>
-                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">الفاتورة</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">المرفقات</th>
                             <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">الإجراءات</th>
                         </tr>
                     </thead>
@@ -3613,18 +4091,28 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm" onClick={(e) => e.stopPropagation()}>
-                                            {item.invoiceImageUrl ? (
-                                                <button
-                                                    onClick={() => setImagePreviewUrl(item.invoiceImageUrl)}
-                                                    className="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
-                                                    data-testid={`button-view-invoice-${item.id}`}
-                                                >
-                                                    <FileImage className="w-4 h-4" />
-                                                    معاينة
-                                                </button>
-                                            ) : (
-                                                <span className="text-gray-400 text-xs">لا توجد</span>
-                                            )}
+                                            {(() => {
+                                                const attachments = normalizeAttachmentList(item.attachments, item.invoiceImageUrl, 'مرفق');
+                                                if (attachments.length === 0) {
+                                                    return <span className="text-gray-400 text-xs">لا توجد</span>;
+                                                }
+
+                                                return (
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {attachments.map(attachment => (
+                                                            <button
+                                                                key={attachment.id}
+                                                                type="button"
+                                                                onClick={() => handleAttachmentPreview(attachment)}
+                                                                className="px-3 py-1 rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800/60 text-xs font-semibold transition"
+                                                                data-testid={`button-view-invoice-${item.id}-${attachment.id}`}
+                                                            >
+                                                                {attachment.name || 'مرفق'}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                );
+                                            })()}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm" onClick={(e) => e.stopPropagation()}>
                                             {item.status === 'pending' && (
@@ -3702,15 +4190,17 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">نوع الصرف</label>
                             <select
                                 value={formState.type}
-                                onChange={(e) => setFormState({ 
-                                    ...formState, 
+                                onChange={(e) => setFormState({
+                                    ...formState,
                                     type: e.target.value,
                                     category: '',
                                     description: '',
                                     vendor: '',
                                     representative: '',
                                     employeeId: e.target.value === 'advance' ? (data.employees[0]?.id || '') : '',
-                                    notes: ''
+                                    notes: '',
+                                    attachments: [],
+                                    invoiceImageUrl: '',
                                 })}
                                 required
                                 className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500 transition duration-150 text-right"
@@ -3869,24 +4359,41 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
 
                         {formState.type === 'expense' && (
                             <div className="flex flex-col space-y-1 text-right">
-                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">صورة الفاتورة</label>
+                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">مرفقات الصرفية (صور / مستندات)</label>
                                 <input
-                                    type="url"
-                                    placeholder="أدخل رابط الصورة"
-                                    value={formState.invoiceImageUrl || ''}
-                                    onChange={(e) => setFormState({ ...formState, invoiceImageUrl: e.target.value })}
-                                    className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500 transition duration-150 text-right"
-                                    data-testid="input-invoice-image"
+                                    type="file"
+                                    accept="image/*,application/pdf"
+                                    multiple
+                                    onChange={handleAttachmentsUpload}
+                                    className="w-full p-3 border border-dashed border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500 transition duration-150 text-right"
                                 />
-                                {formState.invoiceImageUrl && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setImagePreviewUrl(formState.invoiceImageUrl)}
-                                        className="text-blue-600 dark:text-blue-400 text-sm hover:underline flex items-center gap-1 justify-end mt-1"
-                                    >
-                                        <FileImage className="w-4 h-4" />
-                                        معاينة الصورة
-                                    </button>
+                                {attachmentsList.length > 0 && (
+                                    <div className="space-y-2 mt-2">
+                                        {attachmentsList.map(attachment => (
+                                            <div key={attachment.id} className="flex items-center justify-between gap-3 p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100">
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-medium truncate">{attachment.name}</p>
+                                                    {attachment.type && <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{attachment.type}</p>}
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleAttachmentPreview(attachment)}
+                                                        className="px-3 py-1 text-xs rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800/50"
+                                                    >
+                                                        معاينة
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeAttachment(attachment.id)}
+                                                        className="px-2 py-1 text-xs rounded-lg bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-200 hover:bg-red-200 dark:hover-bg-red-800/50"
+                                                    >
+                                                        إزالة
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
                                 )}
                             </div>
                         )}
@@ -3899,25 +4406,25 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                 </Modal>
             )}
 
-            {/* Modal معاينة الصورة */}
-            {imagePreviewUrl && (
-                <Modal 
-                    title="معاينة صورة الفاتورة" 
-                    onClose={() => setImagePreviewUrl(null)}
+            {/* Modal معاينة المرفقات */}
+            {previewAttachment && isImageAttachment(previewAttachment) && (
+                <Modal
+                    title={`معاينة المرفق: ${previewAttachment.name || 'مرفق'}`}
+                    onClose={() => setPreviewAttachment(null)}
+                    size="xl"
                 >
-                    <div className="flex justify-center items-center p-4">
-                        <img 
-                            src={imagePreviewUrl} 
-                            alt="صورة الفاتورة" 
-                            className="max-w-full max-h-96 rounded-lg shadow-lg"
-                            onError={(e) => {
-                                e.target.style.display = 'none';
-                                e.target.nextSibling.style.display = 'block';
-                            }}
-                        />
-                        <div style={{display: 'none'}} className="text-red-600 text-center">
-                            فشل تحميل الصورة. يرجى التحقق من الرابط.
+                    <div className="space-y-4">
+                        <div
+                            className={`relative overflow-auto border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-900 ${previewZoomed ? 'cursor-zoom-out' : 'cursor-zoom-in'}`}
+                            onClick={() => setPreviewZoomed(prev => !prev)}
+                        >
+                            <img
+                                src={previewAttachment.dataUrl || previewAttachment.url || previewAttachment.attachmentUrl}
+                                alt={previewAttachment.name || 'مرفق'}
+                                className={`mx-auto transition-transform duration-300 ${previewZoomed ? 'scale-150' : 'scale-100'} max-h-[70vh]`}
+                            />
                         </div>
+                        <p className="text-sm text-center text-gray-500 dark:text-gray-400">اضغط على الصورة للتكبير أو التصغير.</p>
                     </div>
                 </Modal>
             )}
@@ -4004,18 +4511,30 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                                         </>
                                     )}
 
-                                    {viewItem.invoiceImageUrl && (
-                                        <div className="col-span-2">
-                                            <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">صورة الفاتورة</p>
-                                            <button
-                                                onClick={() => setImagePreviewUrl(viewItem.invoiceImageUrl)}
-                                                className="flex items-center gap-2 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
-                                            >
-                                                <FileImage className="w-5 h-5" />
-                                                عرض الصورة
-                                            </button>
-                                        </div>
-                                    )}
+                                    <div className="col-span-2">
+                                        <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">المرفقات</p>
+                                        {(() => {
+                                            const attachments = normalizeAttachmentList(viewItem.attachments, viewItem.invoiceImageUrl, 'مرفق');
+                                            if (attachments.length === 0) {
+                                                return <span className="text-xs text-gray-400">لا توجد مرفقات</span>;
+                                            }
+
+                                            return (
+                                                <div className="flex flex-wrap gap-2">
+                                                    {attachments.map(attachment => (
+                                                        <button
+                                                            key={attachment.id}
+                                                            type="button"
+                                                            onClick={() => handleAttachmentPreview(attachment)}
+                                                            className="px-3 py-1 text-xs rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800/60"
+                                                        >
+                                                            {attachment.name || 'مرفق'}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            );
+                                        })()}
+                                    </div>
                                 </>
                             ) : (
                                 <>
@@ -4097,6 +4616,14 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const searchActive = useMemo(() => globalSearch.trim().length > 0, [globalSearch]);
+    const [employeeDocPreview, setEmployeeDocPreview] = useState(null);
+    const [employeeDocZoomed, setEmployeeDocZoomed] = useState(false);
+
+    useEffect(() => {
+        if (employeeDocPreview) {
+            setEmployeeDocZoomed(false);
+        }
+    }, [employeeDocPreview]);
 
     
     const formatDOB = (dateString) => {
@@ -4143,42 +4670,123 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
         goToPage: goToEmployeePage,
     } = usePagination(filteredList);
 
-    useEffect(() => {
-        if (currentEmployee) {
-            setFormState(currentEmployee);
-        } else {
-            setFormState({ 
-                name: '', phone: '', salary: '', 
-                department: data.settings.departments[0] || '', 
-                jobTitle: data.settings.jobTitles[0] || '', 
-                docUrl: '', dateOfBirth: '', id: null 
-            });
-        }
-    }, [currentEmployee, data.settings.departments, data.settings.jobTitles]);
+    useEffect(() => {
+        if (currentEmployee) {
+            setFormState({
+                ...currentEmployee,
+                docUrl: currentEmployee.docUrl || '',
+                docName: currentEmployee.docName || '',
+                docType: currentEmployee.docType || '',
+            });
+        } else {
+            setFormState({
+                name: '',
+                phone: '',
+                salary: '',
+                department: data.settings.departments[0] || '',
+                jobTitle: data.settings.jobTitles[0] || '',
+                docUrl: '',
+                docName: '',
+                docType: '',
+                dateOfBirth: '',
+                id: null,
+            });
+        }
+    }, [currentEmployee, data.settings.departments, data.settings.jobTitles]);
 
     const openModal = (employee = null) => {
         setCurrentEmployee(employee);
         setIsModalOpen(true);
     };
 
-    const openDetailsModal = (employee) => {
-        setCurrentEmployee(employee);
-        setIsDetailsModalOpen(true);
-        setFormState(employee); 
-    };
+    const openDetailsModal = (employee) => {
+        setCurrentEmployee(employee);
+        setIsDetailsModalOpen(true);
+        setFormState({
+            ...employee,
+            docUrl: employee.docUrl || '',
+            docName: employee.docName || '',
+            docType: employee.docType || '',
+        });
+    };
 
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        
-        const processedSalary = convertArabicToEnglish(formState.salary);
-        
-        handleDataAction('employees', { 
-            ...formState, 
-            salary: parseFloat(processedSalary || 0),
-        }, !currentEmployee);
-        setIsModalOpen(false);
-        setCurrentEmployee(null); 
-    };
+    const handleSubmit = (e) => {
+        e.preventDefault();
+
+        const processedSalary = convertArabicToEnglish(formState.salary);
+
+        handleDataAction('employees', {
+            ...formState,
+            salary: parseFloat(processedSalary || 0),
+        }, !currentEmployee);
+        setIsModalOpen(false);
+        setCurrentEmployee(null);
+    };
+
+    const handleEmployeeDocUpload = async (event) => {
+        const file = event.target.files?.[0];
+        if (!file) {
+            return;
+        }
+
+        try {
+            const attachment = await createAttachmentFromFile(file);
+            setFormState(prev => ({
+                ...prev,
+                docUrl: attachment.dataUrl,
+                docName: attachment.name,
+                docType: attachment.type,
+            }));
+            showToast('تم تحميل المستند الشخصي بنجاح.', 'success');
+        } catch (error) {
+            console.error('Failed to upload employee document', error);
+            showToast('تعذر تحميل المستند. يرجى المحاولة مرة أخرى.', 'error');
+        } finally {
+            event.target.value = '';
+        }
+    };
+
+    const handleRemoveEmployeeDoc = () => {
+        setFormState(prev => ({ ...prev, docUrl: '', docName: '', docType: '' }));
+    };
+
+    const previewEmployeeDoc = () => {
+        if (!formState.docUrl) {
+            return;
+        }
+        const attachment = {
+            dataUrl: formState.docUrl,
+            name: formState.docName || 'المستند الشخصي',
+            type: formState.docType || '',
+        };
+        if (isImageAttachment(attachment)) {
+            setEmployeeDocPreview(attachment);
+        } else {
+            const newWindow = window.open(attachment.dataUrl, '_blank');
+            if (!newWindow) {
+                showToast('يرجى السماح بالنوافذ المنبثقة لعرض المستند.', 'warning');
+            }
+        }
+    };
+
+    const previewEmployeeDocFromDetails = () => {
+        if (!currentEmployee?.docUrl) {
+            return;
+        }
+        const attachment = {
+            dataUrl: currentEmployee.docUrl,
+            name: currentEmployee.docName || 'المستند الشخصي',
+            type: currentEmployee.docType || '',
+        };
+        if (isImageAttachment(attachment)) {
+            setEmployeeDocPreview(attachment);
+        } else {
+            const newWindow = window.open(attachment.dataUrl, '_blank');
+            if (!newWindow) {
+                showToast('يرجى السماح بالنوافذ المنبثقة لعرض المستند.', 'warning');
+            }
+        }
+    };
 
     const handlePrintAll = () => {
              if (filteredList.length === 0) {
@@ -4469,13 +5077,39 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
                             currency 
                         />
                         
-                        <InputField 
-                            label="رابط المستندات الشخصية (صورة/PDF)" 
-                            type="url" 
-                            placeholder="http://example.com/file.pdf"
-                            value={formState.docUrl || ''} 
-                            onChange={(e) => setFormState({ ...formState, docUrl: e.target.value })} 
-                        />
+                        <div className="flex flex-col space-y-1 text-right">
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">المستندات الشخصية (صورة / PDF)</label>
+                            <input
+                                type="file"
+                                accept="image/*,application/pdf"
+                                onChange={handleEmployeeDocUpload}
+                                className="w-full p-3 border border-dashed border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500 transition duration-150 text-right"
+                            />
+                            {formState.docUrl && (
+                                <div className="flex items-center justify-between gap-3 p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100">
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium truncate">{formState.docName || 'مستند مرفوع'}</p>
+                                        {formState.docType && <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{formState.docType}</p>}
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={previewEmployeeDoc}
+                                            className="px-3 py-1 text-xs rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800/50"
+                                        >
+                                            معاينة
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={handleRemoveEmployeeDoc}
+                                            className="px-2 py-1 text-xs rounded-lg bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-200 hover:bg-red-200 dark:hover:bg-red-800/50"
+                                        >
+                                            إزالة
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                         
                         <ActionButton type="submit" className="w-full bg-teal-600 hover:bg-teal-700">
                             <Save className="w-5 h-5 ml-2" />
@@ -4494,12 +5128,15 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
                         <p className="flex items-center text-lg dark:text-gray-200"><List className="w-5 h-5 ml-2 text-indigo-500" /> **المنصب:** {currentEmployee.jobTitle}</p>
                         <p className="flex items-center text-lg dark:text-gray-200"><Phone className="w-5 h-5 ml-2 text-indigo-500" /> **الهاتف:** {currentEmployee.phone || 'غير متوفر'}</p>
                         
-                        {currentEmployee.docUrl && (
-                            <a href={currentEmployee.docUrl} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center p-3 text-white bg-indigo-600 dark:bg-indigo-700 rounded-xl hover:bg-indigo-700 dark:hover:bg-indigo-600 transition space-x-2 space-x-reverse font-semibold mt-4">
-                                <ExternalLink className="w-5 h-5 ml-2" />
-                                عرض المستندات الشخصية
-                            </a>
-                        )}
+                        {currentEmployee.docUrl && (
+                            <button
+                                onClick={previewEmployeeDocFromDetails}
+                                className="flex items-center justify-center w-full p-3 text-white bg-indigo-600 dark:bg-indigo-700 rounded-xl hover:bg-indigo-700 dark:hover:bg-indigo-600 transition space-x-2 space-x-reverse font-semibold mt-4"
+                            >
+                                <ExternalLink className="w-5 h-5 ml-2" />
+                                عرض المستندات الشخصية
+                            </button>
+                        )}
 
                         
                     </div>
@@ -4550,6 +5187,24 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
                                 استيراد البيانات
                             </button>
                         </div>
+                    </div>
+                </Modal>
+            )}
+
+            {employeeDocPreview && isImageAttachment(employeeDocPreview) && (
+                <Modal title={`معاينة المستند: ${employeeDocPreview.name}`} onClose={() => setEmployeeDocPreview(null)} size="xl">
+                    <div className="space-y-4">
+                        <div
+                            className={`relative overflow-auto border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-900 ${employeeDocZoomed ? 'cursor-zoom-out' : 'cursor-zoom-in'}`}
+                            onClick={() => setEmployeeDocZoomed(prev => !prev)}
+                        >
+                            <img
+                                src={employeeDocPreview.dataUrl || employeeDocPreview.url || employeeDocPreview.attachmentUrl}
+                                alt={employeeDocPreview.name}
+                                className={`mx-auto transition-transform duration-300 ${employeeDocZoomed ? 'scale-150' : 'scale-100'} max-h-[70vh]`}
+                            />
+                        </div>
+                        <p className="text-sm text-center text-gray-500 dark:text-gray-400">اضغط على الصورة للتكبير أو التصغير.</p>
                     </div>
                 </Modal>
             )}
@@ -5633,8 +6288,8 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     const [isCancelModalOpen, setIsCancelModalOpen] = useState(false); 
     const [cancellationReason, setCancellationReason] = useState(''); 
-    const [currentInvoice, setCurrentInvoice] = useState(null);
-    const [globalSearch, setGlobalSearch] = useState(''); 
+    const [currentInvoice, setCurrentInvoice] = useState(null);
+    const [globalSearch, setGlobalSearch] = useState('');
     const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
 
     // **جديد:** حالة فلترة الجدول حسب حالة الفاتورة (مصفوفة الآن لدعم الاختيار المتعدد)
@@ -5654,9 +6309,10 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
     const getDefaultInvoiceForm = useCallback(() => ({
         vendor: data.settings.vendors[0] || '',
         representative: data.settings.representatives.find(r => r.vendor === (data.settings.vendors[0] || ''))?.name || '',
-        invoiceNumber: '', // رقم فاتورة المورد
-        invoiceImageUrl: '',
-        expenseCategory: data.settings.expenseCategories.find(c => c.includes('مواد')) || data.settings.expenseCategories[0] || '',
+        invoiceNumber: '', // رقم فاتورة المورد
+        invoiceImageUrl: '',
+        attachments: [],
+        expenseCategory: data.settings.expenseCategories.find(c => c.includes('مواد')) || data.settings.expenseCategories[0] || '',
         items: [], // المواد المضافة للفاتورة
         status: 'Pending',
         totalAmount: 0,
@@ -5676,14 +6332,44 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
         category: data.settings.expenseCategories.find(c => c.includes('مواد')) || data.settings.expenseCategories[0] || '' 
     }), [data.settings.expenseCategories]);
 
-    const [invoiceForm, setInvoiceForm] = useState(getDefaultInvoiceForm);
-    const [itemForm, setItemForm] = useState(getDefaultItemForm);
-    
-    
-    // فلترة المندوبين حسب الشركة المختارة
-    const filteredReps = useMemo(() => {
-        return data.settings.representatives.filter(rep => rep.vendor === invoiceForm.vendor);
-    }, [data.settings.representatives, invoiceForm.vendor]);
+    const [invoiceForm, setInvoiceForm] = useState(getDefaultInvoiceForm);
+    const [itemForm, setItemForm] = useState(getDefaultItemForm);
+
+
+    // فلترة المندوبين حسب الشركة المختارة
+    const filteredReps = useMemo(() => {
+        return data.settings.representatives.filter(rep => rep.vendor === invoiceForm.vendor);
+    }, [data.settings.representatives, invoiceForm.vendor]);
+
+    useEffect(() => {
+        if ((!Array.isArray(invoiceForm.attachments) || invoiceForm.attachments.length === 0) && invoiceForm.invoiceImageUrl) {
+            const normalized = normalizeAttachmentList(invoiceForm.attachments, invoiceForm.invoiceImageUrl, 'مرفق فاتورة');
+            if (normalized.length > 0) {
+                setInvoiceForm(prev => ({
+                    ...prev,
+                    attachments: normalized,
+                    invoiceImageUrl: getPrimaryAttachmentDataUrl(normalized),
+                }));
+            }
+        }
+    }, [invoiceForm.attachments, invoiceForm.invoiceImageUrl]);
+
+    const invoiceAttachments = Array.isArray(invoiceForm.attachments) ? invoiceForm.attachments : [];
+    const [invoiceAttachmentPreview, setInvoiceAttachmentPreview] = useState(null);
+    const [invoicePreviewZoomed, setInvoicePreviewZoomed] = useState(false);
+
+    useEffect(() => {
+        if (invoiceAttachmentPreview) {
+            setInvoicePreviewZoomed(false);
+        }
+    }, [invoiceAttachmentPreview]);
+
+    const detailAttachments = useMemo(() => {
+        if (!currentInvoice) {
+            return [];
+        }
+        return normalizeAttachmentList(currentInvoice.attachments, currentInvoice.invoiceImageUrl, 'مرفق فاتورة');
+    }, [currentInvoice]);
     
     // حساب الإجمالي
     const calculateTotal = useCallback(() => {
@@ -5837,15 +6523,65 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
         setIsAddItemModalOpen(false); 
     };
 
-    const handleRemoveItemFromInvoice = (id) => {
-        setInvoiceForm(prev => ({
-            ...prev,
-            items: prev.items.filter(item => item.id !== id)
-        }));
-        showToast('تم حذف المادة بنجاح.', 'warning');
-    };
+    const handleRemoveItemFromInvoice = (id) => {
+        setInvoiceForm(prev => ({
+            ...prev,
+            items: prev.items.filter(item => item.id !== id)
+        }));
+        showToast('تم حذف المادة بنجاح.', 'warning');
+    };
 
-    // حفظ الفاتورة كمسودة/معلقة
+    const handleInvoiceAttachmentUpload = async (event) => {
+        const files = Array.from(event.target.files || []);
+        if (files.length === 0) {
+            return;
+        }
+
+        try {
+            const newAttachments = await Promise.all(files.map(createAttachmentFromFile));
+            setInvoiceForm(prev => {
+                const existing = Array.isArray(prev.attachments) ? prev.attachments : [];
+                const updated = [...existing, ...newAttachments];
+                return {
+                    ...prev,
+                    attachments: updated,
+                    invoiceImageUrl: getPrimaryAttachmentDataUrl(updated),
+                };
+            });
+            showToast('تم تحميل المرفقات بنجاح.', 'success');
+        } catch (error) {
+            console.error('Failed to upload invoice attachments', error);
+            showToast('تعذر تحميل المرفقات. يرجى المحاولة مرة أخرى.', 'error');
+        } finally {
+            event.target.value = '';
+        }
+    };
+
+    const handleRemoveInvoiceAttachment = (id) => {
+        setInvoiceForm(prev => {
+            const existing = Array.isArray(prev.attachments) ? prev.attachments : [];
+            const updated = existing.filter(att => att.id !== id);
+            return {
+                ...prev,
+                attachments: updated,
+                invoiceImageUrl: getPrimaryAttachmentDataUrl(updated),
+            };
+        });
+    };
+
+    const previewInvoiceAttachment = (attachment) => {
+        if (isImageAttachment(attachment)) {
+            setInvoiceAttachmentPreview(attachment);
+            return;
+        }
+
+        const newWindow = window.open(attachment.dataUrl || attachment.url || attachment.attachmentUrl, '_blank');
+        if (!newWindow) {
+            showToast('يرجى السماح بالنوافذ المنبثقة لعرض المستند.', 'warning');
+        }
+    };
+
+    // حفظ الفاتورة كمسودة/معلقة
     const handleCreateInvoice = (e) => {
         e.preventDefault();
 
@@ -5869,8 +6605,12 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
             return;
         }
 
+        const normalizedAttachments = normalizeAttachmentList(invoiceForm.attachments, invoiceForm.invoiceImageUrl, 'مرفق فاتورة');
+
         const invoiceToSave = {
             ...invoiceForm,
+            attachments: normalizedAttachments,
+            invoiceImageUrl: getPrimaryAttachmentDataUrl(normalizedAttachments),
             id: invoiceForm.id || crypto.randomUUID(),
             date: getDefaultDateTime(),
             totalAmount: calculateTotal(),
@@ -5949,6 +6689,9 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
             return;
         }
 
+        const normalizedInvoiceAttachments = normalizeAttachmentList(invoice.attachments, invoice.invoiceImageUrl, 'مرفق فاتورة');
+        const primaryInvoiceAttachment = getPrimaryAttachmentDataUrl(normalizedInvoiceAttachments);
+
         if (!isCreditApproval) {
             const canDirectExpense = !!currentUser?.permissions?.expenses?.add && !!currentUser?.permissions?.expenses?.view;
             const targetCollection = canDirectExpense ? 'expenses' : 'pendingExpenses';
@@ -5966,7 +6709,8 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                 vendor: invoice.vendor,
                 representative: invoice.representative,
                 notes: invoice.notes || '',
-                invoiceImageUrl: invoice.invoiceImageUrl || '',
+                attachments: normalizedInvoiceAttachments,
+                invoiceImageUrl: primaryInvoiceAttachment || '',
                 inventoryItems: invoice.items,
                 invoiceNumber: invoice.invoiceNumber,
                 linkedInvoiceId: invoice.id,
@@ -6022,16 +6766,16 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                 };
             } else {
                 // إضافة مادة جديدة للمخزون
-                updatedInventory.push({
-                    id: crypto.randomUUID(),
-                    name: item.name,
-                    barcode: item.barcode || generateBarcode(),
-                    price: item.price,
-                    count: item.count,
-                    category: item.category,
-                    purchaseHistory: [purchaseRecord],
-                    invoiceImageUrl: invoice.invoiceImageUrl,
-                });
+                updatedInventory.push({
+                    id: crypto.randomUUID(),
+                    name: item.name,
+                    barcode: item.barcode || generateBarcode(),
+                    price: item.price,
+                    count: item.count,
+                    category: item.category,
+                    purchaseHistory: [purchaseRecord],
+                    invoiceImageUrl: primaryInvoiceAttachment,
+                });
             }
         });
         
@@ -6062,7 +6806,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                 totalAmount: invoiceTotalValue,
                 remainingAmount,
                 description: invoice.notes || existingDebt?.description || '',
-                attachmentUrl: invoice.invoiceImageUrl || existingDebt?.attachmentUrl || '',
+                attachmentUrl: primaryInvoiceAttachment || existingDebt?.attachmentUrl || '',
                 payments: existingPayments,
                 status: remainingAmount <= 0 ? 'settled' : 'active',
                 date: existingDebt?.date || invoice.date || getDefaultDateTime(),
@@ -6107,7 +6851,8 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
             vendor: invoice.vendor,
             representative: invoice.representative,
             notes: invoice.notes || '',
-            invoiceImageUrl: invoice.invoiceImageUrl || '',
+            attachments: normalizedInvoiceAttachments,
+            invoiceImageUrl: primaryInvoiceAttachment || '',
             inventoryItems: invoice.items,
             ...(linkedDebtId ? { linkedDebtId, linkedDebtPaymentId } : {}),
         };
@@ -6429,15 +7174,41 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                                 </select>
                             </div>
                             
-                            <div className="md:col-span-2">
-                                <InputField
-                                    label="رابط صورة الفاتورة (اختياري)"
-                                    type="url"
-                                    placeholder="http://example.com/invoice.jpg"
-                                    value={invoiceForm.invoiceImageUrl}
-                                    onChange={(e) => setInvoiceForm({ ...invoiceForm, invoiceImageUrl: e.target.value })}
-                                />
-                            </div>
+                            <div className="md:col-span-2 flex flex-col space-y-2 text-right">
+                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">مرفقات الفاتورة (صور / مستندات PDF)</label>
+                                <input
+                                    type="file"
+                                    accept="image/*,application/pdf"
+                                    multiple
+                                    onChange={handleInvoiceAttachmentUpload}
+                                    className="w-full p-3 border border-dashed border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500 transition duration-150 text-right"
+                                />
+                                {invoiceAttachments.length > 0 && (
+                                    <div className="space-y-2">
+                                        {invoiceAttachments.map(attachment => (
+                                            <div key={attachment.id} className="flex items-center justify-between gap-3 p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100">
+                                                <div className="flex-1 truncate text-sm font-medium">{attachment.name}</div>
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => previewInvoiceAttachment(attachment)}
+                                                        className="px-3 py-1 text-xs rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800/50"
+                                                    >
+                                                        معاينة
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleRemoveInvoiceAttachment(attachment.id)}
+                                                        className="px-2 py-1 text-xs rounded-lg bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-200 hover:bg-red-200 dark:hover:bg-red-800/50"
+                                                    >
+                                                        حذف
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
 
                              <div className="flex flex-col space-y-1 text-right md:col-span-2">
                                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300">فئة المصروف المرتبطة (لتسجيلها كمصروف لاحقاً)</label>
@@ -6652,12 +7423,24 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                             <p className="font-medium text-gray-700 dark:text-gray-300">فئة المصروف: <span className="font-bold">{currentInvoice.expenseCategory}</span></p>
                         </div>
                         
-                        {currentInvoice.invoiceImageUrl && (
-                            <div className="text-center p-3 bg-white dark:bg-gray-800 rounded-xl border border-teal-200">
-                                <h5 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">صورة الفاتورة/المستند:</h5>
-                                <img src={currentInvoice.invoiceImageUrl} alt="Invoice Document" className="w-full h-auto object-contain rounded-lg shadow-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 max-h-64" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/400x150/cccccc/333333?text=No+Image+Available"; }}/>
-                            </div>
-                        )}
+                        {detailAttachments.length > 0 && (
+                            <div className="space-y-2">
+                                <h5 className="text-sm font-semibold text-gray-600 dark:text-gray-400">مرفقات الفاتورة</h5>
+                                <div className="space-y-2">
+                                    {detailAttachments.map(attachment => (
+                                        <div key={attachment.id} className="flex items-center justify-between gap-3 p-2 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600">
+                                            <span className="flex-1 truncate text-sm font-medium text-gray-700 dark:text-gray-200">{attachment.name}</span>
+                                            <button
+                                                onClick={() => previewInvoiceAttachment(attachment)}
+                                                className="px-3 py-1 text-xs rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800/50"
+                                            >
+                                                عرض
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
                         <h5 className="text-xl font-bold text-gray-800 dark:text-gray-200 border-b pb-2 pt-4">المواد في الفاتورة:</h5>
                         <div className="overflow-x-auto shadow-md rounded-xl">
@@ -8559,10 +9342,28 @@ const InventoryDispatchComponent = React.memo(({ data, handleDataAction, showToa
                         </div>
                     </div>
                 </Modal>
-            )}
+            )}
 
-        </div>
-    );
+            {invoiceAttachmentPreview && isImageAttachment(invoiceAttachmentPreview) && (
+                <Modal title={`معاينة المرفق: ${invoiceAttachmentPreview.name}`} onClose={() => setInvoiceAttachmentPreview(null)} size="xl">
+                    <div className="space-y-4">
+                        <div
+                            className={`relative overflow-auto border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-900 ${invoicePreviewZoomed ? 'cursor-zoom-out' : 'cursor-zoom-in'}`}
+                            onClick={() => setInvoicePreviewZoomed(prev => !prev)}
+                        >
+                            <img
+                                src={invoiceAttachmentPreview.dataUrl || invoiceAttachmentPreview.url || invoiceAttachmentPreview.attachmentUrl}
+                                alt={invoiceAttachmentPreview.name}
+                                className={`mx-auto transition-transform duration-300 ${invoicePreviewZoomed ? 'scale-150' : 'scale-100'} max-h-[70vh]`}
+                            />
+                        </div>
+                        <p className="text-sm text-center text-gray-500 dark:text-gray-400">اضغط على الصورة للتكبير أو التصغير.</p>
+                    </div>
+                </Modal>
+            )}
+
+        </div>
+    );
 });
 
 /**
@@ -9829,6 +10630,8 @@ const AccountingApp = () => {
     const mergeInventoryWithInvoiceItems = (baseInventory, invoiceItems, invoiceMeta) => {
         const updatedInventory = [...(baseInventory || [])];
 
+        const invoiceAttachment = getPrimaryAttachmentDataUrl(normalizeAttachmentList(invoiceMeta.attachments, invoiceMeta.invoiceImageUrl, 'مرفق فاتورة'));
+
         (invoiceItems || []).forEach(invoiceItem => {
             const countToAdd = parseFloat(convertArabicToEnglish(invoiceItem.count || '0')) || 0;
             const priceValue = parseFloat(convertArabicToEnglish(invoiceItem.price || '0')) || 0;
@@ -9858,7 +10661,7 @@ const AccountingApp = () => {
                     count: countToAdd,
                     category: invoiceItem.category,
                     purchaseHistory: [purchaseRecord],
-                    invoiceImageUrl: invoiceMeta.invoiceImageUrl,
+                    invoiceImageUrl: invoiceAttachment,
                 });
             }
         });
@@ -9957,7 +10760,11 @@ const AccountingApp = () => {
             remainingAfter,
         };
 
-        if (record.invoiceImageUrl) {
+        const paymentAttachments = normalizeAttachmentList(record.attachments, record.invoiceImageUrl, 'مرفق');
+        if (paymentAttachments.length > 0) {
+            updatedPayment.attachments = paymentAttachments;
+            updatedPayment.invoiceImageUrl = getPrimaryAttachmentDataUrl(paymentAttachments);
+        } else if (record.invoiceImageUrl) {
             updatedPayment.invoiceImageUrl = record.invoiceImageUrl;
         }
 
