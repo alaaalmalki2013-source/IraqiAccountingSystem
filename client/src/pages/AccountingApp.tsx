@@ -220,6 +220,25 @@ const isImageAttachment = (attachment) => {
     return (type && type.startsWith('image')) || /^data:image\//.test(dataUrl);
 };
 
+const isPdfAttachment = (attachment) => {
+    if (!attachment) {
+        return false;
+    }
+    const type = attachment.type || '';
+    if (type.includes('pdf')) {
+        return true;
+    }
+    const source = attachment.dataUrl || attachment.url || attachment.attachmentUrl || '';
+    return /\.pdf($|\?)/i.test(source);
+};
+
+const getAttachmentSource = (attachment) => {
+    if (!attachment) {
+        return '';
+    }
+    return attachment.dataUrl || attachment.url || attachment.attachmentUrl || '';
+};
+
 // مكون التنبيه المنبثق
 const NotificationToast = React.memo(({ message, type, onClose }) => {
     const isSuccess = type === 'success';
@@ -1956,14 +1975,21 @@ const DataPageComponent = React.memo(({
         if (!attachment) {
             return;
         }
-        if (isImageAttachment(attachment)) {
-            setPreviewAttachment(attachment);
-        } else {
-            const newWindow = window.open(attachment.dataUrl || attachment.url || attachment.attachmentUrl, '_blank');
-            if (!newWindow) {
-                showToast('يرجى السماح بالنوافذ المنبثقة لعرض المستند.', 'warning');
-            }
+
+        const normalized = ensureAttachmentShape(attachment, attachment.name || 'مرفق') || {
+            ...attachment,
+            id: attachment.id || generateClientSideId(),
+            name: attachment.name || 'مرفق',
+            dataUrl: getAttachmentSource(attachment),
+        };
+
+        const source = getAttachmentSource(normalized);
+        if (!source) {
+            showToast('تعذر فتح المرفق لعدم توفر رابط صالح.', 'warning');
+            return;
         }
+
+        setPreviewAttachment({ ...normalized, dataUrl: source });
     };
 
     const handlePrintAll = () => {
@@ -3992,14 +4018,20 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
             return;
         }
 
-        if (isImageAttachment(attachment)) {
-            setPreviewAttachment(attachment);
-        } else {
-            const newWindow = window.open(attachment.dataUrl || attachment.url || attachment.attachmentUrl, '_blank');
-            if (!newWindow) {
-                showToast('يرجى السماح بالنوافذ المنبثقة لعرض المستند.', 'warning');
-            }
+        const normalized = ensureAttachmentShape(attachment, attachment.name || 'مرفق') || {
+            ...attachment,
+            id: attachment.id || generateClientSideId(),
+            name: attachment.name || 'مرفق',
+            dataUrl: getAttachmentSource(attachment),
+        };
+
+        const source = getAttachmentSource(normalized);
+        if (!source) {
+            showToast('تعذر فتح المرفق لعدم توفر رابط صالح.', 'warning');
+            return;
         }
+
+        setPreviewAttachment({ ...normalized, dataUrl: source });
     };
 
     const handleSubmit = (e) => {
@@ -4726,25 +4758,92 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
             )}
 
             {/* Modal معاينة المرفقات */}
-            {previewAttachment && isImageAttachment(previewAttachment) && (
+            {previewAttachment && (
                 <Modal
                     title={`معاينة المرفق: ${previewAttachment.name || 'مرفق'}`}
-                    onClose={() => setPreviewAttachment(null)}
+                    onClose={() => {
+                        setPreviewAttachment(null);
+                        setPreviewZoomed(false);
+                    }}
                     size="xl"
                 >
-                    <div className="space-y-4">
-                        <div
-                            className={`relative overflow-auto border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-900 ${previewZoomed ? 'cursor-zoom-out' : 'cursor-zoom-in'}`}
-                            onClick={() => setPreviewZoomed(prev => !prev)}
-                        >
-                            <img
-                                src={previewAttachment.dataUrl || previewAttachment.url || previewAttachment.attachmentUrl}
-                                alt={previewAttachment.name || 'مرفق'}
-                                className={`mx-auto transition-transform duration-300 ${previewZoomed ? 'scale-150' : 'scale-100'} max-h-[70vh]`}
-                            />
-                        </div>
-                        <p className="text-sm text-center text-gray-500 dark:text-gray-400">اضغط على الصورة للتكبير أو التصغير.</p>
-                    </div>
+                    {(() => {
+                        const source = getAttachmentSource(previewAttachment);
+                        const isImage = isImageAttachment(previewAttachment);
+                        const isPdf = isPdfAttachment(previewAttachment);
+                        const fileName = previewAttachment.name || 'مرفق';
+
+                        if (!source) {
+                            return (
+                                <div className="space-y-3 text-center text-sm text-gray-500 dark:text-gray-400">
+                                    <p>لا يمكن عرض هذا المرفق لعدم توفر رابط صالح.</p>
+                                </div>
+                            );
+                        }
+
+                        return (
+                            <div className="space-y-4">
+                                {isImage ? (
+                                    <div
+                                        className={`relative overflow-auto border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-900 ${previewZoomed ? 'cursor-zoom-out' : 'cursor-zoom-in'}`}
+                                        onClick={() => setPreviewZoomed(prev => !prev)}
+                                    >
+                                        <img
+                                            src={source}
+                                            alt={fileName}
+                                            className={`mx-auto transition-transform duration-300 ${previewZoomed ? 'scale-150' : 'scale-100'} max-h-[70vh]`}
+                                        />
+                                    </div>
+                                ) : isPdf ? (
+                                    <div className="h-[70vh] border border-gray-200 dark:border-gray-600 rounded-xl overflow-hidden bg-white dark:bg-gray-900">
+                                        <iframe
+                                            src={source}
+                                            title={fileName}
+                                            className="w-full h-full"
+                                        />
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3 text-center text-sm text-gray-500 dark:text-gray-400">
+                                        <p>لا يمكن عرض هذا النوع من الملفات داخل النظام، لكن يمكنك تنزيله أو فتحه في نافذة جديدة.</p>
+                                        <div className="flex justify-center gap-3">
+                                            <a
+                                                href={source}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition"
+                                            >
+                                                فتح في تبويب جديد
+                                            </a>
+                                            <a
+                                                href={source}
+                                                download={fileName}
+                                                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-teal-600 text-white hover:bg-teal-700 transition"
+                                            >
+                                                تنزيل المرفق
+                                            </a>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {source && (isImage || isPdf) && (
+                                    <div className="flex justify-between items-center text-sm text-gray-500 dark:text-gray-400">
+                                        <span>اسم المرفق: {fileName}</span>
+                                        <a
+                                            href={source}
+                                            download={fileName}
+                                            className="text-teal-600 dark:text-teal-400 hover:underline"
+                                        >
+                                            تنزيل نسخة
+                                        </a>
+                                    </div>
+                                )}
+
+                                {isImage && (
+                                    <p className="text-sm text-center text-gray-500 dark:text-gray-400">اضغط على الصورة للتكبير أو التصغير.</p>
+                                )}
+                            </div>
+                        );
+                    })()}
                 </Modal>
             )}
 
@@ -11511,24 +11610,49 @@ const AccountingApp = () => {
     }, [data.employees]);
 
 
-    // 7. Routing and Navigation
-    const navItems = [
-        { key: 'dashboard', label: 'الرئيسية', icon: Home, component: DashboardComponent },
-        { key: 'revenues', label: 'الإيرادات', icon: TrendingUp, component: DataPageComponent, props: { title: 'الإيرادات', type: 'revenue', collectionName: 'revenues', categories: data.settings.revenueCategories, fields: [{ key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'category', label: 'فئة الإيراد', type: 'select', required: true }, { key: 'description', label: 'الوصف/المصدر', type: 'textarea' }], handleRefresh } },
-        { key: 'expenses', label: 'الصرفيات', icon: TrendingDown, component: DataPageComponent, props: { title: 'الصرفيات', type: 'expense', collectionName: 'expenses', categories: data.settings.expenseCategories, fields: [{ key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'category', label: 'فئة المصروف', type: 'select', required: true }, { key: 'description', label: 'الوصف المفصل', type: 'textarea', required: true }], handleRefresh, openScanner } },
-        { key: 'advances', label: 'السلف', icon: Coins, component: DataPageComponent, props: { title: 'السلف', type: 'advance', collectionName: 'advances', categories: data.settings.advanceCategories, fields: [{ key: 'employeeName', label: 'الموظف المعني', type: 'select', required: true }, { key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'category', label: 'فئة السلفة', type: 'select', required: true }, { key: 'notes', label: 'ملاحظات', type: 'textarea' }], handleRefresh } },
-        { key: 'suspended', label: 'المعلقة (قيد التسوية)', icon: RotateCcw, component: DataPageComponent, props: { title: 'المعلقة (قيد التسوية)', type: 'suspended', collectionName: 'suspended', fields: [{ key: 'recipientName', label: 'اسم المستلم', required: true }, { key: 'amount', label: 'المبلغ', currency: true, required: true }, { key: 'notes', label: 'ملاحظات', type: 'textarea' }], handleRefresh } },
+    // 7. Routing and Navigation
+    const revenueFields = useMemo(() => ([
+        { key: 'amount', label: 'المبلغ', currency: true, required: true },
+        { key: 'category', label: 'فئة الإيراد', type: 'select', required: true },
+        { key: 'description', label: 'الوصف/المصدر', type: 'textarea' },
+    ]), []);
+
+    const expenseFields = useMemo(() => ([
+        { key: 'amount', label: 'المبلغ', currency: true, required: true },
+        { key: 'category', label: 'فئة المصروف', type: 'select', required: true },
+        { key: 'description', label: 'الوصف المفصل', type: 'textarea', required: true },
+    ]), []);
+
+    const advanceFields = useMemo(() => ([
+        { key: 'employeeName', label: 'الموظف المعني', type: 'select', required: true },
+        { key: 'amount', label: 'المبلغ', currency: true, required: true },
+        { key: 'category', label: 'فئة السلفة', type: 'select', required: true },
+        { key: 'notes', label: 'ملاحظات', type: 'textarea' },
+    ]), []);
+
+    const suspendedFields = useMemo(() => ([
+        { key: 'recipientName', label: 'اسم المستلم', required: true },
+        { key: 'amount', label: 'المبلغ', currency: true, required: true },
+        { key: 'notes', label: 'ملاحظات', type: 'textarea' },
+    ]), []);
+
+    const navItems = useMemo(() => ([
+        { key: 'dashboard', label: 'الرئيسية', icon: Home, component: DashboardComponent },
+        { key: 'revenues', label: 'الإيرادات', icon: TrendingUp, component: DataPageComponent, props: { title: 'الإيرادات', type: 'revenue', collectionName: 'revenues', categories: data.settings.revenueCategories, fields: revenueFields, handleRefresh } },
+        { key: 'expenses', label: 'الصرفيات', icon: TrendingDown, component: DataPageComponent, props: { title: 'الصرفيات', type: 'expense', collectionName: 'expenses', categories: data.settings.expenseCategories, fields: expenseFields, handleRefresh, openScanner } },
+        { key: 'advances', label: 'السلف', icon: Coins, component: DataPageComponent, props: { title: 'السلف', type: 'advance', collectionName: 'advances', categories: data.settings.advanceCategories, fields: advanceFields, handleRefresh } },
+        { key: 'suspended', label: 'المعلقة (قيد التسوية)', icon: RotateCcw, component: DataPageComponent, props: { title: 'المعلقة (قيد التسوية)', type: 'suspended', collectionName: 'suspended', fields: suspendedFields, handleRefresh } },
         { key: 'debts', label: 'الديون', icon: FileText, component: DebtsPageComponent, props: { setInitialExpenseState, navigateWithGuards, openScanner } },
         { key: 'pendingExpenses', label: 'الصرفيات المعلقة', icon: Clock, component: PendingExpensesComponent, props: { handleRefresh, setCurrentPage, setInitialExpenseState, openScanner } },
         { key: 'employees', label: 'الموظفين', icon: Users, component: EmployeePageComponent, props: { handleRefresh, openScanner } },
         { key: 'payroll', label: 'الرواتب', icon: Calculator, component: PayrollPageComponent, props: { handleRefresh } },
         { key: 'inventoryEntry', label: 'الإدخال المخزني', icon: ClipboardCheck, component: InventoryEntryComponent, props: { handleRefresh, openScanner } },
         { key: 'inventoryWithdrawal', label: 'الاستخراج المخزني', icon: LogOut, component: InventoryWithdrawalComponent, props: { handleRefresh, handleDelete, handleDataAction } },
-        { key: 'inventory', label: 'المخزن والمواد', icon: Package, component: InventoryPageComponent, props: { handleRefresh, handleDataAction } },
+        { key: 'inventory', label: 'المخزن والمواد', icon: Package, component: InventoryPageComponent, props: { handleRefresh, handleDataAction } },
         { key: 'settings', label: 'الإعدادات', icon: Settings, component: SettingsPage, props: { handleSettingsUpdate, registerLeaveGuard: registerSettingsLeaveGuard } },
         { key: 'admin', label: 'الإدارة', icon: Shield, component: AdminPage, props: { handleDataAction, showToast } },
         { key: 'about', label: 'حول النظام', icon: Info, component: AboutPage, props: {} },
-    ];
+    ]), [data.settings.revenueCategories, data.settings.expenseCategories, data.settings.advanceCategories, handleRefresh, openScanner, setInitialExpenseState, navigateWithGuards, setCurrentPage, handleDelete, handleDataAction, handleSettingsUpdate, registerSettingsLeaveGuard, showToast, revenueFields, expenseFields, advanceFields, suspendedFields]);
     
     // فلترة عناصر القائمة حسب صلاحيات المستخدم
     const visibleNavItems = useMemo(() => {
