@@ -2171,11 +2171,6 @@ const DataPageComponent = React.memo(({
             };
 
             const normalizedInvoiceNumber = convertArabicToEnglish((itemToSave.invoiceNumber || '').trim());
-            if (!normalizedInvoiceNumber) {
-                showToast('يرجى إدخال رقم فاتورة المورد.', 'error');
-                return;
-            }
-
             itemToSave = {
                 ...itemToSave,
                 invoiceNumber: normalizedInvoiceNumber,
@@ -4417,11 +4412,6 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
             };
 
             const normalizedInvoiceNumber = convertArabicToEnglish((itemToSave.invoiceNumber || '').trim());
-            if (!normalizedInvoiceNumber) {
-                showToast('يرجى إدخال رقم فاتورة المورد للمصروف.', 'error');
-                return;
-            }
-
             itemToSave = {
                 ...itemToSave,
                 invoiceNumber: normalizedInvoiceNumber,
@@ -10060,7 +10050,7 @@ const ActivityLogSection = React.memo(({ data }) => {
             </div>
             
             {/* جدول السجلات */}
-            <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-600">
+            <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-600 max-h-[500px] overflow-y-auto">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-600">
                     <thead className="bg-gray-50 dark:bg-gray-700">
                         <tr>
