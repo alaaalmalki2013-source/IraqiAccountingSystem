@@ -65,6 +65,7 @@ import {
     FileDown,
     Mail,
     Key,
+    PieChart,
     Scan
 } from 'lucide-react';
 
@@ -7422,7 +7423,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
             const canDirectExpense = !!currentUser?.permissions?.expenses?.add && !!currentUser?.permissions?.expenses?.view;
             const targetCollection = canDirectExpense ? 'expenses' : 'pendingExpenses';
             const recordId = crypto.randomUUID();
-            const shouldApplyInventory = !invoice.inventoryApplied && invoice.status !== 'CreditApproved';
+            const shouldApplyInventory = !invoice.inventoryApplied && invoice.status !== 'CreditApproved' && invoice.status !== 'PartialPaid';
 
             const expenseRecord = {
                 id: recordId,
@@ -7723,28 +7724,31 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
     
     // حساب الإحصائيات الجديدة
     const allInvoices = data.pendingInvoices;
-    const stats = useMemo(() => {
-        const initial = { pending: 0, dispatchedCash: 0, dispatchedCredit: 0, cancelled: 0 };
-        
-        const counts = allInvoices.reduce((acc, invoice) => {
-            if (invoice.status === 'Pending') acc.pending += invoice.totalAmount;
-            else if (invoice.status === 'Dispatched') acc.dispatchedCash += invoice.totalAmount;
-            else if (invoice.status === 'CreditApproved') acc.dispatchedCredit += invoice.totalAmount;
-            else if (invoice.status === 'Cancelled') acc.cancelled += invoice.totalAmount;
-            return acc;
-        }, initial);
-        
-        return {
-            pendingCount: allInvoices.filter(inv => inv.status === 'Pending').length,
-            cashCount: allInvoices.filter(inv => inv.status === 'Dispatched').length,
-            creditCount: allInvoices.filter(inv => inv.status === 'CreditApproved').length,
-            cancelledCount: allInvoices.filter(inv => inv.status === 'Cancelled').length,
-            totalPending: counts.pending,
-            totalCash: counts.dispatchedCash,
-            totalCredit: counts.dispatchedCredit,
-            totalCancelled: counts.cancelled,
-        };
-    }, [allInvoices]);
+    const stats = useMemo(() => {
+        const initial = { pending: 0, dispatchedCash: 0, dispatchedCredit: 0, partialCredit: 0, cancelled: 0 };
+
+        const counts = allInvoices.reduce((acc, invoice) => {
+            if (invoice.status === 'Pending') acc.pending += invoice.totalAmount;
+            else if (invoice.status === 'Dispatched') acc.dispatchedCash += invoice.totalAmount;
+            else if (invoice.status === 'CreditApproved') acc.dispatchedCredit += invoice.totalAmount;
+            else if (invoice.status === 'PartialPaid') acc.partialCredit += invoice.totalAmount;
+            else if (invoice.status === 'Cancelled') acc.cancelled += invoice.totalAmount;
+            return acc;
+        }, initial);
+
+        return {
+            pendingCount: allInvoices.filter(inv => inv.status === 'Pending').length,
+            cashCount: allInvoices.filter(inv => inv.status === 'Dispatched').length,
+            creditCount: allInvoices.filter(inv => inv.status === 'CreditApproved').length,
+            partialCount: allInvoices.filter(inv => inv.status === 'PartialPaid').length,
+            cancelledCount: allInvoices.filter(inv => inv.status === 'Cancelled').length,
+            totalPending: counts.pending,
+            totalCash: counts.dispatchedCash,
+            totalCredit: counts.dispatchedCredit,
+            totalPartial: counts.partialCredit,
+            totalCancelled: counts.cancelled,
+        };
+    }, [allInvoices]);
     
     const handleFilterClick = (status) => {
          setStatusFilter(prev => {
@@ -7769,7 +7773,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
         <div className="p-6 space-y-6 bg-white dark:bg-gray-800 rounded-3xl shadow-2xl">
             <h2 className="text-4xl font-extrabold text-gray-800 dark:text-gray-200 border-b-2 border-teal-500 pb-3">إدارة الإدخال المخزني </h2>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
                 <FilterStatCard
                     title="الفواتير المعلقة"
                     value={`${stats.pendingCount} فاتورة`}
@@ -7798,6 +7802,16 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                     onClick={() => handleFilterClick('CreditApproved')}
                     active={isFilterActive('CreditApproved')}
                     themeKey="blue"
+                    size="md"
+                />
+                <FilterStatCard
+                    title="مدفوع جزئياً"
+                    value={`${stats.partialCount} فاتورة`}
+                    subtitle={`إجمالي: ${formatCurrencyDisplay(stats.totalPartial)}`}
+                    icon={PieChart}
+                    onClick={() => handleFilterClick('PartialPaid')}
+                    active={isFilterActive('PartialPaid')}
+                    themeKey="purple"
                     size="md"
                 />
                 <FilterStatCard
@@ -7865,7 +7879,15 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                         ) : (
                             paginatedInvoices.map(invoice => (
                                 <tr key={invoice.id}
-                                    className={`hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150 cursor-pointer ${invoice.status === 'Dispatched' ? 'bg-green-50 dark:bg-green-900' : invoice.status === 'Cancelled' ? 'bg-red-50 dark:bg-red-900' : invoice.status === 'CreditApproved' ? 'bg-blue-50 dark:bg-blue-900' : 'bg-yellow-50 dark:bg-yellow-900'}`}
+                                    className={`hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150 cursor-pointer ${invoice.status === 'Dispatched'
+                                        ? 'bg-green-50 dark:bg-green-900'
+                                        : invoice.status === 'Cancelled'
+                                            ? 'bg-red-50 dark:bg-red-900'
+                                            : invoice.status === 'PartialPaid'
+                                                ? 'bg-purple-50 dark:bg-purple-900'
+                                                : invoice.status === 'CreditApproved'
+                                                    ? 'bg-blue-50 dark:bg-blue-900'
+                                                    : 'bg-yellow-50 dark:bg-yellow-900'}`}
                                     onClick={() => openDetailsModal(invoice)}
                                 >
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900 dark:text-gray-100">{highlightText(invoice.invoiceNumber, globalSearch)}</td>
@@ -7876,8 +7898,9 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                         {/* عرض الحالة */}
                                         {invoice.status === 'Pending' && <span className="text-yellow-600 font-bold text-xs p-1 rounded bg-yellow-100">معلقة (مراجعة)</span>}
-                                        {invoice.status === 'CreditApproved' && <span className="text-blue-600 font-bold text-xs p-1 rounded bg-blue-100">آجل (تم الإدخال)</span>}
-                                        {invoice.status === 'Dispatched' && <span className="text-green-600 font-bold text-xs p-1 rounded bg-green-100">مصروفة (كاش/صرف آجل)</span>}
+                                        {invoice.status === 'CreditApproved' && <span className="text-blue-600 font-bold text-xs p-1 rounded bg-blue-100">آجل (تم الإدخال)</span>}
+                                        {invoice.status === 'PartialPaid' && <span className="text-purple-600 font-bold text-xs p-1 rounded bg-purple-100">دفع جزئي</span>}
+                                        {invoice.status === 'Dispatched' && <span className="text-green-600 font-bold text-xs p-1 rounded bg-green-100">مصروفة (كاش/صرف آجل)</span>}
                                         {invoice.status === 'Cancelled' && <span className="text-red-600 font-bold text-xs p-1 rounded bg-red-100">ملغاة</span>}
                                     </td>
                                 </tr>
@@ -8292,7 +8315,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                     )}
                             
                             {/* حالة آجل - يظهر زر الصرف */}
-                    {currentInvoice.status === 'CreditApproved' && (canApproveInventory || canCancelInventory) && (
+                    {['CreditApproved', 'PartialPaid'].includes(currentInvoice.status) && (canApproveInventory || canCancelInventory) && (
                         <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                             {canApproveInventory && (
                                 <ActionButton
@@ -8316,11 +8339,16 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                     )}
                             
                             {/* حالة مصروفة وملغاة */}
-                            {currentInvoice.status === 'Dispatched' && (
-                                <p className="w-full text-center p-3 rounded-xl font-bold bg-green-100 text-green-700">
-                                    تم صرف الفاتورة بالكامل (مسجلة كمصروف).
-                                </p>
-                            )}
+                    {currentInvoice.status === 'Dispatched' && (
+                        <p className="w-full text-center p-3 rounded-xl font-bold bg-green-100 text-green-700">
+                            تم صرف الفاتورة بالكامل (مسجلة كمصروف).
+                        </p>
+                    )}
+                    {currentInvoice.status === 'PartialPaid' && (
+                        <p className="w-full text-center p-3 rounded-xl font-bold bg-purple-100 text-purple-700">
+                            تم دفع جزء من الفاتورة. المبلغ المتبقي: {formatCurrencyDisplay(currentInvoice.debtRemainingAmount ?? Math.max(0, (parseFloat(currentInvoice.totalAmount) || 0) - (parseFloat(currentInvoice.debtPaidAmount) || 0)))}.
+                        </p>
+                    )}
                             {currentInvoice.status === 'Cancelled' && (
                                 <p className="w-full text-center p-3 rounded-xl font-bold bg-red-100 text-red-700">
                                     الفاتورة ملغاة. السبب: {currentInvoice.cancellationReason || 'غير محدد'}
@@ -11523,6 +11551,46 @@ const AccountingApp = () => {
         const paymentId = record.linkedDebtPaymentId || record.id;
         const baseTotal = parseAmountValue(debt.totalAmount ?? 0);
 
+        const updateLinkedInvoiceStatus = (remaining, totalPaid) => {
+            if (!debt.linkedInvoiceId || !Array.isArray(draftData.pendingInvoices)) {
+                return;
+            }
+
+            const invoicesList = [...draftData.pendingInvoices];
+            const invoiceIndex = invoicesList.findIndex(inv => inv.id === debt.linkedInvoiceId);
+            if (invoiceIndex === -1) {
+                return;
+            }
+
+            const invoice = invoicesList[invoiceIndex];
+            let nextStatus = invoice.status;
+
+            if (totalPaid > 0 && remaining <= 0) {
+                nextStatus = 'Dispatched';
+            } else if (totalPaid > 0 && remaining > 0) {
+                nextStatus = 'PartialPaid';
+            } else {
+                nextStatus = 'CreditApproved';
+            }
+
+            const updatedInvoice = {
+                ...invoice,
+                status: nextStatus,
+                debtRemainingAmount: remaining,
+                debtPaidAmount: totalPaid,
+                debtLastPaymentAt: totalPaid > 0 ? getDefaultDateTime() : invoice.debtLastPaymentAt || null,
+            };
+
+            if (totalPaid > 0 && remaining <= 0) {
+                updatedInvoice.debtSettledAt = getDefaultDateTime();
+            } else if (remaining > 0) {
+                updatedInvoice.debtSettledAt = null;
+            }
+
+            invoicesList[invoiceIndex] = updatedInvoice;
+            draftData.pendingInvoices = invoicesList;
+        };
+
         if (actionType === 'delete') {
             const filteredPayments = payments.filter(payment => payment.id !== paymentId);
             const totalPaid = filteredPayments.reduce((sum, payment) => sum + parseAmountValue(payment.amount), 0);
@@ -11537,6 +11605,7 @@ const AccountingApp = () => {
                 updatedAt: getDefaultDateTime(),
             };
             draftData.debts = debtsList;
+            updateLinkedInvoiceStatus(remaining, totalPaid);
             return draftData;
         }
 
@@ -11590,6 +11659,7 @@ const AccountingApp = () => {
         };
 
         draftData.debts = debtsList;
+        updateLinkedInvoiceStatus(remaining, totalPaid);
         return draftData;
     };
 
