@@ -1961,6 +1961,11 @@ const DataPageComponent = React.memo(({
             };
         }
 
+        baseState = {
+            ...baseState,
+            invoiceNumber: item?.invoiceNumber || initialDispatch?.invoiceNumber || baseState?.invoiceNumber || '',
+        };
+
         return {
             ...baseState,
             id: baseId,
@@ -2163,6 +2168,17 @@ const DataPageComponent = React.memo(({
                 ...itemToSave,
                 attachments: normalizedAttachments,
                 invoiceImageUrl: getPrimaryAttachmentDataUrl(normalizedAttachments),
+            };
+
+            const normalizedInvoiceNumber = convertArabicToEnglish((itemToSave.invoiceNumber || '').trim());
+            if (!normalizedInvoiceNumber) {
+                showToast('يرجى إدخال رقم فاتورة المورد.', 'error');
+                return;
+            }
+
+            itemToSave = {
+                ...itemToSave,
+                invoiceNumber: normalizedInvoiceNumber,
             };
         }
 
@@ -2782,11 +2798,11 @@ const DataPageComponent = React.memo(({
                                     </select>
                                 </div>
                                 
-                                <div className="flex flex-col space-y-1 text-right">
-                                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">المندوب المسؤول</label>
-                                    <select
-                                        value={formState.representative || ''}
-                                        onChange={(e) => setFormState({ ...formState, representative: e.target.value })}
+                        <div className="flex flex-col space-y-1 text-right">
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">المندوب المسؤول</label>
+                            <select
+                                value={formState.representative || ''}
+                                onChange={(e) => setFormState({ ...formState, representative: e.target.value })}
                                         required
                                         disabled={!selectedVendor || (!!initialExpenseState && !currentItem)}
                                         className={`w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl transition duration-150 text-right ${!!initialExpenseState && !currentItem ? 'bg-gray-100 dark:bg-gray-600' : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 focus:ring-teal-500 focus:border-teal-500'}`}
@@ -2796,11 +2812,22 @@ const DataPageComponent = React.memo(({
                                             <option key={rep.name} value={rep.name}>{rep.name}</option>
                                         ))}
                                     </select>
-                                    {!selectedVendor && <p className="text-xs text-red-500 mt-1">يجب اختيار الشركة أولاً.</p>}
-                                </div>
-                            </>
-                        )}
-                        
+                            {!selectedVendor && <p className="text-xs text-red-500 mt-1">يجب اختيار الشركة أولاً.</p>}
+                        </div>
+
+                        <InputField
+                            label="رقم فاتورة المورد"
+                            type="text"
+                            value={formState.invoiceNumber || ''}
+                            onChange={(e) => setFormState({
+                                ...formState,
+                                invoiceNumber: convertArabicToEnglish(e.target.value || ''),
+                            })}
+                            required
+                        />
+                    </>
+                )}
+
         {fields.map(field => {
             const isAutoFilled = collectionName === 'expenses' && initialExpenseState && !currentItem &&
                 (field.key === 'amount' || field.key === 'description' || field.key === 'category');
@@ -4388,6 +4415,17 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                 attachments: normalizedAttachments,
                 invoiceImageUrl: getPrimaryAttachmentDataUrl(normalizedAttachments),
             };
+
+            const normalizedInvoiceNumber = convertArabicToEnglish((itemToSave.invoiceNumber || '').trim());
+            if (!normalizedInvoiceNumber) {
+                showToast('يرجى إدخال رقم فاتورة المورد للمصروف.', 'error');
+                return;
+            }
+
+            itemToSave = {
+                ...itemToSave,
+                invoiceNumber: normalizedInvoiceNumber,
+            };
         } else {
             itemToSave = {
                 ...itemToSave,
@@ -4409,6 +4447,8 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
         const effectiveId = currentItem?.id || formState.id || crypto.randomUUID();
         const parsedAmount = parseFloat(convertArabicToEnglish(itemToSave.amount || '0')) || 0;
 
+        const normalizedInvoiceNumber = convertArabicToEnglish((itemToSave.invoiceNumber || '').toString().trim());
+
         const pendingItem = {
             ...itemToSave,
             id: effectiveId,
@@ -4417,7 +4457,7 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
             inventoryItems: itemToSave.inventoryItems || [],
             linkedInvoiceId: itemToSave.linkedInvoiceId || null,
             fromInventoryEntry: itemToSave.fromInventoryEntry || false,
-            invoiceNumber: itemToSave.invoiceNumber || '',
+            invoiceNumber: normalizedInvoiceNumber,
             attachments: Array.isArray(itemToSave.attachments) ? itemToSave.attachments : [],
         };
 
@@ -4440,17 +4480,17 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
             updatedData.pendingExpenses = [...updatedData.pendingExpenses, item];
         }
 
-        if (item.type === 'expense') {
-            const expenseAttachments = normalizeAttachmentList(item.attachments, item.invoiceImageUrl, 'مرفق');
-            const primaryAttachment = getPrimaryAttachmentDataUrl(expenseAttachments);
-            const expenseData = {
-                id: crypto.randomUUID(),
-                invoiceNumber: generateInvoiceNumber(),
-                date: item.date,
-                amount: item.amount,
-                category: item.category,
-                description: item.description || '',
-                vendor: item.vendor || '',
+            if (item.type === 'expense') {
+                const expenseAttachments = normalizeAttachmentList(item.attachments, item.invoiceImageUrl, 'مرفق');
+                const primaryAttachment = getPrimaryAttachmentDataUrl(expenseAttachments);
+                const expenseData = {
+                    id: crypto.randomUUID(),
+                    invoiceNumber: convertArabicToEnglish((item.invoiceNumber || '').trim()) || generateInvoiceNumber(),
+                    date: item.date,
+                    amount: item.amount,
+                    category: item.category,
+                    description: item.description || '',
+                    vendor: item.vendor || '',
                 representative: item.representative || '',
                 invoiceImageUrl: primaryAttachment || '',
                 attachments: expenseAttachments,
@@ -4867,6 +4907,7 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                                     notes: '',
                                     attachments: [],
                                     invoiceImageUrl: '',
+                                    invoiceNumber: '',
                                 })}
                                 required
                                 className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-teal-500 focus:border-teal-500 transition duration-150 text-right"
@@ -4964,6 +5005,17 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                                     onChange={(e) => setFormState({ ...formState, description: e.target.value })}
                                     required
                                     textarea
+                                />
+
+                                <InputField
+                                    label="رقم فاتورة المورد"
+                                    type="text"
+                                    value={formState.invoiceNumber || ''}
+                                    onChange={(e) => setFormState({
+                                        ...formState,
+                                        invoiceNumber: convertArabicToEnglish(e.target.value || ''),
+                                    })}
+                                    required
                                 />
                             </>
                         ) : (
@@ -5919,7 +5971,7 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     const [currentEmployee, setCurrentEmployee] = useState(null);
     const [isAddAdjustmentOpen, setIsAddAdjustmentOpen] = useState(false);
-    const [adjustmentForm, setAdjustmentForm] = useState({ type: 'bonus', amount: '', description: '', date: new Date().toISOString().slice(0, 10) });
+    const [adjustmentForm, setAdjustmentForm] = useState({ type: 'bonus', amount: '', description: '', date: new Date().toISOString().slice(0, 10), absenceDays: '' });
     const [globalSearch, setGlobalSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('الكل');
     const [payslipToPrint, setPayslipToPrint] = useState(null);
@@ -6013,7 +6065,7 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
         let totalAll = 0;
         let totalPaid = 0;
         let totalUnpaid = 0;
-        
+
         filteredEmployees.forEach(emp => {
             const salaryData = calculateEmployeeSalary(emp, selectedMonth, selectedYear);
             totalAll += salaryData.netSalary;
@@ -6023,22 +6075,85 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                 totalUnpaid += salaryData.netSalary;
             }
         });
-        
+
         return { totalAll, totalPaid, totalUnpaid };
     }, [filteredEmployees, selectedMonth, selectedYear, calculateEmployeeSalary]);
+
+    const computeAbsenceDeduction = useCallback((daysValue) => {
+        const baseSalaryValue = parseFloat(convertArabicToEnglish(currentEmployee?.salary || '0')) || 0;
+        const normalizedDays = parseFloat(convertArabicToEnglish(daysValue || '')) || 0;
+
+        if (!baseSalaryValue || !normalizedDays) {
+            return '';
+        }
+
+        const deduction = (baseSalaryValue / 30) * normalizedDays;
+        return deduction.toFixed(2);
+    }, [currentEmployee]);
+
+    const getAdvancesForPeriod = useCallback((employeeId, month, year) => {
+        return data.advances
+            .filter(adv => {
+                const advDate = new Date(adv.date);
+                return adv.employeeId === employeeId &&
+                    advDate.getMonth() + 1 === month &&
+                    advDate.getFullYear() === year;
+            })
+            .map(adv => ({ ...adv }));
+    }, [data.advances]);
 
     // دالة إضافة تعديل
     const handleAddAdjustment = (e) => {
         e.preventDefault();
-        
+
         if (!currentEmployee) return;
+
+        let description = (adjustmentForm.description || '').trim();
+        const baseSalary = parseFloat(convertArabicToEnglish(currentEmployee.salary || '0')) || 0;
+        let amountValue = parseFloat(convertArabicToEnglish(adjustmentForm.amount || '0')) || 0;
+        let absenceDaysValue = null;
+
+        if (adjustmentForm.type === 'absence') {
+            const rawDays = convertArabicToEnglish(adjustmentForm.absenceDays || '');
+            const daysValue = parseFloat(rawDays);
+
+            if (!daysValue || daysValue <= 0) {
+                showToast('يرجى إدخال عدد أيام الغياب بصورة صحيحة.', 'error');
+                return;
+            }
+
+            if (!baseSalary) {
+                showToast('لا يمكن احتساب خصم الغياب بدون تحديد الراتب الأساسي للموظف.', 'error');
+                return;
+            }
+
+            const dailyRate = baseSalary / 30;
+            const computedAmount = dailyRate * daysValue;
+            amountValue = parseFloat(computedAmount.toFixed(2));
+            absenceDaysValue = parseFloat(daysValue.toFixed(2));
+
+            if (!description) {
+                description = `خصم غياب (${daysValue} يوم${daysValue !== 1 ? 'اً' : ''})`;
+            }
+        } else {
+            if (!amountValue || amountValue <= 0) {
+                showToast('يرجى إدخال مبلغ صالح للتعديل.', 'error');
+                return;
+            }
+        }
+
+        if (!description) {
+            showToast('يرجى كتابة وصف للتعديل.', 'error');
+            return;
+        }
 
         const newAdjustment = {
             id: Date.now().toString(),
             type: adjustmentForm.type,
-            amount: parseFloat(convertArabicToEnglish(adjustmentForm.amount)) || 0,
-            description: adjustmentForm.description,
-            date: adjustmentForm.date
+            amount: amountValue,
+            description,
+            date: adjustmentForm.date,
+            ...(absenceDaysValue !== null ? { absenceDays: absenceDaysValue } : {}),
         };
 
         let payrollRecord = data.payroll.find(p => 
@@ -6063,7 +6178,7 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
             handleDataAction('payroll', payrollRecord, true);
         }
 
-        setAdjustmentForm({ type: 'bonus', amount: '', description: '', date: new Date().toISOString().slice(0, 10) });
+        setAdjustmentForm({ type: 'bonus', amount: '', description: '', date: new Date().toISOString().slice(0, 10), absenceDays: '' });
         setIsAddAdjustmentOpen(false);
         showToast('تم إضافة التعديل بنجاح!', 'success');
     };
@@ -6149,7 +6264,8 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
 
     // دالة طباعة كشف الراتب
     const handlePrintPayslip = (employee, salaryData) => {
-        setPayslipToPrint({ employee, salaryData });
+        const advancesForPeriod = getAdvancesForPeriod(employee.id, selectedMonth, selectedYear);
+        setPayslipToPrint({ employee, salaryData, advances: advancesForPeriod });
     };
 
     return (
@@ -6361,7 +6477,10 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                             <div className="flex justify-between items-center mb-3">
                                 <h4 className="text-lg font-bold text-gray-800 dark:text-gray-200">التعديلات</h4>
                                 <button
-                                    onClick={() => setIsAddAdjustmentOpen(true)}
+                                    onClick={() => {
+                                        setAdjustmentForm({ type: 'bonus', amount: '', description: '', date: new Date().toISOString().slice(0, 10), absenceDays: '' });
+                                        setIsAddAdjustmentOpen(true);
+                                    }}
                                     className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
                                     data-testid="button-add-adjustment"
                                 >
@@ -6391,6 +6510,9 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                                                         {adj.type === 'overtime' && '⏰ أوفرتايم'}
                                                     </p>
                                                     <p className="text-sm text-gray-600 dark:text-gray-400">{adj.description}</p>
+                                                    {adj.type === 'absence' && adj.absenceDays !== undefined && (
+                                                        <p className="text-xs text-amber-600 dark:text-amber-300">أيام الغياب: {adj.absenceDays}</p>
+                                                    )}
                                                     <p className="text-xs text-gray-400 dark:text-gray-500">{formatDateDDMMYYYY(adj.date)}</p>
                                                 </div>
                                                 <p className={`font-bold ${adj.type === 'bonus' || adj.type === 'overtime' ? 'text-green-600' : 'text-red-600'}`}>
@@ -6444,7 +6566,26 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                             <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1">نوع التعديل</label>
                             <select
                                 value={adjustmentForm.type}
-                                onChange={(e) => setAdjustmentForm({ ...adjustmentForm, type: e.target.value })}
+                                onChange={(e) => {
+                                    const nextType = e.target.value;
+                                    setAdjustmentForm(prev => {
+                                        if (nextType === 'absence') {
+                                            const computed = computeAbsenceDeduction(prev.absenceDays);
+                                            return {
+                                                ...prev,
+                                                type: nextType,
+                                                amount: computed,
+                                            };
+                                        }
+
+                                        return {
+                                            ...prev,
+                                            type: nextType,
+                                            absenceDays: '',
+                                            amount: '',
+                                        };
+                                    });
+                                }}
                                 className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:ring-purple-500 focus:border-purple-500"
                                 data-testid="select-adjustment-type"
                             >
@@ -6454,6 +6595,25 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                                 <option value="overtime">أوفرتايم</option>
                             </select>
                         </div>
+                        {adjustmentForm.type === 'absence' && (
+                            <InputField
+                                label="عدد أيام الغياب"
+                                type="text"
+                                value={adjustmentForm.absenceDays || ''}
+                                onChange={(e) => {
+                                    const sanitized = convertArabicToEnglish((e.target.value || '').toString())
+                                        .replace(/[^0-9.]/g, '')
+                                        .replace(/(\..*)\./g, '$1');
+                                    const computedAmount = computeAbsenceDeduction(sanitized);
+                                    setAdjustmentForm(prev => ({
+                                        ...prev,
+                                        absenceDays: sanitized,
+                                        amount: computedAmount,
+                                    }));
+                                }}
+                                required
+                            />
+                        )}
                         <InputField
                             label="المبلغ"
                             type="number"
@@ -6461,6 +6621,7 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                             onChange={(e) => setAdjustmentForm({ ...adjustmentForm, amount: e.target.value })}
                             required
                             currency
+                            readOnly={adjustmentForm.type === 'absence'}
                         />
                         <InputField
                             label="الوصف"
@@ -6537,6 +6698,33 @@ const PayrollPageComponent = React.memo(({ data, handleDataAction, showToast, ha
                                         <tr style={{ fontWeight: 'bold', fontSize: '14px' }}><td style={{ padding: '5px', borderBottom: '1px solid #000' }}>الراتب الصافي:</td><td style={{ padding: '5px', borderBottom: '1px solid #000' }}>{payslipToPrint.salaryData.netSalary.toLocaleString()} د.ع.</td></tr>
                                     </tbody>
                                 </table>
+                                <hr style={{ border: '0.5px solid #ccc', margin: '12px 0' }} />
+                                <h4 style={{ fontSize: '13px', margin: '8px 0', textAlign: 'center', color: '#000' }}>سجل السلف خلال الفترة</h4>
+                                {payslipToPrint.advances && payslipToPrint.advances.length > 0 ? (
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', color: '#000', fontSize: '11px' }}>
+                                        <thead>
+                                            <tr>
+                                                <th style={{ textAlign: 'right', padding: '4px', borderBottom: '1px solid #ddd' }}>التاريخ والوقت</th>
+                                                <th style={{ textAlign: 'right', padding: '4px', borderBottom: '1px solid #ddd' }}>فئة السلفة</th>
+                                                <th style={{ textAlign: 'right', padding: '4px', borderBottom: '1px solid #ddd' }}>المبلغ</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {payslipToPrint.advances.map((adv, index) => {
+                                                const amountValue = parseFloat(convertArabicToEnglish((adv.amount ?? 0).toString())) || 0;
+                                                return (
+                                                    <tr key={adv.id || `adv-${index}`}>
+                                                        <td style={{ padding: '4px', borderBottom: '1px dashed #eee' }}>{formatDateTimeDDMMYYYY(adv.date)}</td>
+                                                        <td style={{ padding: '4px', borderBottom: '1px dashed #eee' }}>{adv.category || '---'}</td>
+                                                        <td style={{ padding: '4px', borderBottom: '1px dashed #eee' }}>-{amountValue.toLocaleString()} د.ع.</td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                ) : (
+                                    <p style={{ color: '#555', fontSize: '11px', textAlign: 'center', margin: '8px 0' }}>لا توجد سلف خلال هذه الفترة.</p>
+                                )}
                                 <p style={{ textAlign: 'center', marginTop: '20px', color: '#000' }}>التاريخ: {formatDateDDMMYYYY()}</p>
                             </div>
                         </div>
@@ -11689,10 +11877,13 @@ const AccountingApp = () => {
             newData[collectionName] = item;
         } else if (isNew) {
             // إضافة سجل جديد
+            const shouldAssignInvoice = collectionName !== 'inventory' && collectionName !== 'inventoryWithdrawals' && collectionName !== 'debts';
+            const providedInvoiceNumber = shouldAssignInvoice ? convertArabicToEnglish((item.invoiceNumber || '').toString().trim()) : '';
+
             const newItem = {
                 ...item,
                 id: item.id || crypto.randomUUID(),
-                ...(collectionName !== 'inventory' && collectionName !== 'inventoryWithdrawals' && collectionName !== 'debts' ? { invoiceNumber: generateInvoiceNumber() } : {})
+                ...(shouldAssignInvoice ? { invoiceNumber: providedInvoiceNumber || generateInvoiceNumber() } : {}),
             };
             collection.push(newItem);
             newData[collectionName] = collection;
