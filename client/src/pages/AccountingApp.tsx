@@ -2470,6 +2470,7 @@ const DebtsPageComponent = React.memo(({ data, handleDataAction, handleDelete, s
             showToast('لا تملك صلاحية تعديل هذا الدين.', 'error');
             return;
         }
+        setIsDetailsModalOpen(false);
         setEditingDebt(debt);
         setIsModalOpen(true);
     };
@@ -2486,6 +2487,7 @@ const DebtsPageComponent = React.memo(({ data, handleDataAction, handleDelete, s
         }
         setActiveDebt(debt);
         setPaymentAmount('');
+        setIsDetailsModalOpen(false);
         setIsPaymentModalOpen(true);
     };
 
@@ -2524,6 +2526,17 @@ const DebtsPageComponent = React.memo(({ data, handleDataAction, handleDelete, s
 
         const paymentId = crypto.randomUUID();
         const targetCollection = canDirectExpense ? 'expenses' : 'pendingExpenses';
+        const vendorCompany = activeDebt.companyName || '';
+        const representatives = Array.isArray(data.settings?.representatives)
+            ? data.settings.representatives
+            : [];
+        const matchedRepresentative = representatives.find(
+            (rep) => rep.vendor === vendorCompany && rep.name === activeDebt.vendorName
+        );
+        const defaultRepresentative = matchedRepresentative
+            ? matchedRepresentative.name
+            : representatives.find((rep) => rep.vendor === vendorCompany)?.name || activeDebt.vendorName || '';
+
         const expenseDraft = {
             id: paymentId,
             type: 'expense',
@@ -2532,8 +2545,8 @@ const DebtsPageComponent = React.memo(({ data, handleDataAction, handleDelete, s
             amount: amountValue.toString(),
             category: activeDebt.category || data.settings.expenseCategories[0] || '',
             description: `دفعة على دين ${activeDebt.companyName}`,
-            vendor: activeDebt.vendorName || '',
-            representative: '',
+            vendor: vendorCompany,
+            representative: defaultRepresentative,
             notes: activeDebt.description || '',
             invoiceImageUrl: activeDebt.attachmentUrl || '',
             linkedDebtId: activeDebt.id,
