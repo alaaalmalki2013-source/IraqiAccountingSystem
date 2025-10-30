@@ -52,6 +52,8 @@ import {
     MessageCircle,
     Send,
     Minimize2,
+    ZoomIn,
+    ZoomOut,
     Languages,
     FolderOpen,
     Upload,
@@ -239,9 +241,65 @@ const getAttachmentSource = (attachment) => {
     return attachment.dataUrl || attachment.url || attachment.attachmentUrl || '';
 };
 
+const useAttachmentPreviewState = (defaultName = 'مرفق') => {
+    const [state, setState] = useState({ attachments: [], index: 0 });
+
+    const openPreview = useCallback((targetAttachment, collection = [], fallbackUrl = '', fallbackName = defaultName) => {
+        const effectiveName = fallbackName || defaultName || 'مرفق';
+
+        let attachmentsList = normalizeAttachmentList(collection, fallbackUrl, effectiveName);
+
+        if (attachmentsList.length === 0) {
+            const ensured = ensureAttachmentShape(targetAttachment, effectiveName);
+            if (ensured) {
+                attachmentsList = [ensured];
+            }
+        }
+
+        attachmentsList = attachmentsList
+            .map(item => ensureAttachmentShape(item, item?.name || effectiveName))
+            .filter(Boolean);
+
+        if (attachmentsList.length === 0) {
+            return false;
+        }
+
+        let targetIndex = 0;
+
+        if (targetAttachment) {
+            const targetId = targetAttachment.id;
+            const matchedIndex = attachmentsList.findIndex(att => att.id === targetId);
+            if (matchedIndex >= 0) {
+                targetIndex = matchedIndex;
+            } else {
+                const ensured = ensureAttachmentShape(targetAttachment, targetAttachment?.name || effectiveName);
+                if (ensured) {
+                    attachmentsList = [...attachmentsList, ensured];
+                    targetIndex = attachmentsList.length - 1;
+                }
+            }
+        }
+
+        setState({ attachments: attachmentsList, index: targetIndex });
+        return true;
+    }, [defaultName]);
+
+    const closePreview = useCallback(() => {
+        setState({ attachments: [], index: 0 });
+    }, []);
+
+    return {
+        isOpen: state.attachments.length > 0,
+        attachments: state.attachments,
+        initialIndex: state.index,
+        openPreview,
+        closePreview,
+    };
+};
+
 // مكون التنبيه المنبثق
 const NotificationToast = React.memo(({ message, type, onClose }) => {
-    const isSuccess = type === 'success';
+    const isSuccess = type === 'success';
     const bgColor = isSuccess ? 'bg-green-50 dark:bg-green-900' : (type === 'error' ? 'bg-red-50 dark:bg-red-900' : 'bg-amber-50 dark:bg-amber-900');
     const textColor = isSuccess ? 'text-green-800 dark:text-green-200' : (type === 'error' ? 'text-red-800 dark:text-red-200' : 'text-amber-800 dark:text-amber-200');
     const Icon = isSuccess ? CheckCircle : AlertTriangle;
@@ -755,10 +813,10 @@ const ActionButton = ({ onClick, children, className = '', type = 'button', disa
 
 // نافذة المودال
 const Modal = ({ title, children, onClose, size = 'lg', isPrintModal = false }) => {
-	const sizeClass = size === 'sm'
-		? 'max-w-sm md:max-w-md'
-		: size === 'md'
-			? 'max-w-lg'
+        const sizeClass = size === 'sm'
+                ? 'max-w-sm md:max-w-md'
+                : size === 'md'
+                        ? 'max-w-lg'
 			: size === 'lg'
 				? 'max-w-md md:max-w-xl'
 				: size === 'xl'
@@ -785,9 +843,250 @@ const Modal = ({ title, children, onClose, size = 'lg', isPrintModal = false }) 
 					{children}
 				</div>
 			</div>
-		</div>
-	);
+                </div>
+        );
 };
+
+const AttachmentPreviewModal = React.memo(({ attachments = [], initialIndex = 0, onClose, title = 'معاينة المرفقات' }) => {
+    const sanitizedAttachments = useMemo(
+        () => attachments.map(att => ensureAttachmentShape(att, att?.name || 'مرفق')).filter(Boolean),
+        [attachments]
+    );
+
+    const safeIndex = sanitizedAttachments.length > 0
+        ? Math.min(Math.max(initialIndex, 0), sanitizedAttachments.length - 1)
+        : 0;
+
+    const [currentIndex, setCurrentIndex] = useState(safeIndex);
+    const [zoom, setZoom] = useState(1);
+    const [transformOrigin, setTransformOrigin] = useState('50% 50%');
+
+    useEffect(() => {
+        setCurrentIndex(safeIndex);
+    }, [safeIndex, sanitizedAttachments.length]);
+
+    useEffect(() => {
+        setZoom(1);
+        setTransformOrigin('50% 50%');
+    }, [currentIndex, sanitizedAttachments.length]);
+
+    const currentAttachment = sanitizedAttachments[currentIndex];
+    const source = currentAttachment ? getAttachmentSource(currentAttachment) : '';
+    const isImage = currentAttachment ? isImageAttachment(currentAttachment) : false;
+    const isPdf = currentAttachment ? isPdfAttachment(currentAttachment) : false;
+
+    const toggleZoom = useCallback(() => {
+        setZoom(prev => (prev === 1 ? 2 : Math.max(1, prev - 1)));
+    }, []);
+
+    const handleMouseMove = useCallback((event) => {
+        if (zoom <= 1) {
+            return;
+        }
+        const rect = event.currentTarget.getBoundingClientRect();
+        const relativeX = ((event.clientX - rect.left) / rect.width) * 100;
+        const relativeY = ((event.clientY - rect.top) / rect.height) * 100;
+        setTransformOrigin(`${relativeX}% ${relativeY}%`);
+    }, [zoom]);
+
+    const handleMouseLeave = useCallback(() => {
+        if (zoom <= 1) {
+            return;
+        }
+        setTransformOrigin('50% 50%');
+    }, [zoom]);
+
+    const goPrevious = useCallback(() => {
+        if (sanitizedAttachments.length <= 1) {
+            return;
+        }
+        setCurrentIndex(prev => (prev - 1 + sanitizedAttachments.length) % sanitizedAttachments.length);
+    }, [sanitizedAttachments.length]);
+
+    const goNext = useCallback(() => {
+        if (sanitizedAttachments.length <= 1) {
+            return;
+        }
+        setCurrentIndex(prev => (prev + 1) % sanitizedAttachments.length);
+    }, [sanitizedAttachments.length]);
+
+    return (
+        <Modal title={title} onClose={onClose} size="xl">
+            <div className="space-y-4">
+                {sanitizedAttachments.length === 0 || !currentAttachment ? (
+                    <p className="text-center text-sm text-gray-500 dark:text-gray-400">لا توجد مرفقات متاحة للعرض.</p>
+                ) : (
+                    <>
+                        <div className="flex items-center justify-between gap-4 text-sm text-gray-600 dark:text-gray-300">
+                            <div className="flex flex-col gap-1">
+                                <span className="font-semibold text-gray-700 dark:text-gray-200">{currentAttachment.name}</span>
+                                {currentAttachment.uploadedAt && (
+                                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                                        تاريخ الرفع: {formatDateTimeDDMMYYYY(currentAttachment.uploadedAt)}
+                                    </span>
+                                )}
+                            </div>
+                            {source && (
+                                <div className="flex items-center gap-2">
+                                    <a
+                                        href={source}
+                                        download={currentAttachment.name || 'attachment'}
+                                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition"
+                                    >
+                                        <Download className="w-4 h-4" />
+                                        تنزيل
+                                    </a>
+                                    <a
+                                        href={source}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition"
+                                    >
+                                        <ExternalLink className="w-4 h-4" />
+                                        فتح في تبويب
+                                    </a>
+                                </div>
+                            )}
+                        </div>
+
+                        {isImage ? (
+                            <div className="relative">
+                                {sanitizedAttachments.length > 1 && (
+                                    <>
+                                        <button
+                                            type="button"
+                                            onClick={goPrevious}
+                                            className="absolute -right-12 top-1/2 -translate-y-1/2 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 shadow p-2"
+                                            aria-label="السابق"
+                                        >
+                                            <ChevronRight className="w-5 h-5" />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={goNext}
+                                            className="absolute -left-12 top-1/2 -translate-y-1/2 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 shadow p-2"
+                                            aria-label="التالي"
+                                        >
+                                            <ChevronLeft className="w-5 h-5" />
+                                        </button>
+                                    </>
+                                )}
+
+                                <div
+                                    className={`relative overflow-hidden border border-gray-200 dark:border-gray-700 rounded-2xl bg-gray-50 dark:bg-gray-900 ${zoom > 1 ? 'cursor-zoom-out' : 'cursor-zoom-in'}`}
+                                    onClick={toggleZoom}
+                                    onMouseMove={handleMouseMove}
+                                    onMouseLeave={handleMouseLeave}
+                                >
+                                    <img
+                                        src={source}
+                                        alt={currentAttachment.name}
+                                        className="mx-auto max-h-[70vh] w-auto select-none"
+                                        style={{
+                                            transform: `scale(${zoom})`,
+                                            transformOrigin,
+                                            transition: zoom === 1 ? 'transform 0.25s ease-out' : 'transform 0.05s ease-out',
+                                        }}
+                                        draggable={false}
+                                    />
+                                </div>
+
+                                <div className="mt-2 flex items-center justify-center gap-3 text-xs text-gray-500 dark:text-gray-400">
+                                    <button
+                                        type="button"
+                                        onClick={() => setZoom(prev => Math.max(1, Number((prev - 0.25).toFixed(2))))}
+                                        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700"
+                                    >
+                                        <ZoomOut className="w-4 h-4" />
+                                        تصغير
+                                    </button>
+                                    <span>{zoom > 1 ? 'حرّك مؤشر الفأرة للتحريك.' : 'اضغط للتكبير ثم حرك الفأرة.'}</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => setZoom(prev => Math.min(4, Number((prev + 0.25).toFixed(2))))}
+                                        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700"
+                                    >
+                                        <ZoomIn className="w-4 h-4" />
+                                        تكبير
+                                    </button>
+                                </div>
+                            </div>
+                        ) : isPdf ? (
+                            <div className="h-[70vh] border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden bg-white dark:bg-gray-900">
+                                <object data={source} type="application/pdf" className="w-full h-full">
+                                    <iframe src={source} title={currentAttachment.name} className="w-full h-full" />
+                                </object>
+                            </div>
+                        ) : source ? (
+                            <div className="space-y-3 text-center text-sm text-gray-500 dark:text-gray-400">
+                                <p>لا يمكن عرض هذا النوع من الملفات داخل النظام، ولكن يمكنك تنزيله أو فتحه في تبويب جديد.</p>
+                                <div className="flex justify-center gap-3">
+                                    <a
+                                        href={source}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition"
+                                    >
+                                        <ExternalLink className="w-4 h-4" />
+                                        فتح في تبويب جديد
+                                    </a>
+                                    <a
+                                        href={source}
+                                        download={currentAttachment.name || 'attachment'}
+                                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-teal-600 text-white hover:bg-teal-700 transition"
+                                    >
+                                        <Download className="w-4 h-4" />
+                                        تنزيل المرفق
+                                    </a>
+                                </div>
+                            </div>
+                        ) : (
+                            <p className="text-center text-sm text-gray-500 dark:text-gray-400">لا يتوفر مسار صالح لعرض هذا المرفق.</p>
+                        )}
+
+                        {sanitizedAttachments.length > 1 && (
+                            <div className="pt-4 border-t border-dashed border-gray-200 dark:border-gray-700">
+                                <div className="flex flex-wrap justify-center gap-3">
+                                    {sanitizedAttachments.map((attachment, index) => {
+                                        const attachmentSource = getAttachmentSource(attachment);
+                                        const attachmentIsImage = isImageAttachment(attachment);
+                                        const isActive = index === currentIndex;
+
+                                        return (
+                                            <button
+                                                key={attachment.id || `${attachment.name}-${index}`}
+                                                type="button"
+                                                onClick={() => setCurrentIndex(index)}
+                                                className={`flex flex-col items-center gap-2 px-3 py-2 rounded-xl border transition ${isActive
+                                                    ? 'border-teal-500 bg-teal-50 dark:bg-teal-900/30'
+                                                    : 'border-gray-200 bg-white dark:bg-gray-800 dark:border-gray-700 hover:border-teal-400'}`}
+                                            >
+                                                {attachmentIsImage && attachmentSource ? (
+                                                    <img
+                                                        src={attachmentSource}
+                                                        alt={attachment.name}
+                                                        className="h-14 w-20 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
+                                                    />
+                                                ) : (
+                                                    <div className="h-14 w-20 flex items-center justify-center rounded-lg border border-dashed border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-300 text-xs text-center px-2">
+                                                        {isPdfAttachment(attachment) ? 'ملف PDF' : 'ملف مرفق'}
+                                                    </div>
+                                                )}
+                                                <span className="text-xs font-medium text-gray-600 dark:text-gray-300 truncate max-w-[6rem]">
+                                                    {attachment.name}
+                                                </span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+                    </>
+                )}
+            </div>
+        </Modal>
+    );
+});
 
 // مكون طباعة الفاتورة الفردية
 const PrintInvoice = React.memo(({ item, onClose, companyName, companyLogoUrl, employees }) => {
@@ -1670,15 +1969,14 @@ const DataPageComponent = React.memo(({
     const [formState, setFormState] = useState(() => getInitialFormState(currentItem, initialExpenseState));
     const [selectedVendor, setSelectedVendor] = useState(collectionName === 'expenses' && formState.vendor ? formState.vendor : '');
     const attachmentsList = Array.isArray(formState.attachments) ? formState.attachments : [];
-    const [previewAttachment, setPreviewAttachment] = useState(null);
-    const [previewZoomed, setPreviewZoomed] = useState(false);
+    const {
+        isOpen: isAttachmentPreviewOpen,
+        attachments: attachmentPreviewList,
+        initialIndex: attachmentPreviewIndex,
+        openPreview: openAttachmentPreview,
+        closePreview: closeAttachmentPreview,
+    } = useAttachmentPreviewState('مرفق');
     const scannerAvailable = typeof openScanner === 'function';
-
-    useEffect(() => {
-        if (previewAttachment) {
-            setPreviewZoomed(false);
-        }
-    }, [previewAttachment]);
 
     // إعادة تهيئة FormState عند تغيير currentItem أو initialExpenseState
     useEffect(() => {
@@ -1971,25 +2269,15 @@ const DataPageComponent = React.memo(({
         });
     };
 
-    const handleAttachmentPreview = (attachment) => {
+    const handleAttachmentPreview = (attachment, collection = [], fallbackUrl = '', fallbackName = 'مرفق') => {
         if (!attachment) {
             return;
         }
 
-        const normalized = ensureAttachmentShape(attachment, attachment.name || 'مرفق') || {
-            ...attachment,
-            id: attachment.id || generateClientSideId(),
-            name: attachment.name || 'مرفق',
-            dataUrl: getAttachmentSource(attachment),
-        };
-
-        const source = getAttachmentSource(normalized);
-        if (!source) {
-            showToast('تعذر فتح المرفق لعدم توفر رابط صالح.', 'warning');
-            return;
+        const opened = openAttachmentPreview(attachment, collection, fallbackUrl, fallbackName);
+        if (!opened) {
+            showToast('تعذر فتح المرفق لعدم توفر بيانات صالحة.', 'warning');
         }
-
-        setPreviewAttachment({ ...normalized, dataUrl: source });
     };
 
     const handlePrintAll = () => {
@@ -2415,7 +2703,7 @@ const DataPageComponent = React.memo(({
                                                             <button
                                                                 key={attachment.id}
                                                                 type="button"
-                                                                onClick={() => handleAttachmentPreview(attachment)}
+                                                                onClick={() => handleAttachmentPreview(attachment, attachments, item.invoiceImageUrl, 'مرفق')}
                                                                 className="px-3 py-1 rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800/60 text-xs font-semibold transition"
                                                             >
                                                                 {attachment.name || 'مرفق'}
@@ -2620,7 +2908,7 @@ const DataPageComponent = React.memo(({
                                 <div className="flex items-center gap-2">
                                     <button
                                         type="button"
-                                        onClick={() => handleAttachmentPreview(attachment)}
+                                        onClick={() => handleAttachmentPreview(attachment, attachmentsList, formState.invoiceImageUrl, 'مرفق')}
                                         className="px-3 py-1 text-xs rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800/60"
                                     >
                                         معاينة
@@ -2741,7 +3029,13 @@ const DebtsPageComponent = React.memo(({ data, handleDataAction, handleDelete, s
     const [filterCategory, setFilterCategory] = useState('الكل');
     const [globalSearch, setGlobalSearch] = useState('');
     const [originFilter, setOriginFilter] = useState('all');
-    const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
+    const {
+        isOpen: isDebtAttachmentPreviewOpen,
+        attachments: debtAttachmentPreviewList,
+        initialIndex: debtAttachmentPreviewIndex,
+        openPreview: openDebtAttachmentPreview,
+        closePreview: closeDebtAttachmentPreview,
+    } = useAttachmentPreviewState('مرفق الدين');
     const scannerAvailable = typeof openScanner === 'function';
 
     const resolveDebtType = useCallback((debt) => {
@@ -3097,6 +3391,41 @@ const DebtsPageComponent = React.memo(({ data, handleDataAction, handleDelete, s
             },
         });
     }, [openScanner, showToast]);
+
+    const previewDebtAttachment = useCallback((attachment, options = {}) => {
+        const { fallbackName = 'مرفق الدين', collection = [], fallbackUrl = '' } = options || {};
+
+        if (!attachment && (!Array.isArray(collection) || collection.length === 0) && !fallbackUrl) {
+            showToast('لا يوجد مرفق متاح للعرض.', 'warning');
+            return;
+        }
+
+        let targetAttachment = attachment;
+
+        if (typeof targetAttachment === 'string') {
+            targetAttachment = ensureAttachmentShape({ dataUrl: targetAttachment, name: fallbackName }, fallbackName);
+        } else if (!targetAttachment && fallbackUrl) {
+            targetAttachment = ensureAttachmentShape({ dataUrl: fallbackUrl, name: fallbackName }, fallbackName);
+        } else if (targetAttachment) {
+            targetAttachment = ensureAttachmentShape(targetAttachment, targetAttachment?.name || fallbackName);
+        }
+
+        if (!targetAttachment) {
+            showToast('تعذر تحديد المرفق المطلوب.', 'warning');
+            return;
+        }
+
+        const attachmentsCollection = Array.isArray(collection) && collection.length > 0
+            ? collection
+            : [targetAttachment];
+
+        const sourceUrl = fallbackUrl || getAttachmentSource(targetAttachment);
+        const opened = openDebtAttachmentPreview(targetAttachment, attachmentsCollection, sourceUrl, fallbackName);
+
+        if (!opened) {
+            showToast('تعذر فتح المرفق لعدم توفر بيانات صالحة.', 'warning');
+        }
+    }, [openDebtAttachmentPreview, showToast]);
 
     const handleDebtSubmit = (e) => {
         e.preventDefault();
@@ -3595,7 +3924,11 @@ const DebtsPageComponent = React.memo(({ data, handleDataAction, handleDelete, s
                                 </button>
                             </div>
                             {debtForm.attachmentUrl && (
-                                <button type="button" className="text-sm text-blue-600 dark:text-blue-300 underline" onClick={() => setImagePreviewUrl(debtForm.attachmentUrl)}>
+                                <button
+                                    type="button"
+                                    className="text-sm text-blue-600 dark:text-blue-300 underline"
+                                    onClick={() => previewDebtAttachment(debtForm.attachmentUrl, { fallbackUrl: debtForm.attachmentUrl, fallbackName: 'مرفق الدين' })}
+                                >
                                     معاينة المرفق
                                 </button>
                             )}
@@ -3631,7 +3964,15 @@ const DebtsPageComponent = React.memo(({ data, handleDataAction, handleDelete, s
                             <div className="space-y-2">
                                 <p className="text-sm text-gray-600 dark:text-gray-300">المرفقات:</p>
                                 <button
-                                    onClick={() => setImagePreviewUrl(activeDebt.attachmentUrl)}
+                                    onClick={() => {
+                                        const attachments = normalizeAttachmentList(activeDebt?.attachments, activeDebt?.attachmentUrl, 'مرفق الدين');
+                                        const primaryAttachment = attachments[0] || activeDebt?.attachmentUrl;
+                                        previewDebtAttachment(primaryAttachment, {
+                                            collection: attachments,
+                                            fallbackUrl: activeDebt?.attachmentUrl,
+                                            fallbackName: 'مرفق الدين'
+                                        });
+                                    }}
                                     className="px-4 py-2 rounded-xl bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-200"
                                 >
                                     عرض المرفق
@@ -3709,17 +4050,13 @@ const DebtsPageComponent = React.memo(({ data, handleDataAction, handleDelete, s
                 </Modal>
             )}
 
-            {imagePreviewUrl && (
-                <Modal title="معاينة المرفق" onClose={() => setImagePreviewUrl(null)} size="xl">
-                    <div className="flex justify-center">
-                        <img
-                            src={imagePreviewUrl}
-                            alt="Debt Attachment"
-                            className="max-h-[70vh] w-auto rounded-xl border border-gray-200 dark:border-gray-700"
-                            onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = 'https://placehold.co/600x400/1f2937/fff?text=Attachment'; }}
-                        />
-                    </div>
-                </Modal>
+            {isDebtAttachmentPreviewOpen && (
+                <AttachmentPreviewModal
+                    attachments={debtAttachmentPreviewList}
+                    initialIndex={debtAttachmentPreviewIndex}
+                    onClose={closeDebtAttachmentPreview}
+                    title="معاينة مرفقات الدين"
+                />
             )}
         </div>
     );
@@ -3758,8 +4095,13 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
     const [selectedFile, setSelectedFile] = useState(null);
     const [filterTypes, setFilterTypes] = useState([]); // مصفوفة للسماح باختيار متعدد: ['expense', 'advance']
     const [filterStatuses, setFilterStatuses] = useState([]); // مصفوفة للسماح باختيار متعدد: ['pending', 'cancelled', 'paid']
-    const [previewAttachment, setPreviewAttachment] = useState(null);
-    const [previewZoomed, setPreviewZoomed] = useState(false);
+    const {
+        isOpen: isAttachmentPreviewOpen,
+        attachments: attachmentPreviewList,
+        initialIndex: attachmentPreviewIndex,
+        openPreview: openPendingAttachmentPreview,
+        closePreview: closePendingAttachmentPreview,
+    } = useAttachmentPreviewState('مرفق');
     const attachmentsList = Array.isArray(formState.attachments) ? formState.attachments : [];
     const scannerAvailable = typeof openScanner === 'function';
 
@@ -3808,12 +4150,6 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
             setSelectedVendor('');
         }
     }, [currentItem, data.employees]);
-
-    useEffect(() => {
-        if (previewAttachment) {
-            setPreviewZoomed(false);
-        }
-    }, [previewAttachment]);
 
     useEffect(() => {
         if (initialExpenseState) {
@@ -4013,25 +4349,15 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
         });
     };
 
-    const handleAttachmentPreview = (attachment) => {
+    const handleAttachmentPreview = (attachment, collection = [], fallbackUrl = '', fallbackName = 'مرفق') => {
         if (!attachment) {
             return;
         }
 
-        const normalized = ensureAttachmentShape(attachment, attachment.name || 'مرفق') || {
-            ...attachment,
-            id: attachment.id || generateClientSideId(),
-            name: attachment.name || 'مرفق',
-            dataUrl: getAttachmentSource(attachment),
-        };
-
-        const source = getAttachmentSource(normalized);
-        if (!source) {
-            showToast('تعذر فتح المرفق لعدم توفر رابط صالح.', 'warning');
-            return;
+        const opened = openPendingAttachmentPreview(attachment, collection, fallbackUrl, fallbackName);
+        if (!opened) {
+            showToast('تعذر فتح المرفق لعدم توفر بيانات صالحة.', 'warning');
         }
-
-        setPreviewAttachment({ ...normalized, dataUrl: source });
     };
 
     const handleSubmit = (e) => {
@@ -4442,7 +4768,7 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                                                             <button
                                                                 key={attachment.id}
                                                                 type="button"
-                                                                onClick={() => handleAttachmentPreview(attachment)}
+                                                                onClick={() => handleAttachmentPreview(attachment, attachments, item.invoiceImageUrl, 'مرفق')}
                                                                 className="px-3 py-1 rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800/60 text-xs font-semibold transition"
                                                                 data-testid={`button-view-invoice-${item.id}-${attachment.id}`}
                                                             >
@@ -4729,7 +5055,7 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                                             <div className="flex items-center gap-2">
                                                 <button
                                                     type="button"
-                                                    onClick={() => handleAttachmentPreview(attachment)}
+                                                    onClick={() => handleAttachmentPreview(attachment, attachmentsList, formState.invoiceImageUrl, 'مرفق')}
                                                     className="px-3 py-1 text-xs rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800/50"
                                                 >
                                                     معاينة
@@ -4757,94 +5083,13 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                 </Modal>
             )}
 
-            {/* Modal معاينة المرفقات */}
-            {previewAttachment && (
-                <Modal
-                    title={`معاينة المرفق: ${previewAttachment.name || 'مرفق'}`}
-                    onClose={() => {
-                        setPreviewAttachment(null);
-                        setPreviewZoomed(false);
-                    }}
-                    size="xl"
-                >
-                    {(() => {
-                        const source = getAttachmentSource(previewAttachment);
-                        const isImage = isImageAttachment(previewAttachment);
-                        const isPdf = isPdfAttachment(previewAttachment);
-                        const fileName = previewAttachment.name || 'مرفق';
-
-                        if (!source) {
-                            return (
-                                <div className="space-y-3 text-center text-sm text-gray-500 dark:text-gray-400">
-                                    <p>لا يمكن عرض هذا المرفق لعدم توفر رابط صالح.</p>
-                                </div>
-                            );
-                        }
-
-                        return (
-                            <div className="space-y-4">
-                                {isImage ? (
-                                    <div
-                                        className={`relative overflow-auto border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-900 ${previewZoomed ? 'cursor-zoom-out' : 'cursor-zoom-in'}`}
-                                        onClick={() => setPreviewZoomed(prev => !prev)}
-                                    >
-                                        <img
-                                            src={source}
-                                            alt={fileName}
-                                            className={`mx-auto transition-transform duration-300 ${previewZoomed ? 'scale-150' : 'scale-100'} max-h-[70vh]`}
-                                        />
-                                    </div>
-                                ) : isPdf ? (
-                                    <div className="h-[70vh] border border-gray-200 dark:border-gray-600 rounded-xl overflow-hidden bg-white dark:bg-gray-900">
-                                        <iframe
-                                            src={source}
-                                            title={fileName}
-                                            className="w-full h-full"
-                                        />
-                                    </div>
-                                ) : (
-                                    <div className="space-y-3 text-center text-sm text-gray-500 dark:text-gray-400">
-                                        <p>لا يمكن عرض هذا النوع من الملفات داخل النظام، لكن يمكنك تنزيله أو فتحه في نافذة جديدة.</p>
-                                        <div className="flex justify-center gap-3">
-                                            <a
-                                                href={source}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition"
-                                            >
-                                                فتح في تبويب جديد
-                                            </a>
-                                            <a
-                                                href={source}
-                                                download={fileName}
-                                                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-teal-600 text-white hover:bg-teal-700 transition"
-                                            >
-                                                تنزيل المرفق
-                                            </a>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {source && (isImage || isPdf) && (
-                                    <div className="flex justify-between items-center text-sm text-gray-500 dark:text-gray-400">
-                                        <span>اسم المرفق: {fileName}</span>
-                                        <a
-                                            href={source}
-                                            download={fileName}
-                                            className="text-teal-600 dark:text-teal-400 hover:underline"
-                                        >
-                                            تنزيل نسخة
-                                        </a>
-                                    </div>
-                                )}
-
-                                {isImage && (
-                                    <p className="text-sm text-center text-gray-500 dark:text-gray-400">اضغط على الصورة للتكبير أو التصغير.</p>
-                                )}
-                            </div>
-                        );
-                    })()}
-                </Modal>
+            {isAttachmentPreviewOpen && (
+                <AttachmentPreviewModal
+                    attachments={attachmentPreviewList}
+                    initialIndex={attachmentPreviewIndex}
+                    onClose={closePendingAttachmentPreview}
+                    title="معاينة مرفقات الصرفية"
+                />
             )}
 
             {/* Modal معاينة التفاصيل */}
@@ -4943,7 +5188,7 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                                                         <button
                                                             key={attachment.id}
                                                             type="button"
-                                                            onClick={() => handleAttachmentPreview(attachment)}
+                                                            onClick={() => handleAttachmentPreview(attachment, attachments, viewItem.invoiceImageUrl, 'مرفق')}
                                                             className="px-3 py-1 text-xs rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800/60"
                                                         >
                                                             {attachment.name || 'مرفق'}
@@ -5016,6 +5261,14 @@ const PendingExpensesComponent = React.memo(({ data, handleDataAction, handleDel
                     </div>
                 </Modal>
             )}
+
+            {isAttachmentPreviewOpen && (
+                <AttachmentPreviewModal
+                    attachments={attachmentPreviewList}
+                    initialIndex={attachmentPreviewIndex}
+                    onClose={closeAttachmentPreview}
+                />
+            )}
         </div>
     );
 });
@@ -5034,15 +5287,14 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const searchActive = useMemo(() => globalSearch.trim().length > 0, [globalSearch]);
-    const [employeeDocPreview, setEmployeeDocPreview] = useState(null);
-    const [employeeDocZoomed, setEmployeeDocZoomed] = useState(false);
+    const {
+        isOpen: isEmployeePreviewOpen,
+        attachments: employeePreviewList,
+        initialIndex: employeePreviewIndex,
+        openPreview: openEmployeePreview,
+        closePreview: closeEmployeePreview,
+    } = useAttachmentPreviewState('مستند الموظف');
     const scannerAvailable = typeof openScanner === 'function';
-
-    useEffect(() => {
-        if (employeeDocPreview) {
-            setEmployeeDocZoomed(false);
-        }
-    }, [employeeDocPreview]);
 
     
     const formatDOB = (dateString) => {
@@ -5209,13 +5461,9 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
             name: formState.docName || 'المستند الشخصي',
             type: formState.docType || '',
         };
-        if (isImageAttachment(attachment)) {
-            setEmployeeDocPreview(attachment);
-        } else {
-            const newWindow = window.open(attachment.dataUrl, '_blank');
-            if (!newWindow) {
-                showToast('يرجى السماح بالنوافذ المنبثقة لعرض المستند.', 'warning');
-            }
+        const opened = openEmployeePreview(attachment, [attachment], formState.docUrl, 'المستند الشخصي');
+        if (!opened) {
+            showToast('تعذر فتح المستند الشخصي.', 'warning');
         }
     };
 
@@ -5228,13 +5476,9 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
             name: currentEmployee.docName || 'المستند الشخصي',
             type: currentEmployee.docType || '',
         };
-        if (isImageAttachment(attachment)) {
-            setEmployeeDocPreview(attachment);
-        } else {
-            const newWindow = window.open(attachment.dataUrl, '_blank');
-            if (!newWindow) {
-                showToast('يرجى السماح بالنوافذ المنبثقة لعرض المستند.', 'warning');
-            }
+        const opened = openEmployeePreview(attachment, [attachment], currentEmployee.docUrl, 'المستند الشخصي');
+        if (!opened) {
+            showToast('تعذر فتح المستند الشخصي.', 'warning');
         }
     };
 
@@ -5653,22 +5897,13 @@ const EmployeePageComponent = React.memo(({ data, handleDataAction, handleDelete
                 </Modal>
             )}
 
-            {employeeDocPreview && isImageAttachment(employeeDocPreview) && (
-                <Modal title={`معاينة المستند: ${employeeDocPreview.name}`} onClose={() => setEmployeeDocPreview(null)} size="xl">
-                    <div className="space-y-4">
-                        <div
-                            className={`relative overflow-auto border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-900 ${employeeDocZoomed ? 'cursor-zoom-out' : 'cursor-zoom-in'}`}
-                            onClick={() => setEmployeeDocZoomed(prev => !prev)}
-                        >
-                            <img
-                                src={employeeDocPreview.dataUrl || employeeDocPreview.url || employeeDocPreview.attachmentUrl}
-                                alt={employeeDocPreview.name}
-                                className={`mx-auto transition-transform duration-300 ${employeeDocZoomed ? 'scale-150' : 'scale-100'} max-h-[70vh]`}
-                            />
-                        </div>
-                        <p className="text-sm text-center text-gray-500 dark:text-gray-400">اضغط على الصورة للتكبير أو التصغير.</p>
-                    </div>
-                </Modal>
+            {isEmployeePreviewOpen && (
+                <AttachmentPreviewModal
+                    attachments={employeePreviewList}
+                    initialIndex={employeePreviewIndex}
+                    onClose={closeEmployeePreview}
+                    title="معاينة مستند الموظف"
+                />
             )}
         </div>
     );
@@ -6817,15 +7052,14 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
     }, [invoiceForm.attachments, invoiceForm.invoiceImageUrl]);
 
     const invoiceAttachments = Array.isArray(invoiceForm.attachments) ? invoiceForm.attachments : [];
-    const [invoiceAttachmentPreview, setInvoiceAttachmentPreview] = useState(null);
-    const [invoicePreviewZoomed, setInvoicePreviewZoomed] = useState(false);
+    const {
+        isOpen: isInvoicePreviewOpen,
+        attachments: invoicePreviewList,
+        initialIndex: invoicePreviewIndex,
+        openPreview: openInvoicePreview,
+        closePreview: closeInvoicePreview,
+    } = useAttachmentPreviewState('مرفق فاتورة');
     const scannerAvailable = typeof openScanner === 'function';
-
-    useEffect(() => {
-        if (invoiceAttachmentPreview) {
-            setInvoicePreviewZoomed(false);
-        }
-    }, [invoiceAttachmentPreview]);
 
     const detailAttachments = useMemo(() => {
         if (!currentInvoice) {
@@ -7062,15 +7296,14 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
         });
     };
 
-    const previewInvoiceAttachment = (attachment) => {
-        if (isImageAttachment(attachment)) {
-            setInvoiceAttachmentPreview(attachment);
+    const previewInvoiceAttachment = (attachment, collection = [], fallbackUrl = '', fallbackName = 'مرفق فاتورة') => {
+        if (!attachment) {
             return;
         }
 
-        const newWindow = window.open(attachment.dataUrl || attachment.url || attachment.attachmentUrl, '_blank');
-        if (!newWindow) {
-            showToast('يرجى السماح بالنوافذ المنبثقة لعرض المستند.', 'warning');
+        const opened = openInvoicePreview(attachment, collection, fallbackUrl, fallbackName);
+        if (!opened) {
+            showToast('تعذر فتح مرفق الفاتورة.', 'warning');
         }
     };
 
@@ -7743,7 +7976,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                                                 <div className="flex items-center gap-2">
                                                     <button
                                                         type="button"
-                                                        onClick={() => previewInvoiceAttachment(attachment)}
+                                                        onClick={() => previewInvoiceAttachment(attachment, invoiceAttachments, invoiceForm.invoiceImageUrl, 'مرفق فاتورة')}
                                                         className="px-3 py-1 text-xs rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800/50"
                                                     >
                                                         معاينة
@@ -7983,7 +8216,7 @@ const InventoryEntryComponent = React.memo(({ data, handleDataAction, handleDele
                                         <div key={attachment.id} className="flex items-center justify-between gap-3 p-2 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600">
                                             <span className="flex-1 truncate text-sm font-medium text-gray-700 dark:text-gray-200">{attachment.name}</span>
                                             <button
-                                                onClick={() => previewInvoiceAttachment(attachment)}
+                                                onClick={() => previewInvoiceAttachment(attachment, detailAttachments, currentInvoice.invoiceImageUrl, 'مرفق فاتورة')}
                                                 className="px-3 py-1 text-xs rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800/50"
                                             >
                                                 عرض
@@ -9896,22 +10129,13 @@ const InventoryDispatchComponent = React.memo(({ data, handleDataAction, showToa
                 </Modal>
             )}
 
-            {invoiceAttachmentPreview && isImageAttachment(invoiceAttachmentPreview) && (
-                <Modal title={`معاينة المرفق: ${invoiceAttachmentPreview.name}`} onClose={() => setInvoiceAttachmentPreview(null)} size="xl">
-                    <div className="space-y-4">
-                        <div
-                            className={`relative overflow-auto border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-900 ${invoicePreviewZoomed ? 'cursor-zoom-out' : 'cursor-zoom-in'}`}
-                            onClick={() => setInvoicePreviewZoomed(prev => !prev)}
-                        >
-                            <img
-                                src={invoiceAttachmentPreview.dataUrl || invoiceAttachmentPreview.url || invoiceAttachmentPreview.attachmentUrl}
-                                alt={invoiceAttachmentPreview.name}
-                                className={`mx-auto transition-transform duration-300 ${invoicePreviewZoomed ? 'scale-150' : 'scale-100'} max-h-[70vh]`}
-                            />
-                        </div>
-                        <p className="text-sm text-center text-gray-500 dark:text-gray-400">اضغط على الصورة للتكبير أو التصغير.</p>
-                    </div>
-                </Modal>
+            {isInvoicePreviewOpen && (
+                <AttachmentPreviewModal
+                    attachments={invoicePreviewList}
+                    initialIndex={invoicePreviewIndex}
+                    onClose={closeInvoicePreview}
+                    title="معاينة مرفقات الفاتورة"
+                />
             )}
 
         </div>
