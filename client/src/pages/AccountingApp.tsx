@@ -5941,6 +5941,36 @@ const SettingsPage = React.memo(({ data, handleSettingsUpdate, showToast, onNavi
         permissions: {},
         customPermissions: {}
     });
+
+    useEffect(() => {
+        setNewRep(prev => {
+            const fallbackVendor = settings.vendors[0] || '';
+            const nextVendor = settings.vendors.includes(prev.vendor) ? prev.vendor : fallbackVendor;
+            return { ...prev, vendor: nextVendor };
+        });
+    }, [settings.vendors]);
+
+    useEffect(() => {
+        if (!registerLeaveGuard) return;
+
+        const guard = (targetPageKey) => {
+            if (isDirty) {
+                setExitIntent({ open: true, targetPageKey: targetPageKey || null });
+                return false;
+            }
+            return true;
+        };
+
+        const unregister = registerLeaveGuard(guard);
+
+        return () => {
+            if (typeof unregister === 'function') {
+                unregister();
+            } else if (registerLeaveGuard) {
+                registerLeaveGuard(null);
+            }
+        };
+    }, [isDirty, registerLeaveGuard]);
     
     // قائمة الصلاحيات المتاحة
     const availablePermissions = useMemo(() => ([
@@ -6432,36 +6462,6 @@ const UserManagementSection = React.memo(({ data, handleDataAction, showToast })
         role: USER_ROLES.GENERAL_MANAGER,
         customPermissions: {}
     });
-
-    useEffect(() => {
-        setNewRep(prev => {
-            const fallbackVendor = settings.vendors[0] || '';
-            const nextVendor = settings.vendors.includes(prev.vendor) ? prev.vendor : fallbackVendor;
-            return { ...prev, vendor: nextVendor };
-        });
-    }, [settings.vendors]);
-
-    useEffect(() => {
-        if (!registerLeaveGuard) return;
-
-        const guard = (targetPageKey) => {
-            if (isDirty) {
-                setExitIntent({ open: true, targetPageKey: targetPageKey || null });
-                return false;
-            }
-            return true;
-        };
-
-        const unregister = registerLeaveGuard(guard);
-
-        return () => {
-            if (typeof unregister === 'function') {
-                unregister();
-            } else if (registerLeaveGuard) {
-                registerLeaveGuard(null);
-            }
-        };
-    }, [isDirty, registerLeaveGuard]);
 
     const {
         paginatedItems: paginatedUsers,
