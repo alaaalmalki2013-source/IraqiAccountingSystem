@@ -723,15 +723,15 @@ const PaginationControls = React.memo(({ pageSize, onPageSizeChange, currentPage
 });
 
 // زر الإجراءات
-const ActionButton = ({ onClick, children, className = 'bg-teal-600 hover:bg-teal-700', type = 'button', disabled = false }) => ( 
-    <button
-        onClick={onClick}
-        type={type}
-        disabled={disabled}
-        className={`px-6 py-3 text-white rounded-xl shadow-lg transition duration-200 flex items-center justify-center space-x-2 space-x-reverse font-semibold ${className} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-    >
-        {children}
-    </button>
+const ActionButton = ({ onClick, children, className = '', type = 'button', disabled = false }) => (
+    <button
+        onClick={onClick}
+        type={type}
+        disabled={disabled}
+        className={`px-6 py-3 rounded-xl shadow-lg transition duration-200 flex items-center justify-center space-x-2 space-x-reverse font-semibold text-white bg-teal-600 hover:bg-teal-700 ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${className}`.trim()}
+    >
+        {children}
+    </button>
 );
 
 // نافذة المودال
