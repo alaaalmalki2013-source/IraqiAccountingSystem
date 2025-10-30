@@ -11799,8 +11799,38 @@ const AccountingApp = () => {
         return true;
     }, [ensureSettingsCanLeave, performNavigation]);
 
+    // 4. Data Synchronization with the central snapshot
+    const applySnapshot = useCallback((payload = {}) => {
+        const normalized = normalizeSnapshotData(payload?.data);
+        setData(normalized);
+        const nextVersion = typeof payload?.version === 'number' ? payload.version : 1;
+        setSnapshotVersion(nextVersion);
+        snapshotVersionRef.current = nextVersion;
+        setRefreshKey(prev => prev + 1);
+        return { normalized, version: nextVersion };
+    }, []);
 
-    // دالة تحديث الحالة العامة (لحل مشكلة التحديث الفوري)
+    const fetchSnapshot = useCallback(async ({ silent = false } = {}) => {
+        try {
+            const res = await fetch('/api/snapshot');
+            if (!res.ok) {
+                throw new Error(await res.text());
+            }
+
+            const payload = await res.json();
+            applySnapshot(payload);
+            return payload;
+        } catch (error) {
+            console.error('Failed to fetch snapshot', error);
+            if (!silent) {
+                showToast('فشل في جلب بيانات الخادم.', 'error');
+            }
+            throw error;
+        }
+    }, [applySnapshot, showToast]);
+
+
+    // دالة تحديث الحالة العامة (لحل مشكلة التحديث الفوري)
     const handleRefresh = useCallback(() => {
         fetchSnapshot({ silent: true })
             .then(() => {
@@ -12205,37 +12235,6 @@ const AccountingApp = () => {
 
         saveData(newData, { silent: !showMessage });
     };
-    
-    // 4. Data Synchronization with the central snapshot
-    const applySnapshot = useCallback((payload = {}) => {
-        const normalized = normalizeSnapshotData(payload?.data);
-        setData(normalized);
-        const nextVersion = typeof payload?.version === 'number' ? payload.version : 1;
-        setSnapshotVersion(nextVersion);
-        snapshotVersionRef.current = nextVersion;
-        setRefreshKey(prev => prev + 1);
-        return { normalized, version: nextVersion };
-    }, []);
-
-    const fetchSnapshot = useCallback(async ({ silent = false } = {}) => {
-        try {
-            const res = await fetch('/api/snapshot');
-            if (!res.ok) {
-                throw new Error(await res.text());
-            }
-
-            const payload = await res.json();
-            applySnapshot(payload);
-            return payload;
-        } catch (error) {
-            console.error('Failed to fetch snapshot', error);
-            if (!silent) {
-                showToast('فشل في جلب بيانات الخادم.', 'error');
-            }
-            throw error;
-        }
-    }, [applySnapshot, showToast]);
-
     const saveData = useCallback(async (newData, options = {}) => {
         const { silent = false } = options;
         const normalized = normalizeSnapshotData(newData);
