@@ -2753,25 +2753,6 @@ const DebtsPageComponent = React.memo(({ data, handleDataAction, handleDelete, s
         window.print();
     }, []);
 
-    const handleExportDebts = useCallback(() => {
-        if (filteredDebts.length === 0) {
-            showToast('لا توجد بيانات للتصدير.', 'error');
-            return;
-        }
-
-        const exportRows = filteredDebts.map(debt => ({
-            'اسم الشركة': debt.companyName || '---',
-            'اسم المورد': debt.vendorName || '---',
-            'الفئة': debt.category || '---',
-            'المبلغ الكلي': normalizeAmount(debt.totalAmount ?? 0),
-            'المتبقي': normalizeAmount(debt.remainingAmount ?? debt.totalAmount ?? 0),
-            'آخر تحديث': formatDateTimeDDMMYYYY(debt.updatedAt || debt.date || getDefaultDateTime()),
-        }));
-
-        exportToCsv(exportRows, `تقرير_الديون_${new Date().toISOString().slice(0, 10)}`);
-        showToast('تم تصدير الديون بنجاح.', 'success');
-    }, [filteredDebts, normalizeAmount, showToast]);
-
     const triggerImportDialog = () => {
         importInputRef.current?.click();
     };
@@ -2971,6 +2952,25 @@ const DebtsPageComponent = React.memo(({ data, handleDataAction, handleDelete, s
         }
         return baseFilteredDebts.filter(debt => resolveDebtType(debt) === originFilter);
     }, [baseFilteredDebts, originFilter, resolveDebtType]);
+
+    const handleExportDebts = useCallback(() => {
+        if (filteredDebts.length === 0) {
+            showToast('لا توجد بيانات للتصدير.', 'error');
+            return;
+        }
+
+        const exportRows = filteredDebts.map(debt => ({
+            'اسم الشركة': debt.companyName || '---',
+            'اسم المورد': debt.vendorName || '---',
+            'الفئة': debt.category || '---',
+            'المبلغ الكلي': normalizeAmount(debt.totalAmount ?? 0),
+            'المتبقي': normalizeAmount(debt.remainingAmount ?? debt.totalAmount ?? 0),
+            'آخر تحديث': formatDateTimeDDMMYYYY(debt.updatedAt || debt.date || getDefaultDateTime()),
+        }));
+
+        exportToCsv(exportRows, `تقرير_الديون_${new Date().toISOString().slice(0, 10)}`);
+        showToast('تم تصدير الديون بنجاح.', 'success');
+    }, [filteredDebts, normalizeAmount, showToast]);
 
     const categoryTotals = useMemo(() => {
         const totals = {};
