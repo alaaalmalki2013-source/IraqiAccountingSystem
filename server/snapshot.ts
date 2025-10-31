@@ -1,9 +1,22 @@
 import { eq, sql } from "drizzle-orm";
-import { dataSnapshots } from "@shared/schema";
+import { dataSnapshots, expenses, revenues } from "@shared/schema";
 import { db } from "./db";
 import { cloneDefaultData, normalizeSnapshotData, type AccountingSnapshot } from "@shared/data";
 
 const SNAPSHOT_KEY = "primary";
+
+function getTimestamp(value: unknown): Date {
+  if (typeof value === "string") {
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed;
+    }
+  } else if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value;
+  }
+
+  return new Date();
+}
 
 export class VersionConflictError extends Error {
   latest?: SnapshotPayload;
@@ -68,6 +81,49 @@ export async function saveSnapshot({ version, data }: SaveSnapshotOptions): Prom
     const normalized = normalizeSnapshotData(data as AccountingSnapshot);
     const nextVersion = (current?.version ?? Math.max(version, 1) - 1) + 1;
     const updatedAt = new Date();
+
+    const normalizedRevenues = Array.isArray(normalized.revenues)
+      ? (normalized.revenues as Array<Record<string, unknown>>)
+      : [];
+    const normalizedExpenses = Array.isArray(normalized.expenses)
+      ? (normalized.expenses as Array<Record<string, unknown>>)
+      : [];
+
+    await tx.delete(revenues);
+    if (normalizedRevenues.length > 0) {
+      await tx.insert(revenues).values(
+        normalizedRevenues.map((revenue) => ({
+          id: revenue.id as string | undefined,
+          amount:
+            revenue.amount !== undefined && revenue.amount !== null
+              ? String(revenue.amount)
+              : "0",
+          category: (revenue.category as string | undefined) ?? "",
+          description: (revenue.description as string | null | undefined) ?? null,
+          date: (revenue.date as string | undefined) ?? new Date().toISOString(),
+          createdAt: getTimestamp(revenue.createdAt),
+          createdBy: (revenue.createdBy as string | null | undefined) ?? null,
+        })),
+      );
+    }
+
+    await tx.delete(expenses);
+    if (normalizedExpenses.length > 0) {
+      await tx.insert(expenses).values(
+        normalizedExpenses.map((expense) => ({
+          id: expense.id as string | undefined,
+          amount:
+            expense.amount !== undefined && expense.amount !== null
+              ? String(expense.amount)
+              : "0",
+          category: (expense.category as string | undefined) ?? "",
+          description: (expense.description as string | undefined) ?? "",
+          date: (expense.date as string | undefined) ?? new Date().toISOString(),
+          createdAt: getTimestamp(expense.createdAt),
+          createdBy: (expense.createdBy as string | null | undefined) ?? null,
+        })),
+      );
+    }
 
     await tx
       .insert(dataSnapshots)
