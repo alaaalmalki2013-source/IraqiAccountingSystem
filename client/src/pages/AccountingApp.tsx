@@ -96,6 +96,12 @@ import {
     exportToCsv,
     getCurrentMonthRange
 } from '../utils/accounting';
+import {
+    createRecordViaApi,
+    updateRecordViaApi,
+    deleteRecordViaApi,
+    parseAmountValue
+} from '../api/dataActions';
 
 // استيراد نظام الترجمة
 import { useLanguage } from '../contexts/LanguageContext';
@@ -11914,182 +11920,6 @@ const AccountingApp = () => {
         return draftData;
     };
 
-    const parseAmountValue = (value) => {
-        const normalized = convertArabicToEnglish((value ?? '').toString());
-        const cleaned = normalized.replace(/[^0-9.]/g, '');
-        const numeric = parseFloat(cleaned);
-        return Number.isFinite(numeric) ? numeric : 0;
-    };
-
-    const collectionApiMap = {
-        revenues: '/api/revenues',
-        expenses: '/api/expenses',
-        advances: '/api/advances',
-        suspended: '/api/suspended',
-        pendingExpenses: '/api/pending-expenses',
-        employees: '/api/employees',
-        payroll: '/api/payrolls',
-        inventory: '/api/inventory-items',
-        pendingInvoices: '/api/inventory-entries',
-        inventoryWithdrawals: '/api/inventory-withdrawals',
-        inventoryDispatches: '/api/inventory-withdrawals',
-    } as const;
-
-    const normalizeAmountForApi = (value) => {
-        const numeric = parseAmountValue(value);
-        return Number.isFinite(numeric) ? numeric.toString() : '0';
-    };
-
-    const preparePayloadForApi = (collectionName, item) => {
-        if (!item || typeof item !== 'object') {
-            return null;
-        }
-
-        switch (collectionName) {
-            case 'revenues':
-                return {
-                    id: item.id,
-                    amount: normalizeAmountForApi(item.amount),
-                    category: item.category || '',
-                    description: item.description || '',
-                    date: item.date || getDefaultDateTime(),
-                    createdBy: item.createdBy || currentUser?.id || undefined,
-                };
-            case 'expenses':
-                return {
-                    id: item.id,
-                    amount: normalizeAmountForApi(item.amount),
-                    category: item.category || '',
-                    description: item.description || '',
-                    date: item.date || getDefaultDateTime(),
-                    createdBy: item.createdBy || currentUser?.id || undefined,
-                };
-            case 'advances':
-                return {
-                    id: item.id,
-                    employeeName: item.employeeName || '',
-                    amount: normalizeAmountForApi(item.amount),
-                    category: item.category || '',
-                    notes: item.notes || '',
-                    date: item.date || getDefaultDateTime(),
-                    createdBy: item.createdBy || currentUser?.id || undefined,
-                };
-            case 'suspended':
-                return {
-                    id: item.id,
-                    recipientName: item.recipientName || '',
-                    amount: normalizeAmountForApi(item.amount),
-                    notes: item.notes || '',
-                    date: item.date || getDefaultDateTime(),
-                    createdBy: item.createdBy || currentUser?.id || undefined,
-                };
-            case 'pendingExpenses':
-                return {
-                    id: item.id,
-                    type: item.type || 'expense',
-                    amount: normalizeAmountForApi(item.amount),
-                    category: item.category || '',
-                    description: item.description || '',
-                    employeeName: item.employeeName || '',
-                    date: item.date || getDefaultDateTime(),
-                    status: item.status || 'pending',
-                    createdBy: item.createdBy || currentUser?.id || undefined,
-                };
-            case 'employees':
-                return {
-                    id: item.id,
-                    name: item.name || '',
-                    phone: item.phone || '',
-                    dateOfBirth: item.dateOfBirth || '',
-                    department: item.department || '',
-                    jobTitle: item.jobTitle || '',
-                    basicSalary: normalizeAmountForApi(item.basicSalary ?? item.salary ?? 0),
-                };
-            case 'payroll':
-                return {
-                    id: item.id,
-                    employeeName: item.employeeName || '',
-                    basicSalary: normalizeAmountForApi(item.basicSalary),
-                    bonuses: normalizeAmountForApi(item.bonuses),
-                    deductions: normalizeAmountForApi(item.deductions),
-                    absenceDays: Number.isFinite(Number(item.absenceDays)) ? Number(item.absenceDays) : 0,
-                    absenceDeduction: normalizeAmountForApi(item.absenceDeduction),
-                    overtimeHours: Number.isFinite(Number(item.overtimeHours)) ? Number(item.overtimeHours) : 0,
-                    overtimeAmount: normalizeAmountForApi(item.overtimeAmount),
-                    netSalary: normalizeAmountForApi(item.netSalary),
-                    month: item.month || '',
-                    paid: !!item.paid,
-                    notes: item.notes || '',
-                    createdBy: item.createdBy || currentUser?.id || undefined,
-                };
-            case 'inventory':
-                return {
-                    id: item.id,
-                    name: item.name || '',
-                    category: item.category || '',
-                    barcode: item.barcode || '',
-                    price: normalizeAmountForApi(item.price),
-                    count: Number.isFinite(Number(item.count)) ? Number(item.count) : 0,
-                    purchaseHistory: Array.isArray(item.purchaseHistory) ? item.purchaseHistory : [],
-                    invoiceImageUrl: item.invoiceImageUrl || '',
-                };
-            case 'pendingInvoices':
-                return {
-                    id: item.id,
-                    invoiceNumber: item.invoiceNumber || generateInvoiceNumber(),
-                    vendor: item.vendor || '',
-                    representative: item.representative || '',
-                    items: Array.isArray(item.items) ? item.items : [],
-                    totalCost: normalizeAmountForApi(item.totalCost),
-                    status: item.status || 'pending',
-                    invoiceImageUrl: item.invoiceImageUrl || '',
-                    cancellationReason: item.cancellationReason || '',
-                    date: item.date || getDefaultDateTime(),
-                    createdBy: item.createdBy || currentUser?.id || undefined,
-                    approvedBy: item.approvedBy || undefined,
-                    approvedAt: item.approvedAt || undefined,
-                };
-            case 'inventoryWithdrawals':
-            case 'inventoryDispatches':
-                return {
-                    id: item.id,
-                    items: Array.isArray(item.items) ? item.items : [],
-                    notes: item.notes || '',
-                    date: item.date || getDefaultDateTime(),
-                    createdBy: item.createdBy || currentUser?.id || undefined,
-                };
-            default:
-                return null;
-        }
-    };
-
-    const createRecordViaApi = async (collectionName, payload) => {
-        const endpoint = collectionApiMap[collectionName];
-        if (!endpoint || !payload) {
-            return null;
-        }
-
-        const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(payload),
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(errorText || 'Failed to create record');
-        }
-
-        try {
-            return await response.json();
-        } catch (error) {
-            console.warn('Unable to parse create response JSON, continuing with original payload.', error);
-            return null;
-        }
-    };
-
     const adjustDebtWithLinkedRecord = (draftData, record, actionType, previousRecord, collectionName) => {
         if (!record?.linkedDebtId) {
             return draftData;
@@ -12261,12 +12091,9 @@ const AccountingApp = () => {
             }
 
             try {
-                const payload = preparePayloadForApi(collectionName, newItem);
-                if (payload) {
-                    const createdRecord = await createRecordViaApi(collectionName, payload);
-                    if (createdRecord && typeof createdRecord === 'object') {
-                        newItem = { ...newItem, ...createdRecord };
-                    }
+                const createdRecord = await createRecordViaApi(collectionName, newItem, currentUser);
+                if (createdRecord && typeof createdRecord === 'object') {
+                    newItem = { ...newItem, ...createdRecord };
                 }
             } catch (error) {
                 console.error('Failed to create record via API:', error);
@@ -12299,19 +12126,34 @@ const AccountingApp = () => {
             const index = collection.findIndex(i => i.id === item.id);
             if (index !== -1) {
                 const previousItem = collection[index];
-                collection[index] = item;
+                let updatedItem = { ...item };
+
+                try {
+                    const serverRecord = await updateRecordViaApi(collectionName, updatedItem, currentUser);
+                    if (serverRecord && typeof serverRecord === 'object') {
+                        updatedItem = { ...updatedItem, ...serverRecord };
+                    }
+                } catch (error) {
+                    console.error('Failed to update record via API:', error);
+                    if (!silent) {
+                        showToast('فشل في تحديث السجل على الخادم. يرجى المحاولة مرة أخرى.', 'error');
+                    }
+                    return;
+                }
+
+                collection[index] = updatedItem;
                 newData[collectionName] = collection;
 
                 // تسجيل النشاط
                 const moduleName = navItems.find(i => i.key === collectionName)?.label || collectionName;
-                logActivity("تعديل", moduleName, `${item.description || item.amount || item.name || "سجل"}`);
+                logActivity("تعديل", moduleName, `${updatedItem.description || updatedItem.amount || updatedItem.name || "سجل"}`);
 
                 if (!silent) {
                     showToast(`تم تعديل السجل بنجاح!`, 'success');
                 }
 
                 if (collectionName === 'expenses' || collectionName === 'pendingExpenses') {
-                    newData = adjustDebtWithLinkedRecord(newData, item, 'update', previousItem, collectionName);
+                    newData = adjustDebtWithLinkedRecord(newData, updatedItem, 'update', previousItem, collectionName);
                 }
             } else if (collectionName === 'pendingInvoices' && item.status) {
                  const existingIndex = collection.findIndex(i => i.id === item.id);
@@ -12338,7 +12180,7 @@ const AccountingApp = () => {
         await saveData(newData, { silent });
     };
 
-    const handleDelete = (collectionName, id, showMessage = true, bypassPermissions = false) => {
+    const handleDelete = async (collectionName, id, showMessage = true, bypassPermissions = false) => {
         // **تحديث: فحص صلاحيات الحذف**
         // **حماية: منع حذف سجلات الصرفيات المعلقة غير المعلقة**
         if (collectionName === 'pendingExpenses') {
@@ -12353,6 +12195,16 @@ const AccountingApp = () => {
         if (!bypassPermissions && permissionKey && !currentUser?.permissions[permissionKey]?.delete && collectionName !== 'inventoryDispatches') {
             showToast(`ليس لديك صلاحية حذف سجلات في قسم ${navItems.find(i => i.key === collectionName)?.label}.`, 'error');
             return;
+        }
+
+        try {
+            await deleteRecordViaApi(collectionName, id);
+        } catch (error) {
+            console.error('Failed to delete record via API:', error);
+            if (showMessage) {
+                showToast('فشل في حذف السجل من الخادم. يرجى المحاولة مرة أخرى.', 'error');
+            }
+            return;
         }
 
         let newData = { ...data };
@@ -12424,7 +12276,7 @@ const AccountingApp = () => {
             showToast('تم حذف السجل بنجاح.', 'warning');
         }
 
-        saveData(newData, { silent: !showMessage });
+        await saveData(newData, { silent: !showMessage });
     };
     const saveData = useCallback(async (newData, options = {}) => {
         const { silent = false } = options;
