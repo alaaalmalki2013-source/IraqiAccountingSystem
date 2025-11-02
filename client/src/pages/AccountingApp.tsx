@@ -11921,6 +11921,175 @@ const AccountingApp = () => {
         return Number.isFinite(numeric) ? numeric : 0;
     };
 
+    const collectionApiMap = {
+        revenues: '/api/revenues',
+        expenses: '/api/expenses',
+        advances: '/api/advances',
+        suspended: '/api/suspended',
+        pendingExpenses: '/api/pending-expenses',
+        employees: '/api/employees',
+        payroll: '/api/payrolls',
+        inventory: '/api/inventory-items',
+        pendingInvoices: '/api/inventory-entries',
+        inventoryWithdrawals: '/api/inventory-withdrawals',
+        inventoryDispatches: '/api/inventory-withdrawals',
+    } as const;
+
+    const normalizeAmountForApi = (value) => {
+        const numeric = parseAmountValue(value);
+        return Number.isFinite(numeric) ? numeric.toString() : '0';
+    };
+
+    const preparePayloadForApi = (collectionName, item) => {
+        if (!item || typeof item !== 'object') {
+            return null;
+        }
+
+        switch (collectionName) {
+            case 'revenues':
+                return {
+                    id: item.id,
+                    amount: normalizeAmountForApi(item.amount),
+                    category: item.category || '',
+                    description: item.description || '',
+                    date: item.date || getDefaultDateTime(),
+                    createdBy: item.createdBy || currentUser?.id || undefined,
+                };
+            case 'expenses':
+                return {
+                    id: item.id,
+                    amount: normalizeAmountForApi(item.amount),
+                    category: item.category || '',
+                    description: item.description || '',
+                    date: item.date || getDefaultDateTime(),
+                    createdBy: item.createdBy || currentUser?.id || undefined,
+                };
+            case 'advances':
+                return {
+                    id: item.id,
+                    employeeName: item.employeeName || '',
+                    amount: normalizeAmountForApi(item.amount),
+                    category: item.category || '',
+                    notes: item.notes || '',
+                    date: item.date || getDefaultDateTime(),
+                    createdBy: item.createdBy || currentUser?.id || undefined,
+                };
+            case 'suspended':
+                return {
+                    id: item.id,
+                    recipientName: item.recipientName || '',
+                    amount: normalizeAmountForApi(item.amount),
+                    notes: item.notes || '',
+                    date: item.date || getDefaultDateTime(),
+                    createdBy: item.createdBy || currentUser?.id || undefined,
+                };
+            case 'pendingExpenses':
+                return {
+                    id: item.id,
+                    type: item.type || 'expense',
+                    amount: normalizeAmountForApi(item.amount),
+                    category: item.category || '',
+                    description: item.description || '',
+                    employeeName: item.employeeName || '',
+                    date: item.date || getDefaultDateTime(),
+                    status: item.status || 'pending',
+                    createdBy: item.createdBy || currentUser?.id || undefined,
+                };
+            case 'employees':
+                return {
+                    id: item.id,
+                    name: item.name || '',
+                    phone: item.phone || '',
+                    dateOfBirth: item.dateOfBirth || '',
+                    department: item.department || '',
+                    jobTitle: item.jobTitle || '',
+                    basicSalary: normalizeAmountForApi(item.basicSalary ?? item.salary ?? 0),
+                };
+            case 'payroll':
+                return {
+                    id: item.id,
+                    employeeName: item.employeeName || '',
+                    basicSalary: normalizeAmountForApi(item.basicSalary),
+                    bonuses: normalizeAmountForApi(item.bonuses),
+                    deductions: normalizeAmountForApi(item.deductions),
+                    absenceDays: Number.isFinite(Number(item.absenceDays)) ? Number(item.absenceDays) : 0,
+                    absenceDeduction: normalizeAmountForApi(item.absenceDeduction),
+                    overtimeHours: Number.isFinite(Number(item.overtimeHours)) ? Number(item.overtimeHours) : 0,
+                    overtimeAmount: normalizeAmountForApi(item.overtimeAmount),
+                    netSalary: normalizeAmountForApi(item.netSalary),
+                    month: item.month || '',
+                    paid: !!item.paid,
+                    notes: item.notes || '',
+                    createdBy: item.createdBy || currentUser?.id || undefined,
+                };
+            case 'inventory':
+                return {
+                    id: item.id,
+                    name: item.name || '',
+                    category: item.category || '',
+                    barcode: item.barcode || '',
+                    price: normalizeAmountForApi(item.price),
+                    count: Number.isFinite(Number(item.count)) ? Number(item.count) : 0,
+                    purchaseHistory: Array.isArray(item.purchaseHistory) ? item.purchaseHistory : [],
+                    invoiceImageUrl: item.invoiceImageUrl || '',
+                };
+            case 'pendingInvoices':
+                return {
+                    id: item.id,
+                    invoiceNumber: item.invoiceNumber || generateInvoiceNumber(),
+                    vendor: item.vendor || '',
+                    representative: item.representative || '',
+                    items: Array.isArray(item.items) ? item.items : [],
+                    totalCost: normalizeAmountForApi(item.totalCost),
+                    status: item.status || 'pending',
+                    invoiceImageUrl: item.invoiceImageUrl || '',
+                    cancellationReason: item.cancellationReason || '',
+                    date: item.date || getDefaultDateTime(),
+                    createdBy: item.createdBy || currentUser?.id || undefined,
+                    approvedBy: item.approvedBy || undefined,
+                    approvedAt: item.approvedAt || undefined,
+                };
+            case 'inventoryWithdrawals':
+            case 'inventoryDispatches':
+                return {
+                    id: item.id,
+                    items: Array.isArray(item.items) ? item.items : [],
+                    notes: item.notes || '',
+                    date: item.date || getDefaultDateTime(),
+                    createdBy: item.createdBy || currentUser?.id || undefined,
+                };
+            default:
+                return null;
+        }
+    };
+
+    const createRecordViaApi = async (collectionName, payload) => {
+        const endpoint = collectionApiMap[collectionName];
+        if (!endpoint || !payload) {
+            return null;
+        }
+
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(errorText || 'Failed to create record');
+        }
+
+        try {
+            return await response.json();
+        } catch (error) {
+            console.warn('Unable to parse create response JSON, continuing with original payload.', error);
+            return null;
+        }
+    };
+
     const adjustDebtWithLinkedRecord = (draftData, record, actionType, previousRecord, collectionName) => {
         if (!record?.linkedDebtId) {
             return draftData;
@@ -12049,11 +12218,11 @@ const AccountingApp = () => {
         return draftData;
     };
 
-    const handleDataAction = (collectionName, item, isNew, overwrite = false, options = {}) => {
+    const handleDataAction = async (collectionName, item, isNew, overwrite = false, options = {}) => {
         const { bypassPermissions = false, silent = false } = options;
         // **دعم التحديث الشامل للبيانات**
         if (collectionName === '___FULL_DATA_UPDATE___') {
-            saveData(item, { silent: true }); // item هنا يحتوي على كل البيانات
+            await saveData(item, { silent: true }); // item هنا يحتوي على كل البيانات
             return;
         }
 
@@ -12077,11 +12246,36 @@ const AccountingApp = () => {
             const shouldAssignInvoice = collectionName !== 'inventory' && collectionName !== 'inventoryWithdrawals' && collectionName !== 'debts';
             const providedInvoiceNumber = shouldAssignInvoice ? convertArabicToEnglish((item.invoiceNumber || '').toString().trim()) : '';
 
-            const newItem = {
+            let newItem = {
                 ...item,
                 id: item.id || crypto.randomUUID(),
                 ...(shouldAssignInvoice ? { invoiceNumber: providedInvoiceNumber || generateInvoiceNumber() } : {}),
             };
+
+            if (!newItem.createdBy && currentUser?.id) {
+                newItem = { ...newItem, createdBy: currentUser.id };
+            }
+
+            if (collectionName === 'inventory' && !newItem.purchaseHistory) {
+                newItem = { ...newItem, purchaseHistory: [] };
+            }
+
+            try {
+                const payload = preparePayloadForApi(collectionName, newItem);
+                if (payload) {
+                    const createdRecord = await createRecordViaApi(collectionName, payload);
+                    if (createdRecord && typeof createdRecord === 'object') {
+                        newItem = { ...newItem, ...createdRecord };
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to create record via API:', error);
+                if (!silent) {
+                    showToast('فشل في حفظ السجل على الخادم. يرجى المحاولة مرة أخرى.', 'error');
+                }
+                return;
+            }
+
             collection.push(newItem);
             newData[collectionName] = collection;
             newItemRef = newItem;
@@ -12095,9 +12289,6 @@ const AccountingApp = () => {
                 }
             }
 
-            if (collectionName === 'inventory' && !newItem.purchaseHistory) {
-                newItem.purchaseHistory = [];
-            }
             setInitialExpenseState(null);
 
             if (collectionName === 'expenses' || collectionName === 'pendingExpenses') {
@@ -12144,7 +12335,7 @@ const AccountingApp = () => {
             }
         }
 
-        saveData(newData, { silent });
+        await saveData(newData, { silent });
     };
 
     const handleDelete = (collectionName, id, showMessage = true, bypassPermissions = false) => {
