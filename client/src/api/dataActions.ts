@@ -1,6 +1,45 @@
 // @ts-nocheck
 import { convertArabicToEnglish, getDefaultDateTime, generateInvoiceNumber } from '../utils/accounting';
 
+const resolveApiBase = () => {
+    if (typeof window !== 'undefined' && window.location) {
+        const { protocol, hostname } = window.location;
+        const port = window.location.port && window.location.port !== '80' && window.location.port !== '443'
+            ? window.location.port
+            : undefined;
+
+        const hasExplicitBase = window.localStorage.getItem('apiBaseUrl');
+        if (hasExplicitBase) {
+            return hasExplicitBase;
+        }
+
+        if (/^\d+\.\d+\.\d+\.\d+$/.test(hostname)) {
+            return `${protocol}//${hostname}:5000`;
+        }
+
+        if (hostname === 'localhost' || hostname === '127.0.0.1') {
+            return `${protocol}//${hostname}:5000`;
+        }
+
+        if (port) {
+            return `${protocol}//${hostname}:${port}`;
+        }
+
+        return `${protocol}//${hostname}`;
+    }
+
+    if (typeof process !== 'undefined') {
+        const envValue = process.env.VITE_API_BASE_URL || process.env.API_BASE_URL;
+        if (envValue) {
+            return envValue;
+        }
+    }
+
+    return 'http://192.168.1.133:5000';
+};
+
+export const API_BASE = resolveApiBase();
+
 const collectionApiMap = {
     revenues: '/api/revenues',
     expenses: '/api/expenses',
@@ -166,7 +205,9 @@ const parseJsonResponse = async (response) => {
     }
 };
 
-const request = async (url, options) => {
+const request = async (endpoint, options) => {
+    const url = endpoint.startsWith('http') ? endpoint : `${API_BASE}${endpoint}`;
+
     const response = await fetch(url, {
         headers: {
             'Content-Type': 'application/json',
