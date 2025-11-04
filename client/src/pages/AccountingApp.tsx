@@ -12048,6 +12048,26 @@ const AccountingApp = () => {
         return draftData;
     };
 
+    const extractErrorMessage = (error) => {
+        if (!error) {
+            return 'حدث خطأ غير متوقع.';
+        }
+
+        if (typeof error === 'string') {
+            return error;
+        }
+
+        if (error instanceof Error) {
+            return error.message || 'حدث خطأ غير متوقع.';
+        }
+
+        if (typeof error === 'object' && 'message' in error && error.message) {
+            return String(error.message);
+        }
+
+        return 'حدث خطأ غير متوقع.';
+    };
+
     const handleDataAction = async (collectionName, item, isNew, overwrite = false, options = {}) => {
         const { bypassPermissions = false, silent = false } = options;
         // **دعم التحديث الشامل للبيانات**
@@ -12091,14 +12111,17 @@ const AccountingApp = () => {
             }
 
             try {
+                console.log('📡 إرسال طلب إضافة إلى الخادم...', { collectionName, id: newItem.id });
                 const createdRecord = await createRecordViaApi(collectionName, newItem, currentUser);
+                console.log('✅ تم إرسال الطلب إلى السيرفر', { collectionName, id: newItem.id, response: createdRecord });
                 if (createdRecord && typeof createdRecord === 'object') {
                     newItem = { ...newItem, ...createdRecord };
                 }
             } catch (error) {
-                console.error('Failed to create record via API:', error);
+                const errorMessage = extractErrorMessage(error);
+                console.error('❌ فشل إرسال طلب الإضافة إلى الخادم', { collectionName, error });
                 if (!silent) {
-                    showToast('فشل في حفظ السجل على الخادم. يرجى المحاولة مرة أخرى.', 'error');
+                    showToast(errorMessage, 'error');
                 }
                 return;
             }
@@ -12112,7 +12135,7 @@ const AccountingApp = () => {
                 logActivity("إضافة", moduleName, `${item.description || item.amount || item.name || "سجل جديد"}`);
 
                 if (!silent) {
-                    showToast(`تم إضافة السجل بنجاح!`, 'success');
+                    showToast('تمت الإضافة بنجاح', 'success');
                 }
             }
 
@@ -12129,14 +12152,17 @@ const AccountingApp = () => {
                 let updatedItem = { ...item };
 
                 try {
+                    console.log('📡 إرسال طلب تعديل إلى الخادم...', { collectionName, id: updatedItem.id });
                     const serverRecord = await updateRecordViaApi(collectionName, updatedItem, currentUser);
+                    console.log('✅ تم إرسال طلب التعديل إلى السيرفر', { collectionName, id: updatedItem.id, response: serverRecord });
                     if (serverRecord && typeof serverRecord === 'object') {
                         updatedItem = { ...updatedItem, ...serverRecord };
                     }
                 } catch (error) {
-                    console.error('Failed to update record via API:', error);
+                    const errorMessage = extractErrorMessage(error);
+                    console.error('❌ فشل إرسال طلب التعديل إلى الخادم', { collectionName, id: updatedItem.id, error });
                     if (!silent) {
-                        showToast('فشل في تحديث السجل على الخادم. يرجى المحاولة مرة أخرى.', 'error');
+                        showToast(errorMessage, 'error');
                     }
                     return;
                 }
@@ -12149,7 +12175,7 @@ const AccountingApp = () => {
                 logActivity("تعديل", moduleName, `${updatedItem.description || updatedItem.amount || updatedItem.name || "سجل"}`);
 
                 if (!silent) {
-                    showToast(`تم تعديل السجل بنجاح!`, 'success');
+                    showToast('تم التعديل بنجاح', 'success');
                 }
 
                 if (collectionName === 'expenses' || collectionName === 'pendingExpenses') {
@@ -12198,11 +12224,14 @@ const AccountingApp = () => {
         }
 
         try {
+            console.log('📡 إرسال طلب حذف إلى الخادم...', { collectionName, id });
             await deleteRecordViaApi(collectionName, id);
+            console.log('✅ تم تنفيذ طلب الحذف على الخادم', { collectionName, id });
         } catch (error) {
-            console.error('Failed to delete record via API:', error);
+            const errorMessage = extractErrorMessage(error);
+            console.error('❌ فشل إرسال طلب الحذف إلى الخادم', { collectionName, id, error });
             if (showMessage) {
-                showToast('فشل في حذف السجل من الخادم. يرجى المحاولة مرة أخرى.', 'error');
+                showToast(errorMessage, 'error');
             }
             return;
         }
@@ -12273,7 +12302,7 @@ const AccountingApp = () => {
 
 
         if (showMessage) {
-            showToast('تم حذف السجل بنجاح.', 'warning');
+            showToast('تم حذف السجل بنجاح', 'warning');
         }
 
         await saveData(newData, { silent: !showMessage });
